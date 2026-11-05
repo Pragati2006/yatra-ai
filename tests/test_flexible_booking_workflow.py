@@ -18,13 +18,16 @@ Yatra Booking Agent Preference-Driven Recommendation and Confirmation Flow:
 """
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from backend.main import app
 from agents.orchestrator import coordinate_plan
 from agents.budget_engine import calculate_budget
 import agents.session_store as session_store
 
+
+VALID_DATE = (datetime.now().date() + timedelta(days=2)).isoformat()
+VALID_DATE_PLUS_1 = (datetime.now().date() + timedelta(days=3)).isoformat()
 
 class TestFlexibleBookingWorkflow(unittest.TestCase):
     @classmethod
@@ -37,7 +40,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
     def test_01_submitting_form_produces_complete_recommendation_automatically(self):
         """Verifies that submitting intake preferences produces transport, slot, hotel, itinerary, and budget in one shot."""
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi travelling to Katra on 2026-10-20 for 4 days with Normal Darshan by train with total budget of 15000, balanced pace, Standard stay"
+            "message": "2 pilgrims from Delhi travelling to Katra on " + VALID_DATE + " for 4 days with Normal Darshan by train with total budget of 15000, balanced pace, Standard stay"
         })
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -63,7 +66,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies that the consolidated plan output provides all fields required for the consolidated page."""
         plan_res = coordinate_plan({
             "origin": "Delhi",
-            "start_date": "2026-10-20",
+            "start_date": VALID_DATE,
             "days": 4,
             "pilgrims": 2,
             "mode": "train",
@@ -109,7 +112,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
     def test_03_recommended_selections_reflect_actual_backend_response(self):
         """Verifies that the recommended options are grounded in actual database inventory, not hardcoded dummy data."""
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi travelling on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Delhi travelling on " + VALID_DATE + " for 4 days by train"
         })
         data = resp.json()
         plan = data.get("plan", {})
@@ -136,7 +139,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies that unsupported departure hubs or missing inventory are handled honestly without fabrication."""
         # Unsupported origin
         resp_unsupported = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Kanyakumari travelling to Katra on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Kanyakumari travelling to Katra on " + VALID_DATE + " for 4 days by train"
         })
         self.assertEqual(resp_unsupported.status_code, 200)
         data = resp_unsupported.json()
@@ -170,7 +173,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies that a user can transition directly from recommendation to authorization and confirmation."""
         # Single search call
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Delhi on " + VALID_DATE + " for 4 days by train"
         })
         data = resp.json()
         session_id = data.get("session_id")
@@ -211,7 +214,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         # Initial plan
         plan_init = coordinate_plan({
             "origin": "Delhi",
-            "start_date": "2026-10-20",
+            "start_date": VALID_DATE,
             "days": 4,
             "pilgrims": 2,
             "mode": "train"
@@ -220,7 +223,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
 
         # Fetch alternative hotels from inventory
         hotel_resp = self.client.post("/api/yatra/accommodation", json={
-            "check_in_date": "2026-10-20",
+            "check_in_date": VALID_DATE,
             "category": "Mid-Range",
             "min_rooms": 1
         })
@@ -246,7 +249,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies budget updates deterministically when accommodation or sights change."""
         plan = coordinate_plan({
             "origin": "Delhi",
-            "start_date": "2026-10-20",
+            "start_date": VALID_DATE,
             "days": 4,
             "pilgrims": 2,
             "mode": "train"
@@ -275,7 +278,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies that changing transport preserves accommodation and itinerary if valid."""
         plan_res = coordinate_plan({
             "origin": "Delhi",
-            "start_date": "2026-10-20",
+            "start_date": VALID_DATE,
             "days": 4,
             "pilgrims": 2
         })
@@ -299,7 +302,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
     def test_09_previous_authorization_invalidated_after_material_plan_revision(self):
         """Verifies server invalidates stale authorization when a revision occurs."""
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Delhi on " + VALID_DATE + " for 4 days by train"
         })
         data = resp.json()
         session_id = data.get("session_id")
@@ -338,7 +341,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
     def test_10_mock_rpa_cannot_execute_before_explicit_authorization_of_current_plan(self):
         """Verifies mock RPA fails closed if explicit human authorization is absent."""
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Delhi on " + VALID_DATE + " for 4 days by train"
         })
         session_id = resp.json().get("session_id")
         plan = resp.json().get("plan", {})
@@ -365,7 +368,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
         """Verifies that conversational turns and structured form searches synchronize the same plan state."""
         # Turn 1 in chat
         chat_turn1 = self.client.post("/api/chat", json={
-            "message": "Plan a yatra from Delhi for 2 people on 2026-10-20 for 4 days by train"
+            "message": "Plan a yatra from Delhi for 2 people on " + VALID_DATE + " for 4 days by train"
         })
         self.assertEqual(chat_turn1.status_code, 200)
         data1 = chat_turn1.json()
@@ -391,7 +394,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
     def test_12_final_result_never_falsely_claims_real_world_booking(self):
         """Verifies clear disclaimers that bookings are simulated prototype demonstrations."""
         resp = self.client.post("/api/yatra/", json={
-            "message": "2 pilgrims from Delhi on 2026-10-20 for 4 days by train"
+            "message": "2 pilgrims from Delhi on " + VALID_DATE + " for 4 days by train"
         })
         data = resp.json()
         session_id = data.get("session_id")

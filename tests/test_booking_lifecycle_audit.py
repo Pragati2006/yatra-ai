@@ -28,17 +28,14 @@ import unittest
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    elif hasattr(sys.stdout, "buffer") and not sys.stdout.buffer.closed:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 except Exception:
     pass
 
-from fastapi.testclient import TestClient
 
+from fastapi.testclient import TestClient
 import db
 from backend.main import app
 from agents import orchestrator, session_store
-
 
 class TestBookingLifecycleAudit(unittest.TestCase):
 

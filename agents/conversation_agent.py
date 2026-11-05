@@ -148,20 +148,22 @@ _BOOKING_INFO_PATTERNS = [
 _BOOKING_INTENT_PATTERNS = [
     r"\b(i\s+want\s+to|help\s+me|let\s+me|can\s+i|ready\s+to|like\s+to|want\s+to|please)\b.{0,40}\b(proceed\s+with\s+(the\s+)?booking|continue\s+with\s+(the\s+)?booking|continue\s+to\s+booking|proceed\s+to\s+booking|book\s+(this|the)\s+(recommended|plan|yatra|trip|itinerary)|book\s+this|book\s+now)\b",
     r"\b(proceed\s+with\s+booking|proceed\s+to\s+booking|continue\s+with\s+booking|continue\s+to\s+booking|continue\s+with\s+the\s+booking)\b",
-    r"\b(book\s+this\s+(plan|itinerary|yatra|trip|recommendation|option)|book\s+the\s+recommended\s+(yatra|trip|plan|itinerary))\b",
+    r"\b(book\s+this\s+(plan|itinerary|yatra|trip|recommendation)|book\s+the\s+recommended\s+(yatra|trip|plan|itinerary))\b",
     r"\b(i\s+want\s+to\s+book|want\s+to\s+book\s+this|help\s+me\s+book|help\s+me\s+continue\s+with\s+the\s+booking)\b",
     r"\b(proceed\s+with\s+the\s+recommended\s+itinerary|proceed\s+with\s+the\s+recommended\s+yatra)\b",
 ]
 
 # Explicit Confirmation of Booking Authorization (only when user explicitly confirms)
 _BOOKING_CONFIRMATION_PATTERNS = [
-    r"^(yes,?\s*)?confirm\s+booking$",
-    r"^(yes,?\s*)?authorize\s+booking$",
-    r"^yes,?\s*(confirm|authorize)$",
-    r"^confirm\s+my\s+option$",
-    r"^yes,?\s*confirm\s+(trip|booking|plan)$",
-    r"^i\s+confirm(\s+booking)?$",
-    r"^execute\s+rpa$",
+    r"^(yes,?\s*)?confirm\s+booking\.?$",
+    r"^(yes,?\s*)?authorize\s+booking\.?$",
+    r"^yes,?\s*(confirm|authorize)\.?$",
+    r"^confirm\s+my\s+option\.?$",
+    r"^yes,?\s*confirm\s+(trip|booking|plan)\.?$",
+    r"^i\s+confirm(\s+booking)?\.?$",
+    r"^execute\s+rpa\.?$",
+    r"^(yes,?\s*)?proceed\.?$",
+    r"^book\s+(this\s+)?option(\s+\d+)?\.?$",
 ]
 
 # Legacy backward-compatible booking pattern list (strictly confirmation)

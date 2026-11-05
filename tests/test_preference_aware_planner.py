@@ -25,14 +25,12 @@ import unittest
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    elif hasattr(sys.stdout, "buffer") and not sys.stdout.buffer.closed:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 except Exception:
     pass
 
+
 import db
 from agents import itinerary_agent, orchestrator, session_store
-
 
 class TestPreferenceAwarePlanner(unittest.TestCase):
 

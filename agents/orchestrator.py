@@ -1382,7 +1382,8 @@ def handle_booking_authorization(
     )
     explicit_confirm_keywords = [
         "confirm booking", "yes, confirm", "yes confirm", "authorize booking",
-        "yes, authorize", "yes authorize", "yes, proceed with authorization", "i confirm"
+        "yes, authorize", "yes authorize", "yes, proceed with authorization", "i confirm",
+        "yes, proceed", "yes proceed", "confirm my option"
     ]
     has_confirm_keyword = any(w in t_lower for w in explicit_confirm_keywords) and not is_booking_intent
 

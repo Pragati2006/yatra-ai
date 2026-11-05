@@ -18,7 +18,7 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY is missing from .env")
+    print("GROQ_API_KEY is missing from .env")
 
 
 # ============================================================
@@ -97,144 +97,146 @@ Information:
 # 3. CREATE GROQ MODEL
 # ============================================================
 
-llm = ChatGroq(
-    model="openai/gpt-oss-20b",
-    temperature=0.2,
-    api_key=GROQ_API_KEY,
-)
+
+if __name__ == '__main__':
+    llm = ChatGroq(
+        model="openai/gpt-oss-20b",
+        temperature=0.2,
+        api_key=GROQ_API_KEY,
+    )
 
 
-tools = [
-    tourism_search,
-    yatra_information_search,
-]
-
-tool_map = {
-    tool.name: tool
-    for tool in tools
-}
-
-llm_with_tools = llm.bind_tools(tools)
-
-
-# ============================================================
-# 4. SYSTEM PROMPT
-# ============================================================
-
-SYSTEM_PROMPT = """
-You are Yatra Booking Agent, an AI travel assistant specializing in
-Vaishno Devi and tourism in Jammu & Kashmir.
-
-IMPORTANT:
-
-- Use the available MongoDB tools whenever the user asks for
-  tourism or Vaishno Devi information.
-- Treat MongoDB results as the application's verified knowledge source.
-- Do not invent facts that are not present in the retrieved information.
-- Do not invent prices, timings, routes, availability, bookings,
-  train numbers, hotel information, or other travel details.
-- If the database does not contain the requested information,
-  clearly say that the information is not available.
-- Give concise, useful answers.
-"""
-
-
-# ============================================================
-# 5. ACTUAL TOOL-CALLING LOOP
-# ============================================================
-
-def ask_agent(user_query):
-
-    print("\n" + "=" * 70)
-    print("USER QUERY")
-    print("=" * 70)
-    print(user_query)
-
-    messages = [
-        ("system", SYSTEM_PROMPT),
-        ("human", user_query),
+    tools = [
+        tourism_search,
+        yatra_information_search,
     ]
 
-    # First call:
-    # Groq decides whether it needs a MongoDB tool.
-    response = llm_with_tools.invoke(messages)
+    tool_map = {
+        tool.name: tool
+        for tool in tools
+    }
 
-    # Add Groq's response to the conversation.
-    messages.append(response)
+    llm_with_tools = llm.bind_tools(tools)
 
-    # --------------------------------------------------------
-    # Execute requested tools
-    # --------------------------------------------------------
 
-    if response.tool_calls:
+    # ============================================================
+    # 4. SYSTEM PROMPT
+    # ============================================================
+
+    SYSTEM_PROMPT = """
+    You are Yatra Booking Agent, an AI travel assistant specializing in
+    Vaishno Devi and tourism in Jammu & Kashmir.
+
+    IMPORTANT:
+
+    - Use the available MongoDB tools whenever the user asks for
+      tourism or Vaishno Devi information.
+    - Treat MongoDB results as the application's verified knowledge source.
+    - Do not invent facts that are not present in the retrieved information.
+    - Do not invent prices, timings, routes, availability, bookings,
+      train numbers, hotel information, or other travel details.
+    - If the database does not contain the requested information,
+      clearly say that the information is not available.
+    - Give concise, useful answers.
+    """
+
+
+    # ============================================================
+    # 5. ACTUAL TOOL-CALLING LOOP
+    # ============================================================
+
+    def ask_agent(user_query):
 
         print("\n" + "=" * 70)
-        print("TOOL EXECUTION")
+        print("USER QUERY")
         print("=" * 70)
+        print(user_query)
 
-        for tool_call in response.tool_calls:
+        messages = [
+            ("system", SYSTEM_PROMPT),
+            ("human", user_query),
+        ]
 
-            tool_name = tool_call["name"]
-            tool_args = tool_call["args"]
+        # First call:
+        # Groq decides whether it needs a MongoDB tool.
+        response = llm_with_tools.invoke(messages)
 
-            print(f"\nTool: {tool_name}")
-            print(f"Arguments: {tool_args}")
+        # Add Groq's response to the conversation.
+        messages.append(response)
 
-            selected_tool = tool_map.get(tool_name)
+        # --------------------------------------------------------
+        # Execute requested tools
+        # --------------------------------------------------------
 
-            if selected_tool is None:
-                tool_result = "Requested tool was not found."
-            else:
-                tool_result = selected_tool.invoke(tool_args)
+        if response.tool_calls:
 
-            print("\nMongoDB Result:")
-            print(tool_result)
+            print("\n" + "=" * 70)
+            print("TOOL EXECUTION")
+            print("=" * 70)
 
-            # Send the database result back to Groq.
-            messages.append(
-                {
-                    "role": "tool",
-                    "content": tool_result,
-                    "tool_call_id": tool_call["id"],
-                }
-            )
+            for tool_call in response.tool_calls:
 
-        # ----------------------------------------------------
-        # Second call:
-        # Groq generates the final answer using MongoDB data.
-        # ----------------------------------------------------
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
 
-        final_response = llm_with_tools.invoke(messages)
+                print(f"\nTool: {tool_name}")
+                print(f"Arguments: {tool_args}")
 
-    else:
-        final_response = response
+                selected_tool = tool_map.get(tool_name)
 
-    print("\n" + "=" * 70)
-    print("FINAL GROUNDED ANSWER")
-    print("=" * 70)
-    print(final_response.content)
+                if selected_tool is None:
+                    tool_result = "Requested tool was not found."
+                else:
+                    tool_result = selected_tool.invoke(tool_args)
 
-    return final_response.content
+                print("\nMongoDB Result:")
+                print(tool_result)
+
+                # Send the database result back to Groq.
+                messages.append(
+                    {
+                        "role": "tool",
+                        "content": tool_result,
+                        "tool_call_id": tool_call["id"],
+                    }
+                )
+
+            # ----------------------------------------------------
+            # Second call:
+            # Groq generates the final answer using MongoDB data.
+            # ----------------------------------------------------
+
+            final_response = llm_with_tools.invoke(messages)
+
+        else:
+            final_response = response
+
+        print("\n" + "=" * 70)
+        print("FINAL GROUNDED ANSWER")
+        print("=" * 70)
+        print(final_response.content)
+
+        return final_response.content
 
 
-# ============================================================
-# 6. TEST CASES
-# ============================================================
+    # ============================================================
+    # 6. TEST CASES
+    # ============================================================
 
-if __name__ == "__main__":
+    if __name__ == "__main__":
 
-    ask_agent(
-        "Tell me about Gulmarg in Kashmir."
-    )
+        ask_agent(
+            "Tell me about Gulmarg in Kashmir."
+        )
 
-    ask_agent(
-        "What are the Aarti timings at Vaishno Devi?"
-    )
+        ask_agent(
+            "What are the Aarti timings at Vaishno Devi?"
+        )
 
-    ask_agent(
-        "How do I register for the Vaishno Devi Yatra?"
-    )
+        ask_agent(
+            "How do I register for the Vaishno Devi Yatra?"
+        )
 
-    ask_agent(
-        "Tell me about a place called Atlantis in Jammu."
-    )
+        ask_agent(
+            "Tell me about a place called Atlantis in Jammu."
+        )

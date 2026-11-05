@@ -19,3 +19,4 @@ SESSIONS_DB_PATH = Path(os.getenv("SESSIONS_DB_PATH", DATA_DIR / "sessions.db"))
 
 # Ensure DATA_DIR exists
 os.makedirs(DATA_DIR, exist_ok=True)
+

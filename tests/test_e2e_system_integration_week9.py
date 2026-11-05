@@ -47,6 +47,8 @@ import agents.coordinator as coordinator
 client = TestClient(app)
 
 
+VALID_DATE = (datetime.now(timezone.utc).date() + timedelta(days=2)).isoformat()
+
 class TestWeek9E2ESystemIntegration(unittest.TestCase):
     """Week 9 End-to-End System Integration Test Suite covering all 18 required scenarios."""
 
@@ -246,7 +248,7 @@ class TestWeek9E2ESystemIntegration(unittest.TestCase):
         resp = client.post(
             "/api/chat",
             json={
-                "message": "Plan a 4-day trip for 2 people from Delhi to Katra by train on 2026-10-20 with luxury hotel and VIP darshan",
+                "message": "Plan a 4-day trip for 2 people from Delhi to Katra by train on " + VALID_DATE + " with luxury hotel and VIP darshan",
                 "session_id": self.session_id,
             },
         )
@@ -268,7 +270,7 @@ class TestWeek9E2ESystemIntegration(unittest.TestCase):
         resp = client.post(
             "/api/chat",
             json={
-                "message": "Plan a yatra from Delhi for 2 people on 2026-10-20 with a total budget of ₹15,000",
+                "message": "Plan a yatra from Delhi for 2 people on " + VALID_DATE + " with a total budget of ₹15,000",
                 "session_id": self.session_id,
             },
         )

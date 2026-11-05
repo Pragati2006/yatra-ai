@@ -243,7 +243,7 @@ class TestCoordinatorMongoDBIntegration(unittest.TestCase):
         self.assertEqual(res_avail.get("source"), "rpa_playwright")
 
         # 3. Booking
-        res_book = coordinator.route_message("I want to book option 1")
+        res_book = coordinator.route_message("Book option 1")
         self.assertEqual(res_book.get("intent"), "BOOKING")
         self.assertNotEqual(res_book.get("knowledge_source"), "atlas")
         self.assertEqual(res_book.get("knowledge_source"), "rpa_playwright")

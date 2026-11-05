@@ -12,15 +12,13 @@ import unittest
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    elif hasattr(sys.stdout, "buffer") and not sys.stdout.buffer.closed:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 except Exception:
     pass
 
+
+import weather
 from agents import coordinator, tools, itinerary_agent, recommendation_agent, rpa_agent, knowledge_agent, conversation_agent
 import agent as legacy_agent
-import weather
-
 
 class TestPhaseG(unittest.TestCase):
 

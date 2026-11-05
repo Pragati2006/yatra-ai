@@ -27,14 +27,12 @@ import unittest
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    elif hasattr(sys.stdout, "buffer") and not sys.stdout.buffer.closed:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 except Exception:
     pass
 
+
 import db
 from agents import budget_engine, coordinator, orchestrator, session_store
-
 
 class TestOrchestrator(unittest.TestCase):
 
