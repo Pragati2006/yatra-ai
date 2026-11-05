@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
-import Home from './pages/Home';
+import ChatHeader from './components/chat/ChatHeader';
+import HistoryDrawer from './components/chat/HistoryDrawer';
+import AIChat from './components/AIChat';
 import YatraBooking from './pages/YatraBooking';
 import SightseeingBrowser from './components/SightseeingBrowser';
-import AIChat from './components/AIChat';
 import AuthModal from './components/AuthModal';
 import SavedTripsModal from './components/SavedTripsModal';
 import { getAuthMe, logout, setAuthToken } from './services/api';
 import './App.css';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'booking' | 'sightseeing' | 'assistant'
+  // Conversational Assistant is the primary default experience
+  const [activeTab, setActiveTab] = useState('assistant'); // 'assistant' | 'booking' | 'sightseeing'
   const [bookingParams, setBookingParams] = useState(null);
   const [assistantInitialQuery, setAssistantInitialQuery] = useState(null);
   const [activeConversation, setActiveConversation] = useState(null);
   const [hasMountedBooking, setHasMountedBooking] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Week 9: Optional Passwordless Authentication & User State (Default Guest Mode)
+  // Optional Passwordless Authentication & User State (Default Guest Mode)
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSavedTripsModal, setShowSavedTripsModal] = useState(false);
@@ -35,7 +37,9 @@ export default function App() {
       .catch(() => {
         // Unauthenticated guest is normal; do not show error
       });
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -62,67 +66,139 @@ export default function App() {
   const handleExplorePlaceQuery = (query) => {
     setAssistantInitialQuery(query);
     setActiveTab('assistant');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenConversation = (convData) => {
     setActiveConversation(convData);
     setShowSavedTripsModal(false);
+    setIsHistoryOpen(false);
     setActiveTab('assistant');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleStartFreshChat = () => {
+    setActiveConversation(null);
+    setAssistantInitialQuery(null);
+    setActiveTab('assistant');
+    try {
+      const newSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      sessionStorage.setItem('yatra_session_id', newSid);
+      sessionStorage.removeItem('yatra_chat_messages');
+      sessionStorage.removeItem('yatra_chat_messages_session_id');
+    } catch {
+      // ignore
+    }
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top Navbar */}
-      <div className="container">
-        <Navbar
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            if (tab === 'booking') {
-              setHasMountedBooking(true);
-              setActiveTab('booking');
-            } else {
-              setActiveTab(tab);
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          user={currentUser}
-          onOpenAuthModal={() => setShowAuthModal(true)}
-          onOpenSavedTrips={() => setShowSavedTripsModal(true)}
-          onLogout={handleLogout}
-        />
-      </div>
+    <div
+      style={{
+        height: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        background: 'var(--bg-main, #FDFBF7)',
+      }}
+    >
+      {/* Top Header */}
+      <ChatHeader
+        activeTab={activeTab === 'home' ? 'assistant' : activeTab}
+        setActiveTab={(tab) => {
+          if (tab === 'booking') {
+            setHasMountedBooking(true);
+            setActiveTab('booking');
+          } else if (tab === 'home' || tab === 'assistant') {
+            setActiveTab('assistant');
+          } else {
+            setActiveTab(tab);
+          }
+        }}
+        user={currentUser}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenSavedTrips={() => setShowSavedTripsModal(true)}
+        onLogout={handleLogout}
+        onToggleHistory={() => setIsHistoryOpen((prev) => !prev)}
+        onStartNewChat={handleStartFreshChat}
+        isHistoryOpen={isHistoryOpen}
+      />
 
-      {/* Main View Container */}
-      <main className="container" style={{ flex: 1 }}>
-        {activeTab === 'home' && (
-          <Home
-            onStartBooking={handleStartBooking}
-            onExplorePlaceQuery={handleExplorePlaceQuery}
-            onViewAllDestinations={() => {
-              setActiveTab('sightseeing');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+      {/* Main Conversational Workspace */}
+      <main
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          overflow: activeTab === 'assistant' ? 'hidden' : 'auto',
+        }}
+      >
+        {/* 1. Primary AI Assistant View (Full-Screen Conversational Experience) */}
+        {(activeTab === 'assistant' || activeTab === 'home') && (
+          <AIChat
+            initialMessage={assistantInitialQuery}
+            loadedConversation={activeConversation}
+            onClearLoadedConversation={() => setActiveConversation(null)}
+            sharedSessionId={activeConversation?.conversation_id || null}
+            onNavigateToBooking={(payload) => handleStartBooking(payload)}
+            onExplorePlace={(placeName) => handleExplorePlaceQuery(`Tell me about ${placeName}`)}
           />
         )}
 
+        {/* 2. Guided Darshan Booking Experience */}
         {(hasMountedBooking || activeTab === 'booking') && (
-          <div style={{ display: activeTab === 'booking' ? 'block' : 'none' }}>
+          <div
+            style={{
+              display: activeTab === 'booking' ? 'block' : 'none',
+              padding: '1rem',
+              maxWidth: '1200px',
+              margin: '0 auto',
+              width: '100%',
+            }}
+          >
+            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('assistant')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+              >
+                <span>←</span>
+                <span>Return to Yatra AI Companion</span>
+              </button>
+            </div>
             <YatraBooking
               initialSearchParams={bookingParams}
               currentUser={currentUser}
               onRequireAuth={() => setShowAuthModal(true)}
               onReturnHome={() => {
-                setActiveTab('home');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setActiveTab('assistant');
               }}
             />
           </div>
         )}
 
+        {/* 3. Sightseeing Destinations Catalog */}
         {activeTab === 'sightseeing' && (
-          <div style={{ paddingTop: '1rem', paddingBottom: '3rem' }}>
+          <div
+            style={{
+              padding: '1rem',
+              maxWidth: '1200px',
+              margin: '0 auto',
+              width: '100%',
+              paddingBottom: '3rem',
+            }}
+          >
+            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('assistant')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+              >
+                <span>←</span>
+                <span>Return to Yatra AI Companion</span>
+              </button>
+            </div>
             <SightseeingBrowser
               isStandalone={true}
               onExplorePlace={handleExplorePlaceQuery}
@@ -133,100 +209,25 @@ export default function App() {
                 });
               }}
               onBack={() => {
-                setActiveTab('home');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setActiveTab('assistant');
               }}
-            />
-          </div>
-        )}
-
-        {activeTab === 'assistant' && (
-          <div style={{ maxWidth: '980px', margin: '0 auto', paddingTop: '1rem', paddingBottom: '3rem' }}>
-            <div style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.85rem', fontWeight: 800, color: 'var(--burgundy)' }}>
-                🔱 Vaishno Devi AI Assistant
-              </div>
-              <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                Ask any question about yatra planning, live transport availability, Katra weather, or itinerary updates.
-              </div>
-            </div>
-
-            <AIChat
-              initialMessage={assistantInitialQuery}
-              loadedConversation={activeConversation}
-              onClearLoadedConversation={() => setActiveConversation(null)}
-              sharedSessionId={activeConversation?.conversation_id || null}
-              onNavigateToBooking={(payload) => handleStartBooking(payload)}
-              onExplorePlace={(placeName) => handleExplorePlaceQuery(`Tell me about ${placeName}`)}
             />
           </div>
         )}
       </main>
 
-      {/* Luxury Footer */}
-      <footer style={{
-        background: 'linear-gradient(135deg, #3D0810 0%, #2D050B 100%)',
-        borderTop: '2px solid var(--gold-primary)',
-        color: '#F5ECDA',
-        padding: '2.5rem 1rem 1.5rem',
-        marginTop: 'auto',
-      }}>
-        <div className="container">
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '2rem',
-            marginBottom: '2rem',
-          }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '1.4rem' }}>🔱</span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.1rem', color: '#FFFFFF' }}>
-                  VAISHNO DEVI YATRA
-                </span>
-              </div>
-              <p style={{ fontSize: '0.82rem', color: '#D6C8B2', lineHeight: 1.5 }}>
-                An intelligent multi-agent pilgrimage & tourism platform powered by LangChain, MongoDB, and Playwright browser RPA.
-              </p>
-            </div>
+      {/* Collapsible History Drawer */}
+      <HistoryDrawer
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectConversation={handleOpenConversation}
+        onStartNewChat={handleStartFreshChat}
+        user={currentUser}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        activeSessionId={activeConversation?.conversation_id || null}
+      />
 
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.95rem', color: '#FFFFFF', marginBottom: '10px' }}>
-                Quick Navigation
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem' }}>
-                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('home'); }} style={{ color: '#E5D2AD', textDecoration: 'none' }}>Home</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); handleStartBooking(); }} style={{ color: '#E5D2AD', textDecoration: 'none' }}>Plan Darshan</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('sightseeing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ color: '#E5D2AD', textDecoration: 'none' }}>29 Sightseeing Destinations</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('assistant'); }} style={{ color: '#E5D2AD', textDecoration: 'none' }}>AI Companion</a>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.95rem', color: '#FFFFFF', marginBottom: '10px' }}>
-                Emergency & Helpline
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#D6C8B2', lineHeight: 1.6 }}>
-                📞 Shrine Board Call Centre: 01991-232075<br />
-                🚨 Yatra Medical Aid: 01991-232115<br />
-                📍 Katra Main Counter: Central Bus Stand, Katra
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            borderTop: '1px solid rgba(229, 210, 173, 0.2)',
-            paddingTop: '1.25rem',
-            textAlign: 'center',
-            fontSize: '0.78rem',
-            color: '#A89984',
-          }}>
-            © {CURRENT_YEAR} Maa Vaishno Devi Yatra AI Platform. All rights reserved. Jai Mata Di.
-          </div>
-        </div>
-      </footer>
-
-      {/* Week 9: Optional Passwordless Auth Modal */}
+      {/* Passwordless Email Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
@@ -236,7 +237,7 @@ export default function App() {
         }}
       />
 
-      {/* Week 9: Authenticated User Saved Trips Modal */}
+      {/* Authenticated User Saved Trips Modal (Account, Bookings, Itineraries, Conversations) */}
       <SavedTripsModal
         isOpen={showSavedTripsModal}
         onClose={() => setShowSavedTripsModal(false)}
@@ -252,5 +253,3 @@ export default function App() {
     </div>
   );
 }
-
-const CURRENT_YEAR = new Date().getFullYear();

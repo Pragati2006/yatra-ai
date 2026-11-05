@@ -44,8 +44,8 @@ class TestBrowserE2EJourney(unittest.TestCase):
         fatal_errors = [e for e in self.console_errors if "Failed to load resource" not in e and "favicon" not in e]
         self.assertEqual(len(fatal_errors), 0, f"Found console errors on home page: {fatal_errors}")
 
-        # Locate the AI Companion input on the Home page
-        chat_input = page.locator("input[placeholder*='Ask Yatra AI']")
+        # Locate the AI Companion input on the Home page (supports multiline textarea or input)
+        chat_input = page.locator("textarea[placeholder*='Ask Yatra AI'], input[placeholder*='Ask Yatra AI']").first
         self.assertTrue(chat_input.is_visible(), "AI Companion chat input should be visible on Home page")
 
         # =========================================================================

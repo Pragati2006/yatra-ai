@@ -524,6 +524,20 @@ export default function RecommendedYatra({
               ✓ Confirm Selections & Continue ➔
             </button>
 
+            <button
+              type="button"
+              data-testid="proceed-to-review-btn"
+              onClick={onConfirmSelections}
+              className="btn btn-outline"
+              style={{
+                padding: '0.8rem 1.6rem',
+                fontSize: '0.96rem',
+                fontWeight: 700,
+              }}
+            >
+              Proceed to Review ➔
+            </button>
+
             {/* Path B */}
             <button
               type="button"

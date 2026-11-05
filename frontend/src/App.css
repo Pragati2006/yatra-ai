@@ -381,3 +381,36 @@ button:focus-visible {
 }
 
 
+
+/* ==========================================================================
+   Phase 5 Conversational Interface Enhancements
+   ========================================================================== */
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Custom sleek scrollbar for chat stream */
+[data-testid='chat-messages-stream']::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-testid='chat-messages-stream']::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-testid='chat-messages-stream']::-webkit-scrollbar-thumb {
+  background: var(--gold-border, #E5D2AD);
+  border-radius: 999px;
+}
+
+[data-testid='chat-messages-stream']::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary, #B8860B);
+}
+
+/* Markdown table styling */
+.chat-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-border) transparent;
+}
