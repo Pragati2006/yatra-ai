@@ -1,0 +1,69 @@
+# ==============================================================================
+# Yatra AI - Git Ignore Configuration
+# ==============================================================================
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# SQLite Databases & Mutable Live Datasets (Preserves schema & static templates only)
+*.db
+*.sqlite3
+data/*.db
+data/*_live.csv
+data/bookings.csv
+
+# Secrets, Credentials & Local Environment Overrides (NEVER COMMIT REAL SECRETS)
+.env
+.env.local
+.env.*.local
+*.env
+*.pem
+*.key
+*.cert
+credentials.json
+secrets.toml
+
+# Node.js & Frontend Build Outputs
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+.vite-temp/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Android / Capacitor Native Artifacts
+android/app/build/
+android/.gradle/
+android/build/
+android/captures/
+.gradle/
+
+# Scratch & Temporary Testing Artifacts
+scratch/
+evidence_audit/
+evidence_redesign/
+*.log
+
+# Operating System & IDE Specific
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
