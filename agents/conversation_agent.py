@@ -78,13 +78,25 @@ _TOURISM_QUESTION_PATTERNS = [
     r"\b(bhairavnath|ardhkuwari|charan paduka|ban ganga|shiv khori|patnitop|sanasar|mansar|bahu fort|amar mahal|raghunath|peer kho|himkoti|baba dhansar|jhajjar kotli|nau devi)\b",
     r"\b(vaishno devi history|vaishno devi significance|vaishno devi legend|about vaishno devi|what is vaishno devi|what is (the )?(vaishno devi )?yatra|tell me about (the )?yatra)\b",
     r"\b(how far|what (can|to) (i|we) do|tell me more|how to reach|how do i reach|what is the distance|where is it|where located|tell me about it)\b",
+    r"\b(suitable for|safe for|can.*visit|can.*go|is it (safe|possible|difficult|steep|easy)|how difficult|trek difficulty)\b",
+    r"\b(elderly|senior citizen|seniors?|parents?|old age|aged|handicapped|disabled|wheelchair|wheelchairs)\b",
+    r"\b(battery car|battery cars|electric vehicle|palki|palkis|palanquin|pithoo|pithoos|porter|ropeway|cable car|helicopter)\b",
+    r"\b(best time|best month|when to visit|when should|rush|crowd|off season|peak season|navratri|winter|monsoon|snow|snowfall)\b",
+    r"\b(night trek|trek at night|safe at night|safe for women|solo travel|dress code|clothes|clothing|what to wear)\b",
+    r"\b(langar|langars|bhojanalaya|food|eating|meals?|drinking water|medical|dispensary|oxygen|locker|lockers|cloakroom|luggage|dormitory|stay at bhawan)\b",
+    r"\b(with (kids|children|baby|infant|toddler|family)|pram|stroller)\b",
+    r"\b(photo id|documents?|which id|id card|identity proof|aadhaar|passport)\b",
+    r"\b(difference between|traditional track|tarakote marg|which track|which trail)\b",
+    r"\b(prohibited|banned|allowed|not allowed|forbidden|rules inside|restrictions|items strictly prohibited|items prohibited|can i carry|can we carry|is.*allowed|what items)\b",
+    r"\b(python|script|bypass|hack|scrape)\b",
 ]
 
-# Words after "from" that are destinations or grammar, not origin cities.
+# Words after "from" that are destinations, trek landmarks or grammar, not origin cities.
 _FROM_ORIGIN_STOPWORDS = {
     "the", "a", "an", "my", "our", "here", "there", "home", "katra", "jammu",
     "bhawan", "next", "this", "last", "for", "with", "by", "in", "during",
-    "and", "to", "or", "there", "here",
+    "and", "to", "or", "there", "here", "banganga", "ban ganga", "ardhkuwari",
+    "adhkuwari", "sanjichhat", "bhairon", "bhairavnath", "himkoti", "tarakote",
 }
 
 # Signals that are STRONG booking/planning intent — override tourism detection
@@ -95,6 +107,7 @@ _TRIP_PLANNING_PATTERNS = [
     r"\b(vip darshan|helicopter darshan|normal darshan)\b",
     r"\b(travelling|traveling|trip to|going to|plan.*yatra|i want.*travel|i want.*darshan)\b",
     r"\b(proceed|confirm|authorise|authorize|complete booking)\b",
+    r"\b(change\s+(?:destination|origin|starting\s+city|departure|mode|dates?|duration|pax|pilgrims?|hotel|stay)|switch\s+to\s+(?:train|flight|bus)|add\s+(?:one|two|\d+)\s+more\s+pilgrim)\b",
 ]
 
 
@@ -139,7 +152,7 @@ _WEATHER_PATTERNS = [
 _BOOKING_INFO_PATTERNS = [
     r"\bhow\s+(can\s+i|do\s+i|to|should\s+i)\s+(book|reserve)\b",
     r"\b(what\s+is|explain|tell\s+me)\s+(about\s+)?(the\s+)?booking\s+(process|procedure|steps|method|flow)\b",
-    r"\bhow\s+does\s+booking\s+work\b",
+    r"\bhow\s+does\s+(the\s+)?booking(\s+process)?\s+work\b",
     r"\bwhere\s+can\s+i\s+book\b",
 ]
 
@@ -168,6 +181,57 @@ _BOOKING_CONFIRMATION_PATTERNS = [
 
 # Legacy backward-compatible booking pattern list (strictly confirmation)
 _BOOKING_PATTERNS = _BOOKING_CONFIRMATION_PATTERNS
+
+
+def _is_pure_greeting(tl: str) -> bool:
+    if not tl:
+        return False
+    t_clean = re.sub(r"[^\w\s]", " ", tl).strip()
+    words = t_clean.split()
+    if not words:
+        return False
+    greeting_vocab = {
+        "jai", "mata", "di", "ji", "maata", "bhole", "nath", "hello", "hi",
+        "hey", "namaste", "namaskar", "pranam", "good", "morning", "evening",
+        "afternoon", "hare", "krishna", "ram", "shree", "radhe", "har", "mahadev",
+        "there", "assistant", "yatra", "ai"
+    }
+    planning_triggers = {
+        "plan", "planning", "book", "booking", "trip", "hotel", "train", "flight",
+        "bus", "weather", "route", "track", "stay", "darshan", "cost", "budget",
+        "itinerary", "days", "pax", "people", "adults", "from"
+    }
+    if any(w in planning_triggers for w in words):
+        return False
+    return all(w in greeting_vocab for w in words)
+
+
+def _is_pure_acknowledgment(tl: str) -> bool:
+    if not tl:
+        return False
+    t_clean = re.sub(r"[^\w\s]", " ", tl).strip()
+    words = t_clean.split()
+    if not words:
+        return False
+    ack_vocab = {
+        "thank", "you", "so", "much", "very", "a", "lot", "thanks", "dhanyawad",
+        "shukriya", "ok", "okay", "got", "it", "understood", "alright", "noted",
+        "perfect", "great", "nice", "fine", "sure", "sounds", "good", "for", "the", "help", "ji"
+    }
+    planning_triggers = {
+        "plan", "planning", "book", "booking", "trip", "hotel", "train", "flight",
+        "bus", "weather", "route", "track", "stay", "darshan", "cost", "budget"
+    }
+    if any(w in planning_triggers for w in words):
+        return False
+    return all(w in ack_vocab for w in words)
+
+
+def _is_pure_help(tl: str) -> bool:
+    if not tl:
+        return False
+    t_clean = re.sub(r"[^\w\s]", " ", tl).strip()
+    return t_clean in ("help", "menu", "options", "what can you do", "features", "how can you help")
 
 
 def detect_intent(user_text):
@@ -199,7 +263,15 @@ def detect_intent(user_text):
         if re.search(pat, tl):
             return "BOOKING"
 
-    # 2. Check for weather intent
+    # 3.5 Check for comprehensive trip planning requests before single-domain checks
+    for pat in (
+        r"\b(help\s+me\s+plan|plan\s+(a|our|my)|planning\s+(a|our|my)|plan\s+this)\b",
+        r"\b(plan.*trip|planning.*trip|plan.*pilgrimage|planning.*pilgrimage|plan.*yatra|planning.*yatra)\b",
+    ):
+        if re.search(pat, tl):
+            return "TRIP_PLANNING"
+
+    # 4. Check for weather intent
     for pat in _WEATHER_PATTERNS:
         if re.search(pat, tl):
             return "WEATHER"
@@ -226,6 +298,14 @@ def detect_intent(user_text):
         if re.search(pat, tl):
             return "TOURISM"
 
+    # 6.5 Fast-path: Greetings, acknowledgments, help
+    if _is_pure_greeting(tl):
+        return "GREETING"
+    if _is_pure_acknowledgment(tl):
+        return "ACKNOWLEDGMENT"
+    if _is_pure_help(tl):
+        return "HELP"
+
     # 7. Default — treat as trip planning (preserves prior behaviour)
     return "UNKNOWN"
 
@@ -246,7 +326,7 @@ def parse_and_validate_yatra_date(text: str, context: Optional[Dict[str, Any]] =
     """
     Extracts and validates a date from natural-language user query.
     Returns: (iso_date, raw_matched_str, is_missing, is_invalid, error_reason)
-    
+
     Rules:
     1. Converts understandable natural-language dates to ISO format (YYYY-MM-DD).
     2. Validates calendar correctness (e.g. 2026-02-31 is invalid).
@@ -697,7 +777,7 @@ def format_tourism_reply(tourism_result):
                 f"• **Path:** {route.get('path', '')}\n"
                 f"• **Details:** {route.get('notes', '')}"
             )
-        parts.append("_Would you like to check Aarti timings or places to visit along the trek route?_")
+
         return "\n\n".join(parts)
 
     # 5. Helpline
@@ -723,7 +803,7 @@ def format_tourism_reply(tourism_result):
             parts.append(f"**{section['name']}**\n{section['historical_background']}")
         if not sections:
             parts.append("I don't have a standalone Vaishno Devi history article in the current knowledge set.")
-        parts.append("\n_Would you like to know more about Bhairavnath or Ardhkuwari Cave?_")
+
         return "\n\n".join(parts)
 
     # 7. Nearby Places (Concise, no dump)
@@ -740,7 +820,7 @@ def format_tourism_reply(tourism_result):
         lines.append(
             "\n**Local Travel Note:** Private taxis or auto-rickshaws are readily available in Katra town for nearby temples and nature spots.\n"
         )
-        lines.append("_Would you like detailed information on any specific place above, or help planning your travel?_")
+
         return "\n\n".join(lines)
 
     # 8. Single Place / Place Follow-up Question
@@ -775,7 +855,7 @@ def format_tourism_reply(tourism_result):
                 f"• **{route_pos_label}:** {route_pos}\n"
                 f"• **Local Travel Note:** {travel_note}\n\n"
                 f"**Overview:** {p.get('description', '')}\n\n"
-                f"_Would you like to know what to do at {p['name']}, or view other nearby places?_"
+                ''
             )
 
         if is_followup and re.search(r"\b(what (can|to) (i|we) do|activities|things to do|see)\b", query):
@@ -789,7 +869,7 @@ def format_tourism_reply(tourism_result):
                 f"• **Timings:** {p.get('timings', 'Not confirmed')}\n"
                 f"• **Entry Fee:** {p.get('entry_fee', 'Free')}\n"
                 f"• **Distance:** {p.get('distance', 'N/A')}\n\n"
-                f"_Would you like to know how far {p['name']} is, or ask about another place?_"
+                ''
             )
 
         return (
@@ -807,7 +887,7 @@ def format_tourism_reply(tourism_result):
             f"• **Entry Fee:** {p.get('entry_fee', 'Free')}\n"
             f"• **Local Travel:** {travel_note}\n"
             f"• **Video Guide:** [Watch Video Guide]({p.get('video_search', '#')})\n\n"
-            f"_Would you like to ask about distance or activities for {p['name']}, or search travel options to Katra?_"
+            ''
         )
 
     # 9. Fallback
@@ -868,4 +948,3 @@ Keep replies short (2-3 sentences), naturally include a respectful devotional to
         temperature=0.3,
     )
     return resp.choices[0].message.content.strip()
-

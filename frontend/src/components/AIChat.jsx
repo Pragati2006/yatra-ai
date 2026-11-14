@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { sendChat, getChatHistory } from '../services/api';
+import { MessageSquare, AlertTriangle, Sparkles } from 'lucide-react';
+import { sendChat, streamChat, getChatHistory } from '../services/api';
 import WelcomeScreen from './chat/WelcomeScreen';
 import MessageItem from './chat/MessageItem';
 import MessageComposer from './chat/MessageComposer';
@@ -7,7 +8,7 @@ import MessageComposer from './chat/MessageComposer';
 const DEFAULT_GREETING = {
   id: 'default-greeting',
   role: 'assistant',
-  content: '🙏 **Jai Mata Di!** Welcome to **Yatra AI**. How may I assist you with your sacred yatra planning, travel routes, weather, accommodation, or darshan booking assistance?',
+  content: '**Jai Mata Di!** Welcome to **Yatra AI**. How may I assist you with your sacred yatra planning, travel routes, weather, accommodation, or darshan booking assistance?',
   created_at: null,
 };
 
@@ -86,7 +87,7 @@ export default function AIChat({
     setChatState((prev) => ({
       ...prev,
       plan_version: sharedPlanVersion || prev.plan_version,
-      current_request: sharedTripRequest ? { ...(prev.current_request || {}), ...sharedTripRequest } : prev.current_request,
+      current_request: sharedTripRequest ? { ...prev.current_request, ...sharedTripRequest } : prev.current_request,
     }));
   }
 
@@ -127,7 +128,7 @@ export default function AIChat({
         ...prev,
         session_id: sharedSessionId,
         plan_version: sharedPlanVersion || 1,
-        current_request: sharedTripRequest ? { ...(prev.current_request || {}), ...sharedTripRequest } : null,
+        current_request: sharedTripRequest ? { ...prev.current_request, ...sharedTripRequest } : null,
         current_itinerary: null,
         feasible_places: [],
         infeasible_places: [],
@@ -183,6 +184,15 @@ export default function AIChat({
               itinerary: meta.itinerary || meta.plan?.itinerary || null,
               feasible_places: meta.feasible_places || [],
               infeasible_places: meta.infeasible_places || [],
+              knowledge_sources: meta.knowledge_sources || null,
+              source_provenance: meta.source_provenance || meta.data_provenance || null,
+              data_provenance: meta.data_provenance || meta.source_provenance || null,
+              live_sources: meta.live_sources || null,
+              is_cached: Boolean(meta.is_cached),
+              tool_executions: meta.tool_executions || null,
+              partial_failure: Boolean(meta.partial_failure),
+              execution_mode: meta.execution_mode || null,
+              weather: meta.weather || meta.live_weather || null,
               created_at: m.created_at,
               persisted: true,
               isPending: false,
@@ -266,6 +276,15 @@ export default function AIChat({
         itinerary: m.itinerary || meta.itinerary || meta.plan?.itinerary || null,
         feasible_places: m.feasible_places || meta.feasible_places || [],
         infeasible_places: m.infeasible_places || meta.infeasible_places || [],
+        knowledge_sources: m.knowledge_sources || meta.knowledge_sources || null,
+        source_provenance: m.source_provenance || meta.source_provenance || m.data_provenance || meta.data_provenance || null,
+        data_provenance: m.data_provenance || meta.data_provenance || m.source_provenance || meta.source_provenance || null,
+        live_sources: m.live_sources || meta.live_sources || null,
+        is_cached: Boolean(m.is_cached !== undefined ? m.is_cached : meta.is_cached),
+        tool_executions: m.tool_executions || meta.tool_executions || null,
+        partial_failure: Boolean(m.partial_failure !== undefined ? m.partial_failure : meta.partial_failure),
+        execution_mode: m.execution_mode || meta.execution_mode || null,
+        weather: m.weather || meta.weather || null,
         created_at: m.created_at || getNowIsoString(),
         persisted: true,
         isPending: false,
@@ -368,23 +387,68 @@ export default function AIChat({
     setLoading(true);
 
     try {
-      const data = await sendChat({
-        message: text,
-        session_id: chatState.session_id,
-        current_request: chatState.current_request,
-        current_itinerary: chatState.current_itinerary,
-        last_tourism_place: chatState.last_tourism_place,
-        last_itinerary_context: chatState.last_itinerary_context,
-        pending_options: chatState.pending_options,
-      });
+      const assistantMsgId = createLocalMessageId();
+      let streamedText = '';
+      let hasStreamedToken = false;
+
+      let data;
+      try {
+        data = await streamChat(
+          {
+            message: text,
+            session_id: chatState.session_id,
+            current_request: chatState.current_request,
+            current_itinerary: chatState.current_itinerary,
+            last_tourism_place: chatState.last_tourism_place,
+            last_itinerary_context: chatState.last_itinerary_context,
+            pending_options: chatState.pending_options,
+          },
+          {
+            onToken: (chunk) => {
+              streamedText += chunk;
+              if (!hasStreamedToken) {
+                hasStreamedToken = true;
+                setLoading(false);
+                setMessages((prev) => [
+                  ...prev.map((m) => (m.id === userMsg.id ? { ...m, isPending: false } : m)),
+                  {
+                    id: assistantMsgId,
+                    role: 'assistant',
+                    content: streamedText,
+                    isStreaming: true,
+                    created_at: getNowIsoString(),
+                    persisted: false,
+                    isPending: false,
+                  },
+                ]);
+              } else {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantMsgId ? { ...m, content: streamedText } : m))
+                );
+              }
+            },
+          }
+        );
+      } catch (streamErr) {
+        console.warn('Stream failed or unavailable, falling back to POST /api/chat:', streamErr);
+        data = await sendChat({
+          message: text,
+          session_id: chatState.session_id,
+          current_request: chatState.current_request,
+          current_itinerary: chatState.current_itinerary,
+          last_tourism_place: chatState.last_tourism_place,
+          last_itinerary_context: chatState.last_itinerary_context,
+          pending_options: chatState.pending_options,
+        });
+      }
 
       const feasiblePlaces = data.feasible_places || data.plan?.feasible_places || [];
       const infeasiblePlaces = data.infeasible_places || data.plan?.infeasible_places || [];
 
       const assistantMsg = {
-        id: createLocalMessageId(),
+        id: assistantMsgId,
         role: 'assistant',
-        content: data.reply || '🙏 Jai Mata Di! How else can I assist your sacred pilgrimage?',
+        content: data.reply || streamedText || 'Jai Mata Di! How else can I assist your sacred pilgrimage?',
         recommendation: data.recommendation || null,
         plan: data.plan || null,
         request: data.request || null,
@@ -395,17 +459,33 @@ export default function AIChat({
         selected_option: data.selected_option || null,
         hotel: data.hotel || null,
         budget_evaluation: data.budget_evaluation || null,
+        knowledge_sources: data.knowledge_sources || null,
+        source_provenance: data.source_provenance || data.data_provenance || null,
+        data_provenance: data.data_provenance || data.source_provenance || null,
+        live_sources: data.live_sources || null,
+        is_cached: Boolean(data.is_cached),
+        tool_executions: data.tool_executions || null,
+        partial_failure: Boolean(data.partial_failure),
+        execution_mode: data.execution_mode || null,
+        weather: data.weather || data.live_weather || null,
         feasible_places: feasiblePlaces,
         infeasible_places: infeasiblePlaces,
         created_at: getNowIsoString(),
         persisted: false,
         isPending: false,
+        isStreaming: false,
       };
 
-      setMessages((prev) => [
-        ...prev.map((m) => (m.id === userMsg.id ? { ...m, isPending: false } : m)),
-        assistantMsg,
-      ]);
+      setMessages((prev) => {
+        const withoutPending = prev.map((m) => (m.id === userMsg.id ? { ...m, isPending: false } : m));
+        const existingIdx = withoutPending.findIndex((m) => m.id === assistantMsgId);
+        if (existingIdx !== -1) {
+          const updated = [...withoutPending];
+          updated[existingIdx] = assistantMsg;
+          return updated;
+        }
+        return [...withoutPending, assistantMsg];
+      });
 
       if (data.session_id) {
         historyLoadedSessionRef.current = data.session_id;
@@ -483,9 +563,16 @@ export default function AIChat({
     } catch (err) {
       console.error('Chat error:', err);
       const isTimeout = err?.code === 'ECONNABORTED' || (err?.message && err.message.toLowerCase().includes('timeout'));
-      const friendlyMessage = isTimeout
-        ? '⏱️ **Request Timed Out:** The pilgrimage coordinator took longer than expected to respond. Please check your connection and try again.'
-        : '🙏 **Connection Issue:** Unable to reach the pilgrimage service. Please verify the backend is running and try again.';
+      const isMisconfigured = err?.message && (
+        err.message.includes('Production API URL') ||
+        err.message.includes('Insecure backend URL') ||
+        err.message.includes('Malformed API URL')
+      );
+      const friendlyMessage = isMisconfigured
+        ? `**Backend Not Connected:** ${err.message}`
+        : (isTimeout
+          ? '**Request Timed Out:** The pilgrimage coordinator took longer than expected to respond. Please check your connection and try again.'
+          : '**Connection Issue:** Unable to reach the pilgrimage service. Please verify the backend is running and try again.');
       setMessages((prev) => [
         ...prev.map((m) => (m.id === userMsg.id ? { ...m, isPending: false } : m)),
         {
@@ -575,7 +662,7 @@ export default function AIChat({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-            <span>💬</span>
+            <MessageSquare size={14} color="var(--burgundy)" />
             <span style={{ fontWeight: 800 }}>Resumed Conversation:</span>
             <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               "{loadedConversation.title || 'Saved Journey'}"
@@ -618,7 +705,10 @@ export default function AIChat({
             flexShrink: 0,
           }}
         >
-          <span>⚠️ Could not load earlier chat history.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <AlertTriangle size={14} color="#721C24" />
+            <span>Could not load earlier chat history.</span>
+          </span>
           <button
             type="button"
             data-testid="chat-history-retry-btn"
@@ -698,7 +788,7 @@ export default function AIChat({
               width: '100%',
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>🔱</span>
+            <Sparkles size={18} color="var(--burgundy, #58111A)" />
             <span style={{ fontWeight: 700 }}>Yatra AI is planning your journey...</span>
             <div className="typing-dots" aria-hidden="true" style={{ display: 'inline-flex', gap: '4px', marginLeft: '4px' }}>
               <span className="dot dot-1" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--burgundy)' }} />

@@ -48,21 +48,44 @@ def yatra(request: YatraRequest):
 
 @router.post("/accommodation")
 def accommodation(request: HotelRequest):
+    try:
+        from services.accommodation_catalog import get_catalog_load_error
+        load_err = get_catalog_load_error()
+        if load_err:
+            return {
+                "status": "catalog_unavailable",
+                "catalog_status": "CATALOG_UNAVAILABLE",
+                "check_in_date": request.check_in_date,
+                "category": request.category,
+                "hotels": [],
+                "count": 0,
+                "error": load_err,
+            }
+    except Exception:
+        pass
+
     hotels = coordinator.get_hotel_options(
         check_in_date=request.check_in_date,
         category=request.category,
     )
 
-    # Filter by minimum rooms because the coordinator wrapper
-    # currently exposes only check_in_date and category.
-    hotels = [
-        hotel
-        for hotel in hotels
-        if hotel.get("rooms_available", 0) >= request.min_rooms
-    ]
+    if not hotels:
+        return {
+            "status": "no_matching_properties",
+            "catalog_status": "NO_MATCHING_PROPERTIES",
+            "check_in_date": request.check_in_date,
+            "category": request.category,
+            "hotels": [],
+            "count": 0,
+        }
+
+    for h in hotels:
+        if "room_requirement_status" not in h:
+            h["room_requirement_status"] = "UNVERIFIED"
 
     return {
         "status": "success",
+        "catalog_status": "CATALOG_SUCCESS",
         "check_in_date": request.check_in_date,
         "category": request.category,
         "hotels": hotels,
@@ -666,7 +689,7 @@ def start_user_controlled_workflow_route(request: StartWorkflowRequest, http_req
                     b_category = (sess_opts.get("slot") or {}).get("category") or "Normal Darshan"
                     b_slot_time = (sess_opts.get("slot") or {}).get("slot_time") or "Morning (06:00)"
                     b_hotel_name = sess_hotel.get("name") or "Devi Darshan Hotel (Katra)"
-                    b_origin = sess_reqs.get("origin") or "Delhi"
+                    b_origin = sess_reqs.get("origin") or (sess_opts.get("transport") or {}).get("origin") or ""
 
                     auth_service.save_booking(
                         user_id=effective_uid,
@@ -885,7 +908,7 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                     or sess_opts.get("total_price")
                     or 0.0
                 )
-                b_origin = sess_reqs.get("origin") or "Delhi"
+                b_origin = sess_reqs.get("origin") or (sess_opts.get("transport") or {}).get("origin") or ""
 
                 auth_service.save_booking(
                     user_id=user_id,
@@ -1014,4 +1037,3 @@ def cancel_workflow_route(request: CancelWorkflowRequest):
     )
 
     return result
-

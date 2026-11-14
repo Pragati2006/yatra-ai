@@ -1,4 +1,5 @@
 import React from 'react';
+import { User, RefreshCw, Volume2, Square } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
 import PersonalizedPlanCard from './cards/PersonalizedPlanCard';
 import BookingHandoffCard from './cards/BookingHandoffCard';
@@ -8,6 +9,10 @@ import WeatherCard from './cards/WeatherCard';
 import BudgetCard from './cards/BudgetCard';
 import HotelMiniCard from './cards/HotelMiniCard';
 import TransportMiniCard from './cards/TransportMiniCard';
+import OperationalNoticeCard from './cards/OperationalNoticeCard';
+import VerifiedContactCard from './cards/VerifiedContactCard';
+import ProvenanceList from './provenance/ProvenanceList';
+import YatraLogo from '../common/YatraLogo';
 
 /**
  * Message item representing a single turn in the Yatra AI conversation.
@@ -75,21 +80,19 @@ export default function MessageItem({
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            background: isUser
-              ? 'var(--gold-subtle, #F5ECDA)'
-              : 'linear-gradient(135deg, var(--burgundy, #58111A) 0%, var(--burgundy-dark, #3D0810) 100%)',
-            border: `1.5px solid ${isUser ? 'var(--gold-border, #E5D2AD)' : 'var(--gold-primary, #B8860B)'}`,
+            background: isUser ? 'var(--gold-subtle, #F5ECDA)' : 'transparent',
+            border: isUser ? '1.5px solid var(--gold-border, #E5D2AD)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: isUser ? '0.85rem' : '0.95rem',
-            color: isUser ? 'var(--burgundy, #58111A)' : '#E5D2AD',
+            fontSize: '0.85rem',
+            color: 'var(--burgundy, #58111A)',
             flexShrink: 0,
             marginTop: '2px',
-            boxShadow: '0 2px 6px rgba(88, 17, 26, 0.08)',
+            boxShadow: isUser ? '0 2px 6px rgba(88, 17, 26, 0.08)' : 'none',
           }}
         >
-          {isUser ? '👤' : '🔱'}
+          {isUser ? <User size={16} color="var(--burgundy)" /> : <YatraLogo size={32} />}
         </div>
 
         {/* Message bubble / container */}
@@ -139,6 +142,11 @@ export default function MessageItem({
             <div data-testid="chat-message-text">
               <MarkdownContent content={message.content} />
             </div>
+          )}
+
+          {/* 1.1 Verified Source Attribution & Freshness Indicators */}
+          {!isUser && (
+            <ProvenanceList message={message} />
           )}
 
           {/* 2. Sightseeing Advisory (when present) */}
@@ -196,6 +204,16 @@ export default function MessageItem({
             <BudgetCard budgetEvaluation={message.budget_evaluation} />
           )}
 
+          {/* 10. Operational Notices Card */}
+          {(message.operational_notices || message.operational_notice) && (
+            <OperationalNoticeCard noticesData={message.operational_notices || message.operational_notice} />
+          )}
+
+          {/* 11. Verified Contacts Card */}
+          {(message.verified_contacts || message.verified_contact) && (
+            <VerifiedContactCard contactsData={message.verified_contacts || message.verified_contact} />
+          )}
+
           {/* 10. Recoverable Error Retry Button */}
           {message.isError && message.failedQuery && (
             <div style={{ marginTop: '8px' }}>
@@ -207,17 +225,17 @@ export default function MessageItem({
                 style={{
                   padding: '4px 12px',
                   fontSize: '0.76rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
                   borderRadius: '6px',
                   border: '1px solid #C0392B',
                   color: '#721C24',
                   background: '#FFF5F5',
-                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
-                <span>🔄</span> Retry Message
+                <RefreshCw size={12} />
+                <span>Retry Message</span>
               </button>
             </div>
           )}
@@ -239,10 +257,11 @@ export default function MessageItem({
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '3px',
+              gap: '4px',
             }}
           >
-            <span>🔊</span> Listen
+            <Volume2 size={13} />
+            <span>Listen</span>
           </button>
           <button
             type="button"
@@ -253,9 +272,13 @@ export default function MessageItem({
               fontSize: '0.72rem',
               color: 'var(--text-muted, #6B5C5C)',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            ⏹ Stop
+            <Square size={11} fill="currentColor" />
+            <span>Stop</span>
           </button>
         </div>
       )}

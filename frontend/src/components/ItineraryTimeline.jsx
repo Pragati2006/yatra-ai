@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Calendar, Mountain, AlertTriangle, Lightbulb, Check, Shield, ArrowRight } from 'lucide-react';
 
 /**
  * Parses raw activity strings or objects into structured timeline items:
@@ -178,7 +179,7 @@ function parseItineraryActivity(activity) {
     return {
       time,
       title: 'Helicopter Flight to Sanjichhat',
-      details: 'Katra Helipad ➔ Sanjichhat (~8 mins) · 2.5 km gentle walk to Bhawan',
+      details: 'Katra Helipad to Sanjichhat (~8 mins) · 2.5 km gentle walk to Bhawan',
     };
   }
 
@@ -327,7 +328,9 @@ export default function ItineraryTimeline({
   if (!itinerary || itinerary.length === 0) {
     return (
       <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem', background: '#FFFFFF' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🗓️</div>
+        <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+          <Calendar size={36} color="var(--burgundy)" />
+        </div>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.15rem', color: 'var(--burgundy)', fontWeight: 700 }}>
           Generating Customized Day-by-Day Sacred Itinerary...
         </div>
@@ -396,7 +399,7 @@ export default function ItineraryTimeline({
                 gap: '8px',
               }}
             >
-              <span>🗓️</span> Day-by-Day Sacred Itinerary
+              <Calendar size={18} color="var(--burgundy)" /> Day-by-Day Sacred Itinerary
             </h3>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               Tailored around your darshan slots, transport timings, and recovery buffers ({effectiveDaysCount} Days)
@@ -434,9 +437,13 @@ export default function ItineraryTimeline({
                   color: 'var(--burgundy)',
                   fontWeight: 700,
                   background: '#FFFFFF',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                🌄 Modify Sights
+                <Mountain size={13} />
+                <span>Modify Sights</span>
               </button>
             )}
           </div>
@@ -459,7 +466,7 @@ export default function ItineraryTimeline({
             }}
           >
             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#155724' }}>
-              ✓ Feasible Sights Included:
+              Feasible Sights Included:
             </span>
             {safeFeasible.map((place, idx) => {
               const name = typeof place === 'string' ? place : (place?.name || place?.place || String(place));
@@ -468,9 +475,10 @@ export default function ItineraryTimeline({
                   key={idx}
                   data-testid="feasible-place-badge"
                   className="pill pill-gold"
-                  style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                  style={{ fontSize: '0.72rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                 >
-                  ✓ {name}
+                  <Check size={11} />
+                  <span>{name}</span>
                 </span>
               );
             })}
@@ -491,7 +499,7 @@ export default function ItineraryTimeline({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#721C24', fontSize: '0.78rem', marginBottom: '4px' }}>
-              <span>⚠️</span>
+              <AlertTriangle size={14} color="#C0392B" />
               <span>Omitted Destinations ({safeInfeasible.length}):</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -502,7 +510,12 @@ export default function ItineraryTimeline({
                 return (
                   <div key={idx} data-testid="infeasible-place-card" style={{ fontSize: '0.75rem', color: '#721C24', lineHeight: 1.4 }}>
                     <b>{placeName}:</b> {reason || 'Omitted due to trip duration and pacing constraints.'}
-                    {suggestion && <span style={{ color: '#155724', marginLeft: '6px' }}>💡 {suggestion}</span>}
+                    {suggestion && (
+                      <span style={{ color: '#155724', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <Lightbulb size={12} />
+                        <span>{suggestion}</span>
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -702,7 +715,7 @@ export default function ItineraryTimeline({
           gap: '10px',
         }}
       >
-        <span style={{ fontSize: '1.1rem' }}>⚡</span>
+        <Shield size={16} color="var(--burgundy)" />
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
           <b style={{ color: 'var(--burgundy)' }}>Pacing Note:</b> Dedicated rest buffers are allocated post-Bhawan descent before any local Jammu sightseeing to protect against pilgrim fatigue.
         </div>
@@ -718,8 +731,9 @@ export default function ItineraryTimeline({
           ) : <div />}
 
           {onProceed ? (
-            <button type="button" onClick={onProceed} className="btn btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
-              Proceed to Review &amp; Authorization ➔
+            <button type="button" onClick={onProceed} className="btn btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>Proceed to Review &amp; Authorization</span>
+              <ArrowRight size={14} />
             </button>
           ) : null}
         </div>

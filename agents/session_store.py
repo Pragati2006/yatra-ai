@@ -104,6 +104,19 @@ def _get_utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _get_db_connection(db_path=None):
+    """Creates a fast SQLite connection configured with WAL journal mode and NORMAL synchrony."""
+    actual_path = db_path or DEFAULT_DB_PATH
+    conn = sqlite3.connect(actual_path, timeout=10.0)
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+    except Exception:
+        pass
+    return conn
+
+
 def init_db(db_path: Optional[str] = None) -> None:
     """Initializes the SQLite session table if it does not already exist."""
     actual_db_path = db_path or DEFAULT_DB_PATH
@@ -111,7 +124,7 @@ def init_db(db_path: Optional[str] = None) -> None:
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -231,9 +244,15 @@ def create_session(
         "state": state,
     }
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        mongo_store.create_chat_session(sid, uid, state, now_iso)
+        return session_record
+
     state_json = json.dumps(state, ensure_ascii=False)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -258,10 +277,15 @@ def get_session(
     if not session_id or not isinstance(session_id, str):
         return None
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.get_chat_session(session_id.strip())
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -318,6 +342,16 @@ def update_session(
     if not session_id or not isinstance(session_id, str):
         return None
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.update_chat_session(
+            session_id=session_id.strip(),
+            updates=updates,
+            status=status,
+            user_id=user_id,
+        )
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     existing = get_session(session_id, db_path=actual_db_path)
     if not existing:
@@ -340,7 +374,7 @@ def update_session(
 
     state_json = json.dumps(state, ensure_ascii=False)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -370,9 +404,15 @@ def update_session_user(
     """Associates an active session with a server-verified user_id."""
     if not session_id or not user_id:
         return False
+
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.update_session_user(session_id.strip(), user_id.strip())
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE sessions SET user_id = ? WHERE session_id = ?",
@@ -390,9 +430,15 @@ def get_sessions_by_user(
     """Retrieves all sessions tagged with user_id ordered by last update time."""
     if not user_id:
         return []
+
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.get_sessions_by_user(user_id.strip())
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -425,10 +471,15 @@ def delete_session(
     if not session_id or not isinstance(session_id, str):
         return False
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.delete_chat_session(session_id.strip())
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM sessions WHERE session_id = ?",
@@ -448,10 +499,15 @@ def list_sessions(
     db_path: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Lists recent session summaries ordered by last update time."""
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.list_chat_sessions(limit=limit)
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -497,11 +553,18 @@ def add_message(
     init_db(actual_db_path)
     sid = session_id.strip()
     now_iso = _get_utc_now_iso()
+
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        msg_doc = mongo_store.add_chat_message(sid, role, content, metadata=metadata, now_iso=now_iso)
+        return msg_doc.get("id")
+
     meta_json = json.dumps(metadata, ensure_ascii=False) if metadata is not None else None
 
     lock = get_session_lock(sid)
     with lock:
-        with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+        with _get_db_connection(actual_db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -527,11 +590,16 @@ def get_messages(
     if not session_id or not isinstance(session_id, str) or not session_id.strip():
         return []
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.get_chat_messages(session_id.strip(), limit=limit)
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
     sid = session_id.strip()
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -572,13 +640,18 @@ def clear_messages(
     if not session_id or not isinstance(session_id, str) or not session_id.strip():
         return False
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.clear_chat_messages(session_id.strip()) >= 0
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
     sid = session_id.strip()
 
     lock = get_session_lock(sid)
     with lock:
-        with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+        with _get_db_connection(actual_db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM messages WHERE session_id = ?",
@@ -589,20 +662,28 @@ def clear_messages(
 
 
 def delete_message(
-    message_id: int,
+    message_id: Any,
     db_path: Optional[str] = None,
 ) -> bool:
     """
     Deletes a single message by ID.
     Used for rolling back uncompleted conversational turns when downstream processing fails.
     """
-    if not message_id or not isinstance(message_id, int):
+    if not message_id:
+        return False
+
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.delete_chat_message("", str(message_id))
+
+    if not isinstance(message_id, int):
         return False
 
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM messages WHERE id = ?", (message_id,))
         conn.commit()
@@ -706,7 +787,36 @@ def create_user_workflow(
     cp_json = json.dumps(sanitized_cp, ensure_ascii=False)
     resume_token = str(uuid.uuid4())
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        mongo_store.create_workflow(
+            workflow_id=workflow_id,
+            session_id=session_id.strip(),
+            state=state,
+            step=step,
+            operation=operation,
+            pending_action=pending_action,
+            checkpoint_data=sanitized_cp,
+            resume_token=resume_token,
+            created_at=now_iso,
+            expires_at=expires_iso,
+        )
+        return {
+            "workflow_id": workflow_id,
+            "session_id": session_id.strip(),
+            "state": state,
+            "step": step,
+            "operation": operation,
+            "pending_action": pending_action,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+            "expires_at": expires_iso,
+            "checkpoint_data": sanitized_cp,
+            "resume_token": resume_token,
+        }
+
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -761,10 +871,15 @@ def get_user_workflow(
     if not workflow_id or not isinstance(workflow_id, str) or not workflow_id.strip():
         return None
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        return mongo_store.get_workflow(workflow_id.strip(), session_id=session_id)
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -890,7 +1005,26 @@ def update_user_workflow(
     new_cp_json = json.dumps(merged_cp, ensure_ascii=False)
     now_iso = _get_utc_now_iso()
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        mongo_store.update_workflow(
+            workflow_id=workflow_id.strip(),
+            updates={
+                "state": new_state,
+                "step": new_step,
+                "pending_action": new_pending,
+                "checkpoint_data": merged_cp,
+            },
+        )
+        current["state"] = new_state
+        current["step"] = new_step
+        current["pending_action"] = new_pending
+        current["checkpoint_data"] = merged_cp
+        current["updated_at"] = now_iso
+        return current
+
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -930,7 +1064,18 @@ def cancel_user_workflow(
         }
 
     now_iso = _get_utc_now_iso()
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        mongo_store.cancel_workflow(workflow_id.strip(), reason=reason)
+        return {
+            "status": "success",
+            "workflow_id": workflow_id,
+            "state": WORKFLOW_STATE_CANCELLED,
+            "message": f"Workflow successfully cancelled: {reason}",
+        }
+
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -964,10 +1109,18 @@ def list_user_workflows(
     if not session_id or not isinstance(session_id, str):
         return []
 
+    from agents.mongo_store import is_mongodb_mode
+    if is_mongodb_mode():
+        from agents import mongo_store
+        wfs = mongo_store.list_workflows(session_id=session_id.strip())
+        if active_only:
+            wfs = [w for w in wfs if w["state"] in ACTIVE_INTERVENTION_STATES]
+        return wfs
+
     actual_db_path = db_path or DEFAULT_DB_PATH
     init_db(actual_db_path)
 
-    with sqlite3.connect(actual_db_path, timeout=10.0) as conn:
+    with _get_db_connection(actual_db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """

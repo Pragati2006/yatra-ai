@@ -117,55 +117,154 @@ def search_yatra_slots(start_date, end_date, category=None, min_seats=1):
 
 
 def search_flights(origin, start_date, end_date, min_seats=1):
-    ensure_live_data()
-    df = pd.read_csv(FLIGHTS_LIVE)
-    mask = (
-        (df["origin"] == origin)
-        & (df["flight_date"] >= start_date) & (df["flight_date"] <= end_date)
-        & (df["seats_available"] >= min_seats)
-    )
-    result = df[mask].sort_values(["flight_date", "price"]).rename(columns={"flight_date": "travel_date"})
-    records = result.to_dict("records")
-    for r in records:
-        r["mode"] = "flight"
-        r["operator"] = r.pop("airline")
-        r["transport_no"] = r.pop("flight_no")
-    return records
+    """Searches curated authentic flight schedules; returns empty list for unsupported origins (fail-closed)."""
+    try:
+        from services.flight_schedules import search_curated_flight_schedules
+        schedules, meta = search_curated_flight_schedules(origin=origin, travel_date=start_date)
+        if not schedules:
+            return []
+        records = []
+        for s in schedules:
+            records.append({
+                "id": s.route_id,
+                "mode": "flight",
+                "airline": s.airline_name,
+                "operator": s.airline_name,
+                "flight_no": s.flight_number or s.route_id,
+                "transport_no": f"{s.airline_name} {s.flight_number}" if s.flight_number else s.airline_name,
+                "origin": s.origin_city,
+                "origin_airport_code": s.origin_airport_code,
+                "origin_airport_name": s.origin_airport_name,
+                "destination": s.destination_city,
+                "destination_airport_code": s.destination_airport_code,
+                "destination_airport_name": s.destination_airport_name,
+                "route_type": s.route_type,
+                "layover_airports": s.layover_airports,
+                "travel_date": start_date,
+                "departure_time": s.departure_time,
+                "arrival_time": s.arrival_time,
+                "duration_hours": s.duration_hours,
+                "estimated_duration_desc": s.estimated_duration_desc,
+                "schedule_type": s.schedule_type,
+                "indicative_fare_min": s.indicative_fare_min,
+                "indicative_fare_max": s.indicative_fare_max,
+                "fare_classification": s.fare_classification,
+                "fare_disclaimer": s.fare_disclaimer,
+                "fare": None,
+                "price": None,
+                "price_per_pax": None,
+                "total_transport_cost": None,
+                "seats_available": None,
+                "is_live_status": False,
+                "notes": s.notes,
+                "route_verification": s.route_verification.to_dict() if s.route_verification else None,
+                "airline_verification": s.airline_verification.to_dict() if s.airline_verification else None,
+                "timetable_verification": s.timetable_verification.to_dict() if s.timetable_verification else None,
+                "fare_verification": s.fare_verification.to_dict() if s.fare_verification else None,
+            })
+        return records
+    except Exception as exc:
+        logger.warning(f"Error querying curated flight schedules: {exc}")
+        return []
 
 
 def search_trains(origin, start_date, end_date, min_seats=1):
-    ensure_live_data()
-    df = pd.read_csv(TRAINS_LIVE)
-    mask = (
-        (df["origin"] == origin)
-        & (df["travel_date"] >= start_date) & (df["travel_date"] <= end_date)
-        & (df["seats_available"] >= min_seats)
-    )
-    result = df[mask].sort_values(["travel_date", "price"])
-    records = result.to_dict("records")
-    for r in records:
-        r["mode"] = "train"
-        r["operator"] = "Indian Railways"
-        r["transport_no"] = f'{r.pop("train_no")} ({r.pop("travel_class")})'
-    return records
-
+    """Searches curated authentic railway schedules; returns empty list for unsupported origins (fail-closed)."""
+    try:
+        from services.railway_schedules import search_curated_schedules
+        schedules, meta = search_curated_schedules(origin=origin, travel_date=start_date)
+        if not schedules:
+            return []
+        records = []
+        for s in schedules:
+            classes = getattr(s, 'travel_classes', None) or ['Standard']
+            for tc in classes:
+                records.append({
+                    "id": f"train_{s.train_number}_{tc}",
+                    "train_no": s.train_number,
+                    "train_name": s.train_name,
+                    "operator": "Indian Railways",
+                    "transport_no": f"{s.train_number} ({tc})",
+                    "mode": "train",
+                    "origin": s.origin_station_name,
+                    "origin_station_code": s.origin_station_code,
+                    "destination": s.destination_station_name,
+                    "destination_station_code": s.destination_station_code,
+                    "travel_date": start_date,
+                    "departure_time": s.departure_time,
+                    "arrival_time": s.arrival_time,
+                    "travel_class": tc,
+                    "price": None,
+                    "fare": None,
+                    "indicative_fare_min": None,
+                    "indicative_fare_max": None,
+                    "seats_available": None,
+                    "availability_verified": False,
+                    "seat_availability": "NOT_CHECKED",
+                    "is_live_status": False,
+                    "verification_status": s.verification_status,
+                    "fare_classification": "UNAVAILABLE",
+                    "fare_disclaimer": s.fare_disclaimer,
+                    "source_circular_reference": s.source_circular_reference,
+                    "route_verification": s.route_verification.to_dict() if hasattr(s.route_verification, "to_dict") else s.route_verification,
+                    "operator_verification": s.operator_verification.to_dict() if hasattr(s.operator_verification, "to_dict") else s.operator_verification,
+                    "timetable_verification": s.timetable_verification.to_dict() if hasattr(s.timetable_verification, "to_dict") else s.timetable_verification,
+                    "fare_verification": s.fare_verification.to_dict() if hasattr(s.fare_verification, "to_dict") else s.fare_verification,
+                })
+        return records
+    except Exception:
+        return []
 
 
 def search_buses(origin, start_date, end_date, min_seats=1):
-    ensure_live_data()
-    df = pd.read_csv(BUSES_LIVE)
-    mask = (
-        (df["origin"] == origin)
-        & (df["travel_date"] >= start_date) & (df["travel_date"] <= end_date)
-        & (df["seats_available"] >= min_seats)
-    )
-    result = df[mask].sort_values(["travel_date", "price"])
-    records = result.to_dict("records")
-    for r in records:
-        r["mode"] = "bus"
-        r["transport_no"] = r.pop("operator")
-        r["operator"] = r["transport_no"]
-    return records
+    """Searches curated authentic bus schedules; returns empty list for unsupported origins (fail-closed)."""
+    try:
+        from services.bus_schedules import search_curated_bus_schedules
+        schedules, meta = search_curated_bus_schedules(origin=origin, travel_date=start_date)
+        if not schedules:
+            return []
+        records = []
+        for s in schedules:
+            indicative_price = s.indicative_fare_min or 90
+            dep_time = s.departure_time
+            arr_time = s.arrival_time
+            fare_class = s.fare_classification or "STATUTORY_NOTIFIED_PER_KM_SLAB"
+            records.append({
+                "id": s.service_id,
+                "mode": "bus",
+                "operator": s.operator_name,
+                "transport_no": s.service_id,
+                "origin": s.origin_city,
+                "destination": s.destination_city,
+                "origin_bus_stand": s.origin_bus_stand,
+                "destination_bus_stand": s.destination_bus_stand,
+                "travel_date": start_date,
+                "departure_time": dep_time,
+                "departure_window": s.departure_window,
+                "operating_hours": s.operating_hours,
+                "arrival_time": arr_time,
+                "duration_mins": int((s.duration_hours or 1.5) * 60),
+                "duration_hours": s.duration_hours,
+                "price": None,
+                "fare": None,
+                "indicative_fare_min": s.indicative_fare_min,
+                "indicative_fare_max": s.indicative_fare_max,
+                "fare_classification": fare_class,
+                "fare_disclaimer": s.fare_disclaimer,
+                "seats_available": 40,
+                "status": "ROUTE GUIDANCE",
+                "is_live_status": False,
+                "verification_status": s.verification_status,
+                "route_verification": s.route_verification.to_dict() if s.route_verification else None,
+                "operator_verification": s.operator_verification.to_dict() if s.operator_verification else None,
+                "timetable_verification": s.timetable_verification.to_dict() if s.timetable_verification else None,
+                "fare_verification": s.fare_verification.to_dict() if s.fare_verification else None,
+                "source_name": s.source_name,
+                "source_circular_reference": s.source_circular_reference,
+            })
+        return records
+    except Exception:
+        return []
 
 
 def search_hotels(check_in_date, category=None, min_rooms=1):
@@ -183,11 +282,19 @@ def search_hotels(check_in_date, category=None, min_rooms=1):
 
 
 def get_distinct_origins():
-    """All cities served by at least one transport mode."""
+    """All cities served by at least one transport mode without synthetic CSV leakage."""
     ensure_live_data()
     origins = set()
-    for path in (FLIGHTS_LIVE, TRAINS_LIVE, BUSES_LIVE):
+    for path in (FLIGHTS_LIVE, TRAINS_LIVE):
         origins |= set(pd.read_csv(path)["origin"].unique().tolist())
+    try:
+        from services.bus_schedules import load_curated_bus_schedules
+        schedules, _ = load_curated_bus_schedules()
+        for s in schedules:
+            if s.origin_city:
+                origins.add(s.origin_city)
+    except Exception:
+        origins.update(["Jammu", "Udhampur", "Delhi"])
     return sorted(origins)
 
 
@@ -295,7 +402,8 @@ def get_booking(booking_id):
     row = bookings[bookings["booking_id"] == booking_id]
     if row.empty:
         return None
-    return row.iloc[0].to_dict()
+    d = row.iloc[0].to_dict()
+    return {k: (None if pd.isna(v) else v) for k, v in d.items()}
 
 
 def list_bookings(user_name=None):

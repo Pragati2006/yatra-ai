@@ -391,6 +391,12 @@ button:focus-visible {
   }
 }
 
+@media (max-width: 480px) {
+  .hide-on-small-mobile {
+    display: none !important;
+  }
+}
+
 /* Custom sleek scrollbar for chat stream */
 [data-testid='chat-messages-stream']::-webkit-scrollbar {
   width: 6px;

@@ -1,0 +1,34 @@
+[
+  {
+    "document_id": "doc_routes_trekking_01",
+    "title": "Trek Routes to Bhawan: Traditional Route vs. Tarakote Marg",
+    "domain": "routes_and_trekking",
+    "category": "trekking_routes",
+    "source_name": "Shri Mata Vaishno Devi Shrine Board (SMVDSB)",
+    "source_url": "https://www.maavaishnodevi.org/Route.aspx",
+    "source_type": "tier_1_official",
+    "verification_status": "verified_direct_source",
+    "source_notes": "Traditional route (13 km via Banganga) and Tarakote Marg (14 km pony-free track) specifications verified.",
+    "publication_date": "2024-03-20",
+    "last_verified": "2026-11-06",
+    "language": "en",
+    "content_version": "1.1.0",
+    "content": "### 1. Traditional Trek Route (via Banganga)\n\n- **Route:** Katra -> Banganga -> Charan Paduka -> Ardhkuwari -> Sanjichhat -> Bhairon Ghati -> Bhawan.\n- **Total Distance:** Approximately 13 km (one-way).\n- **Elevation Gain:** From ~2,500 ft (Katra) to ~5,200 ft (Bhawan Sanctum).\n- **Typical Trek Duration:** 5 to 8 hours on foot depending on fitness, group pace, and rest intervals.\n- **Available Transport Services:** Ponies (ghodi), palanquins (palki), and porters (pithoo) are permitted on this route. Rates are fixed by the local district administration and registered at the Banganga check-post.\n- **24x7 Trekking & Night Safety:** The entire 13 km trek route from Banganga to Bhawan is fully illuminated round-the-clock with high-powered sodium and LED streetlights and continuously patrolled by Shrine Board security and CRPF. Night trekking is safe, comfortable, and very popular especially during warmer summer months.\n\n### 2. Tarakote Marg (New Alternative Route)\n\n- **Route:** Katra -> Tarakote Marg entrance -> Adhkuwari (junction) -> Himkoti -> Bhawan.\n- **Total Distance:** Approximately 14 km (one-way).\n- **Path Features:** Fully paved, covered with modern weather sheds, and designed with a significantly gentler gradient than the traditional stairs.\n- **Pony-Free & Pedestrian-Friendly:** Ponies, mules, and horses are strictly banned on Tarakote Marg. It is a clean, tranquil, noise-free route ideal for families with young children, seniors seeking a gentler incline, and walking pilgrims.\n- **Amenities:** Features 24x7 langar, water ATMs every 300 meters, automated rest plazas, view-points, and modern medical dispensaries."
+  },
+  {
+    "document_id": "doc_assisted_transport_02",
+    "title": "Assisted Transit Services: Battery Cars, Ropeway, and Helicopter Guidelines",
+    "domain": "routes_and_trekking",
+    "category": "assisted_transit",
+    "source_name": "Shri Mata Vaishno Devi Shrine Board (SMVDSB)",
+    "source_url": "https://www.maavaishnodevi.org/Facilities.aspx",
+    "source_type": "tier_1_official",
+    "verification_status": "verified_general_source",
+    "source_notes": "Bhairon ropeway fare (₹100) verified. Battery vehicle fare is approximate (~₹350) and subject to Shrine Board revision. Devotees must verify live rates with official counters.",
+    "publication_date": "2024-04-05",
+    "last_verified": "2026-11-06",
+    "language": "en",
+    "content_version": "1.1.0",
+    "content": "### Battery-Operated Electric Vehicles (Adhkuwari to Bhawan)\n\n- **Route Segment:** Operates exclusively on the gentler Adhkuwari -> Himkoti -> Bhawan sector (~6.5 km).\n- **Fare:** Approximately ₹350 per passenger one-way (operational estimate subject to Shrine Board revision; please confirm current rates at official counters).\n- **Operating Hours:** Typically 6:30 AM to 10:00 PM daily (subject to track and weather conditions).\n- **Priority:** Senior citizens (60+ years), physically challenged pilgrims, and women with infants receive primary boarding preference. Tickets can be booked at the Adhkuwari battery car counter or online.\n\n### Bhairon Baba Aerial Ropeway (Bhawan to Bhairon Ghati)\n\n- **Route:** Connects Bhawan base terminal directly to the high-altitude Bhairavnath Temple.\n- **Elevation Gain:** Over 1,400 feet steep vertical ascent.\n- **Travel Time:** Just 8 minutes (replaces a grueling 1.5-hour steep mountain hike on foot).\n- **Fare:** Nominal fee of ₹100 per passenger one-way (verified official rate).\n- **Operating Hours:** 8:00 AM to 5:00 PM (weather permitting; suspended during high winds or heavy rainfall).\n\n### Helicopter Services (Katra Helipad to Sanjichhat)\n\n- **Route:** Departs from Katra Helipad (near Katra town) and lands at Sanjichhat Helipad (~2.5 km from Bhawan).\n- **Flight Duration:** Approximately 8 minutes.\n- **Remaining Walk:** From Sanjichhat helipad, pilgrims walk roughly 2.5 km (downhill gradient, ~30-45 minutes) to reach Bhawan, or hire battery cars/palkis from Sanjichhat.\n- **Advance Booking:** Bookings open online up to 60 days ahead via maavaishnodevi.org. Beware of fraudulent duplicate websites. Passengers must produce original identity cards, payment credit/debit card, and physical RFID yatra passes."
+  }
+]

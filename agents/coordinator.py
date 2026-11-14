@@ -20,12 +20,14 @@ assembles their outputs into one response, which is the core of the
 This module doesn't touch Streamlit at all - app.py calls into it and
 handles all rendering, so the agent logic stays testable on its own.
 """
-import mongodb_agent
+import logging
 import re
 from typing import Optional, Dict, Any, List
 import agent as legacy_agent
 import db
 from agents import conversation_agent, content_agent, itinerary_agent, knowledge_agent, recommendation_agent, rpa_agent
+
+logger = logging.getLogger(__name__)
 
 
 def get_greeting():
@@ -206,14 +208,17 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
     When MongoDB retrieval and LLM response succeed, uses the grounded LLM answer.
     When MongoDB or Groq is unavailable, smoothly falls back to the local knowledge agent.
     """
-    # Step 1: Query the MongoDB-powered LangChain agent.
+    # Step 1: Query the MongoDB-powered LangChain agent only if MongoDB Atlas is actively connected.
     mongodb_result = {}
     mongodb_error = None
 
-    try:
-        mongodb_result = mongodb_agent.answer_mongodb_query(user_text)
-    except Exception as exc:
-        mongodb_error = str(exc)
+    import mongo_db
+    if mongo_db.is_available() and os.environ.get("GROQ_API_KEY"):
+        try:
+            import mongodb_agent
+            mongodb_result = mongodb_agent.answer_mongodb_query(user_text)
+        except Exception as exc:
+            mongodb_error = str(exc)
 
     # Condition A: MongoDB retrieval and LLM response succeeded
     if (
@@ -243,12 +248,52 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
             "knowledge_source": mongodb_result.get("knowledge_source", "atlas"),
         }
 
-    # Condition B / C / D: Fallback to existing local knowledge_agent and conversation_agent
+    # Condition B / C / D: Fallback to existing local knowledge_agent, RAG, and conversation_agent
     knowledge = knowledge_agent.get_jk_tourism_knowledge(
         user_text,
         last_place=last_tourism_place,
     )
-    reply = conversation_agent.format_tourism_reply(knowledge)
+
+    # Check if query is asking for facilities, safety, regulations, or practical guidance
+    is_facility_or_guidance = bool(re.search(
+        r"\b(locker|lockers|cloakroom|cloakrooms|luggage|storage|deposit|langar|langars|bhojanalaya|bhojanalayas|food|eating|meals?|kitchen|wheelchair|wheelchairs|elderly|senior|seniors|parents|disabled|disability|handicapped|battery car|battery cars|electric car|electric vehicle|palki|palkis|palanquin|pithoo|porter|prohibited|banned|allowed|not allowed|forbidden|rules inside|restrictions|items|leather|tobacco|alcohol|drone|night|safe at night|trek at night|illuminated|lighting|dark|helicopter|helipad|ropeway|cable car|operating|suspended|suspension|rfid|parchi|yatra slip|registration counter|how to register|mandatory pass|medical|dispensary|oxygen|emergency|doctor|hospital|first aid|ambulance|what to wear|dress code|documents|id card)\b",
+        user_text,
+        re.IGNORECASE
+    ))
+
+    # If legacy knowledge agent did not match a specific topic or place, query RAG knowledge foundation
+    is_general_unmatched = (
+        knowledge.get("query_kind") == "general"
+        and not knowledge.get("matched_places")
+    )
+
+    rag_used = False
+    rag_sources = []
+    if is_facility_or_guidance or is_general_unmatched:
+        try:
+            from rag.retriever import get_retriever
+            retriever = get_retriever()
+            rag_res = retriever.retrieve(
+                user_text,
+                conversation_context={"last_tourism_place": last_tourism_place},
+            )
+            if rag_res.get("relevant_found") and rag_res.get("context"):
+                rag_used = True
+                rag_sources = rag_res.get("sources") or []
+                clean_lines = [l for l in rag_res["context"].split("\n") if not l.startswith("--- Source:")]
+                body = "\n".join(clean_lines).strip()
+                top_src = rag_sources[0] if rag_sources else {}
+                src_title = top_src.get("title", "Official Shri Mata Vaishno Devi Shrine Board Documentation")
+                src_url = top_src.get("source_url", "")
+                citation = f"\n\n*Verified Source: [{src_title}]({src_url})*" if src_url else f"\n\n*Verified Source: {src_title}*"
+                reply = f"🙏 **Jai Mata Di!**\n\n{body}{citation}"
+            else:
+                reply = conversation_agent.format_tourism_reply(knowledge)
+        except Exception as rag_err:
+            logger.debug("Local RAG retrieval error in coordinator: %s", rag_err)
+            reply = conversation_agent.format_tourism_reply(knowledge)
+    else:
+        reply = conversation_agent.format_tourism_reply(knowledge)
 
     result = {
         "intent": "TOURISM",
@@ -256,16 +301,17 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
         "plan": None,
         "request": current_request,
         "itinerary": None,
-        "query_kind": knowledge.get("query_kind"),
+        "query_kind": "rag_knowledge" if rag_used else knowledge.get("query_kind"),
         "last_tourism_place": knowledge.get("last_place"),
         "mongodb_tool_results": mongodb_result.get("tool_results", []),
         "mongodb_status": mongodb_result.get(
             "status",
             "error" if mongodb_error else "fallback",
         ),
-        "source": "local_fallback",
-        "response_source": "conversation_agent",
-        "knowledge_source": "local_fallback",
+        "source": "rag_knowledge" if rag_used else "local_fallback",
+        "response_source": "rag_retriever" if rag_used else "conversation_agent",
+        "knowledge_source": "rag_foundation" if rag_used else "local_fallback",
+        "knowledge_sources": rag_sources if rag_used else [],
     }
 
     if mongodb_error:
@@ -274,31 +320,119 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
     return result
 
 def process_weather_message(user_text, current_request=None):
-    """Handles weather guidance queries using check_weather_tool."""
+    """Handles weather guidance queries using elevation-aware weather tool."""
+    import weather
     from agents import tools
+    loc_query = user_text if user_text else "Katra"
     try:
-        w = tools.check_weather_tool.invoke({"location": "Katra"})
+        w = tools.check_weather_tool.invoke({"location": loc_query})
     except Exception:
-        w = weather.get_weather_summary("Katra")
+        w = weather.get_weather_summary(loc_query)
 
-    summary = w.get("summary", "Pleasant")
+    if w.get("status") == "UNRECOGNIZED_LOCATION":
+        reply = w.get("clarification_message") or (
+            f"🙏 **Jai Mata Di!** Location '{w.get('location')}' was not recognized along the Vaishno Devi trek route. "
+            "Supported pilgrimage locations are:\n"
+            "1. **Katra Town** (~750 m)\n"
+            "2. **Ardhkuwari** (~1,400 m)\n"
+            "3. **Vaishno Devi Bhawan** (~1,585 m)\n"
+            "4. **Bhairon Temple** (~2,011 m)\n\n"
+            "Please specify one of these locations or ask to compare them."
+        )
+        res = {
+            "intent": "WEATHER",
+            "status": "UNRECOGNIZED_LOCATION",
+            "reply": reply,
+            "plan": None,
+            "request": current_request,
+            "itinerary": None,
+            "source": "weather_service",
+            "response_source": "weather_service",
+            "knowledge_source": "weather_service",
+            "weather": w,
+            "tool_execution": {
+                "tool": "check_weather_tool",
+                "status": "unrecognized_location",
+                "results": w
+            }
+        }
+        try:
+            from utils.provenance import attach_provenance_to_response
+            return attach_provenance_to_response(res)
+        except Exception:
+            return res
+
+    summary = w.get("summary") or w.get("condition", "Pleasant")
     low_c = w.get("low_c", 12)
     high_c = w.get("high_c", 24)
     advisory = w.get("advisory", "")
     source = w.get("source", "seasonal_average")
+    loc_name = w.get("location_name") or w.get("location") or "Katra"
 
-    src_label = "Live Forecast" if source == "forecast" else "Seasonal Katra Average"
+    src_label = "Live Forecast (Open-Meteo)" if source == "forecast" else "Seasonal Climate Estimate"
 
-    reply = (
-        "🙏 **Jai Mata Di! Katra Weather Guidance:**\n\n"
-        f"• **Condition:** {summary}\n"
-        f"• **Temperature Range:** {low_c}°C to {high_c}°C\n"
-        f"• **Data Source:** {src_label}\n"
-        f"• **Pilgrim Advisory:** {advisory}\n\n"
-        "_The Bhawan shrine (~5,200 ft) runs several degrees cooler than Katra town — pack an extra warm layer for evening treks._"
-    )
+    # Multi-location or comparison reply formatting
+    if w.get("is_multi_location") and w.get("comparison"):
+        comp = w["comparison"]
+        loc_bullets = "\n".join([
+            f"• **{l['location']} (~{l['elevation_m']} m):** {l.get('condition', 'Clear')}, {l['low_c']}°C to {l['high_c']}°C"
+            for l in w.get("locations", [])
+        ])
+        reply = (
+            "🙏 **Jai Mata Di! Pilgrimage Trek Weather Guidance & Comparison:**\n\n"
+            f"{loc_bullets}\n\n"
+            f"• **Elevation & Climate Comparison:** {comp.get('summary_text', '')}\n"
+            f"• **Data Source:** {src_label}\n"
+            f"• **Pilgrim Advisory:** {advisory}\n\n"
+            f"_{w.get('disclaimer', weather.MOUNTAIN_WEATHER_DISCLAIMER)}_"
+        )
+    elif "bhawan" in str(user_text).lower():
+        elev_val = w.get('elevation_m', 1585)
+        reply = (
+            "🙏 **Jai Mata Di! Vaishno Devi Bhawan Weather Guidance:**\n\n"
+            f"• **Elevation:** ~{elev_val:,} m (~5,200 ft)\n"
+            f"• **Condition:** {summary}\n"
+            f"• **Temperature Range:** {low_c}°C to {high_c}°C\n"
+            f"• **Data Source:** {src_label}\n"
+            f"• **Pilgrim Advisory:** {advisory}\n\n"
+            "_The Bhawan shrine (~5,200 ft) runs significantly colder than Katra town. Warm woollens and thermal wear are strongly recommended._"
+        )
+    elif "ardhkuwari" in str(user_text).lower() or "garbh" in str(user_text).lower():
+        elev_val = w.get('elevation_m', 1400)
+        reply = (
+            "🙏 **Jai Mata Di! Ardhkuwari Weather Guidance:**\n\n"
+            f"• **Elevation:** ~{elev_val:,} m\n"
+            f"• **Condition:** {summary}\n"
+            f"• **Temperature Range:** {low_c}°C to {high_c}°C\n"
+            f"• **Data Source:** {src_label}\n"
+            f"• **Pilgrim Advisory:** {advisory}\n\n"
+            "_Midway trek milestone — keep a light jacket accessible while waiting for Garbh Joon cave Darshan._"
+        )
+    elif "bhairon" in str(user_text).lower():
+        elev_val = w.get('elevation_m', 2011)
+        reply = (
+            "🙏 **Jai Mata Di! Bhairon Temple Weather Guidance:**\n\n"
+            f"• **Elevation:** ~{elev_val:,} m (~6,600 ft)\n"
+            f"• **Condition:** {summary}\n"
+            f"• **Temperature Range:** {low_c}°C to {high_c}°C\n"
+            f"• **Data Source:** {src_label}\n"
+            f"• **Pilgrim Advisory:** {advisory}\n\n"
+            "_Highest point of pilgrimage (~6,600 ft) — high wind exposure and sub-zero night chills in winter. Heavy woollens and windproof jacket required._"
+        )
+    else:
+        # Default Katra Town formatting - preserves exact test expectation 'Katra Weather Guidance'
+        default_note = "\n• **Selection Note:** Location was not specified; showing Katra Town base elevation (~750 m). You can also ask for Ardhkuwari, Bhawan, or Bhairon Temple." if w.get("is_default_location") else ""
+        reply = (
+            "🙏 **Jai Mata Di! Katra Weather Guidance:**\n\n"
+            f"• **Location:** {loc_name} (~{w.get('elevation_m', 750)} m){default_note}\n"
+            f"• **Condition:** {summary}\n"
+            f"• **Temperature Range:** {low_c}°C to {high_c}°C\n"
+            f"• **Data Source:** {src_label}\n"
+            f"• **Pilgrim Advisory:** {advisory}\n\n"
+            "_The Bhawan shrine (~5,200 ft) runs several degrees cooler than Katra town — pack an extra warm layer for evening treks._"
+        )
 
-    return {
+    res = {
         "intent": "WEATHER",
         "reply": reply,
         "plan": None,
@@ -307,12 +441,18 @@ def process_weather_message(user_text, current_request=None):
         "source": "weather_service",
         "response_source": "weather_service",
         "knowledge_source": "weather_service",
+        "weather": w,
         "tool_execution": {
             "tool": "check_weather_tool",
             "status": "success",
             "results": w
         }
     }
+    try:
+        from utils.provenance import attach_provenance_to_response
+        return attach_provenance_to_response(res)
+    except Exception:
+        return res
 
 
 def process_booking_message(user_text, current_request=None, pending_options=None):
@@ -344,8 +484,8 @@ def process_booking_message(user_text, current_request=None, pending_options=Non
             opt = pending_options["options"][0]
 
     pax = current_request.get("pax", 1) if current_request else 1
-    origin = current_request.get("origin", "Delhi") if current_request else "Delhi"
     tr = (opt.get("transport") or opt.get("flight") or {}) if opt else {}
+    origin = (current_request.get("origin") if current_request else None) or tr.get("origin") or "your departure point"
     s = (opt.get("slot") or {}) if opt else {}
 
     # Human Confirmation Gate: require explicit confirmation before invoking RPA
@@ -445,8 +585,8 @@ def route_message(
     Routes to agents.orchestrator.orchestrate_conversational_turn while maintaining backward
     compatibility for existing callers and legacy wizard routes.
     """
-    import agents.orchestrator as orchestrator
-    return orchestrator.orchestrate_conversational_turn(
+    import agents.central_agent as central_agent
+    return central_agent.process_conversational_turn(
         user_text=user_text,
         session_id=session_id,
         current_request=current_request,
@@ -460,10 +600,44 @@ def route_message(
     )
 
 
+def route_message_stream(
+    user_text,
+    current_request=None,
+    current_itinerary=None,
+    last_tourism_place=None,
+    last_itinerary_context=None,
+    pending_options=None,
+    api_key=None,
+    base_url=None,
+    session_id=None,
+    llm=None,
+):
+    """Streaming generator wrapper routing to central_agent.process_conversational_turn_stream."""
+    import agents.central_agent as central_agent
+    return central_agent.process_conversational_turn_stream(
+        user_text=user_text,
+        session_id=session_id,
+        current_request=current_request,
+        current_itinerary=current_itinerary,
+        last_tourism_place=last_tourism_place,
+        last_itinerary_context=last_itinerary_context,
+        pending_options=pending_options,
+        api_key=api_key,
+        base_url=base_url,
+        llm=llm,
+    )
+
+
+
 def get_hotel_options(check_in_date, category=None):
-    """HotelAgent duty - thin wrapper kept here so the coordinator is
-    the single place app.py talks to for every agent's output."""
-    return db.search_hotels(check_in_date, category=category)
+    """HotelAgent duty - retrieves verified Katra accommodation catalog properties.
+    Returns empty list on failure or unmatched search; strictly refuses to expose synthetic hotels."""
+    try:
+        from services.accommodation_catalog import search_hotels_for_orchestrator
+        return search_hotels_for_orchestrator(check_in_date=check_in_date, category=category)
+    except Exception as e:
+        logger.warning(f"Error querying verified Katra accommodation catalog in coordinator: {e}")
+        return []
 
 
 def get_sightseeing_places(category=None):
@@ -528,8 +702,8 @@ def check_slot_availability_rpa(requested_date=None, category=None, headless=Tru
 
 def process_availability_message(user_text, session_id=None, current_request=None):
     """RPAAgent duty (Week 7) - conversational availability checking wrapper routing to orchestrator with LangChain RPA tool."""
-    import agents.orchestrator as orchestrator
-    return orchestrator.orchestrate_conversational_turn(
+    import agents.central_agent as central_agent
+    return central_agent.process_conversational_turn(
         user_text=user_text,
         session_id=session_id,
         current_request=current_request,

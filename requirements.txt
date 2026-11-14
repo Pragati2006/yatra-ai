@@ -1,26 +1,27 @@
-# Web Frameworks & APIs
-streamlit>=1.37.0
+# ==============================================================================
+# Yatra AI — Production Backend Dependencies (FastAPI + LangChain + MongoDB)
+# Optimized for Hugging Face Spaces Docker Container
+# ==============================================================================
+
+# Web Frameworks & ASGI Server
 fastapi>=0.110.0
 uvicorn>=0.28.0
 pydantic>=2.0.0
 
-# Data & Utilities
+# Data Processing & HTTP Utilities
 pandas>=2.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 
-# Database
+# Database (MongoDB Atlas + SRV DNS Resolution)
 pymongo>=4.6.0
+dnspython>=2.0.0
 
-# AI & LLM Integrations
+# AI & LLM Orchestration
 groq>=0.9.0
 langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-groq>=0.1.0
-langchain-openai>=0.1.0
-openai>=1.0.0
 
-# Automation & Testing
-playwright>=1.40.0
-
-
+# Cloud Deployment & Hub Utilities
+huggingface_hub>=0.23.0

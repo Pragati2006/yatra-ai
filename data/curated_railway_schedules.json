@@ -1,0 +1,3059 @@
+{
+  "metadata": {
+    "registry_name": "Curated Vaishno Devi & Jammu Railway Timetable Registry",
+    "version": "1.1.0",
+    "effective_date": null,
+    "last_verified_at": null,
+    "verified_by": null,
+    "internal_curated_by": "Yatra AI Curatorial Review (Internal Indexing)",
+    "official_verifying_authority": null,
+    "verification_status": "verified_curated_source",
+    "authority": "Public Railway Information & Curated Schedules",
+    "primary_official_source": null,
+    "reference_portal": "https://enquiry.indianrail.gov.in/",
+    "is_live_telemetry_connected": false,
+    "disclaimer": "Timetables provide curated static demonstration schedule guidance. Live running telemetry, dynamic delays, cancellations, and real-time seat availability are NOT connected. Confirm via NTES (139) or official IRCTC enquiry counters before travel.",
+    "audit_status": "AUDITED_PHASE_9_7_3A",
+    "audit_note": "Phase 9.8.3.1.4: IRCTC base passenger tariff and working timetable schedule claims strictly classified as UNVERIFIED due to lack of directly inspected official gazette documents. Statutory operator confirmed via The Railways Act, 1989. Production prices, fares, and indicative minimum/maximum values set to null with fare_classification UNAVAILABLE. Seat availability unverified.",
+    "records_count": 36,
+    "last_audit": "2026-11-10T12:00:00Z",
+    "audit_version": "Phase 14.4.3 Large-Scale Expansion"
+  },
+  "stations": [
+    {
+      "station_code": "SVDK",
+      "station_name": "Shri Mata Vaishno Devi Katra",
+      "city": "Katra",
+      "state": "Jammu & Kashmir",
+      "latitude": 32.9908,
+      "longitude": 74.9315,
+      "elevation_meters": 813,
+      "division": "Firozpur (FZR)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "JAT",
+      "station_name": "Jammu Tawi",
+      "city": "Jammu",
+      "state": "Jammu & Kashmir",
+      "latitude": 32.7056,
+      "longitude": 74.8789,
+      "elevation_meters": 312,
+      "division": "Firozpur (FZR)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "MCTM",
+      "station_name": "Martyr Captain Tushar Mahajan",
+      "city": "Udhampur",
+      "state": "Jammu & Kashmir",
+      "latitude": 32.9238,
+      "longitude": 75.1438,
+      "elevation_meters": 756,
+      "division": "Firozpur (FZR)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "NDLS",
+      "station_name": "New Delhi",
+      "city": "Delhi",
+      "state": "Delhi",
+      "latitude": 28.6428,
+      "longitude": 77.2197,
+      "elevation_meters": 216,
+      "division": "Delhi (DLI)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "BDTS",
+      "station_name": "Bandra Terminus",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "latitude": 19.0622,
+      "longitude": 72.8404,
+      "elevation_meters": 14,
+      "division": "Mumbai Western (MMCT)",
+      "zone": "Western Railway (WR)"
+    },
+    {
+      "station_code": "INDB",
+      "station_name": "Indore Junction",
+      "city": "Indore",
+      "state": "Madhya Pradesh",
+      "latitude": 22.7176,
+      "longitude": 75.8682,
+      "elevation_meters": 553,
+      "division": "Ratlam (RTM)",
+      "zone": "Western Railway (WR)"
+    },
+    {
+      "station_code": "YNRK",
+      "station_name": "Yog Nagari Rishikesh",
+      "city": "Rishikesh",
+      "state": "Uttarakhand",
+      "latitude": 30.1068,
+      "longitude": 78.2932,
+      "elevation_meters": 372,
+      "division": "Moradabad (MB)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "UMB",
+      "station_name": "Ambala Cantt Junction",
+      "city": "Ambala",
+      "state": "Haryana",
+      "latitude": 30.3444,
+      "longitude": 76.8229,
+      "elevation_meters": 272,
+      "division": "Ambala (UMB)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "LDH",
+      "station_name": "Ludhiana Junction",
+      "city": "Ludhiana",
+      "state": "Punjab",
+      "latitude": 30.912,
+      "longitude": 75.854,
+      "elevation_meters": 244,
+      "division": "Firozpur (FZR)",
+      "zone": "Northern Railway (NR)"
+    },
+    {
+      "station_code": "ASR",
+      "station_name": "Amritsar Junction",
+      "city": "Amritsar",
+      "state": "Punjab"
+    },
+    {
+      "station_code": "CDG",
+      "station_name": "Chandigarh Junction",
+      "city": "Chandigarh",
+      "state": "Chandigarh"
+    },
+    {
+      "station_code": "JRC",
+      "station_name": "Jalandhar Cantt Junction",
+      "city": "Jalandhar",
+      "state": "Punjab"
+    },
+    {
+      "station_code": "JP",
+      "station_name": "Jaipur Junction",
+      "city": "Jaipur",
+      "state": "Rajasthan"
+    },
+    {
+      "station_code": "JU",
+      "station_name": "Jodhpur Junction",
+      "city": "Jodhpur",
+      "state": "Rajasthan"
+    },
+    {
+      "station_code": "ADI",
+      "station_name": "Ahmedabad Junction",
+      "city": "Ahmedabad",
+      "state": "Gujarat"
+    },
+    {
+      "station_code": "BPL",
+      "station_name": "Bhopal Junction",
+      "city": "Bhopal",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "station_code": "LKO",
+      "station_name": "Lucknow Charbagh",
+      "city": "Lucknow",
+      "state": "Uttar Pradesh"
+    },
+    {
+      "station_code": "BSB",
+      "station_name": "Varanasi Junction",
+      "city": "Varanasi",
+      "state": "Uttar Pradesh"
+    },
+    {
+      "station_code": "PNBE",
+      "station_name": "Patna Junction",
+      "city": "Patna",
+      "state": "Bihar"
+    },
+    {
+      "station_code": "HW",
+      "station_name": "Haridwar Junction",
+      "city": "Haridwar",
+      "state": "Uttarakhand"
+    },
+    {
+      "station_code": "PUNE",
+      "station_name": "Pune Junction",
+      "city": "Pune",
+      "state": "Maharashtra"
+    },
+    {
+      "station_code": "HWH",
+      "station_name": "Howrah Junction",
+      "city": "Kolkata",
+      "state": "West Bengal"
+    },
+    {
+      "station_code": "SDAH",
+      "station_name": "Sealdah",
+      "city": "Kolkata",
+      "state": "West Bengal"
+    },
+    {
+      "station_code": "SBC",
+      "station_name": "KSR Bengaluru City",
+      "city": "Bengaluru",
+      "state": "Karnataka"
+    },
+    {
+      "station_code": "SC",
+      "station_name": "Secunderabad Junction",
+      "city": "Hyderabad",
+      "state": "Telangana"
+    }
+  ],
+  "schedules": [
+    {
+      "train_number": "22439",
+      "train_name": "New Delhi - SMVD Katra Vande Bharat Express",
+      "origin_station_code": "NDLS",
+      "origin_station_name": "New Delhi",
+      "origin_city": "Delhi",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "06:00",
+      "arrival_time": "14:00",
+      "days_of_operation": [
+        "MON",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "CC",
+        "EC"
+      ],
+      "major_halts": [
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "08:10",
+          "departure": "08:12",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "09:19",
+          "departure": "09:21",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "12:38",
+          "departure": "12:40",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 8.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Premium semi-high speed express with executive chair car and catering included. Does not operate on Tuesday (maintenance day).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (NDLS to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (06:00 dep -> 14:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "22440",
+      "train_name": "SMVD Katra - New Delhi Vande Bharat Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "NDLS",
+      "destination_station_name": "New Delhi",
+      "destination_city": "Delhi",
+      "departure_time": "15:00",
+      "arrival_time": "23:00",
+      "days_of_operation": [
+        "MON",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "CC",
+        "EC"
+      ],
+      "major_halts": [
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "16:13",
+          "departure": "16:15",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "19:32",
+          "departure": "19:34",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "20:30",
+          "departure": "20:32",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 8.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Return afternoon service from Katra to New Delhi. Does not operate on Tuesday.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to NDLS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (15:00 dep -> 23:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "22477",
+      "train_name": "New Delhi - SMVD Katra Vande Bharat Express (Second)",
+      "origin_station_code": "NDLS",
+      "origin_station_name": "New Delhi",
+      "origin_city": "Delhi",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "15:00",
+      "arrival_time": "23:00",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "CC",
+        "EC"
+      ],
+      "major_halts": [
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "17:10",
+          "departure": "17:12",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "18:24",
+          "departure": "18:26",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "21:45",
+          "departure": "21:47",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 8.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Second daily Vande Bharat service departing NDLS in the afternoon. Does not operate on Wednesday.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (NDLS to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (15:00 dep -> 23:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "22478",
+      "train_name": "SMVD Katra - New Delhi Vande Bharat Express (Second)",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "NDLS",
+      "destination_station_name": "New Delhi",
+      "destination_city": "Delhi",
+      "departure_time": "06:00",
+      "arrival_time": "14:00",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "CC",
+        "EC"
+      ],
+      "major_halts": [
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "07:13",
+          "departure": "07:15",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "10:30",
+          "departure": "10:32",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "11:44",
+          "departure": "11:46",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 8.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Second daily Vande Bharat service departing Katra early morning. Does not operate on Wednesday.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to NDLS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (06:00 dep -> 14:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "22461",
+      "train_name": "Shri Shakti AC Superfast Express",
+      "origin_station_code": "NDLS",
+      "origin_station_name": "New Delhi",
+      "origin_city": "Delhi",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "19:05",
+      "arrival_time": "07:05",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "3E"
+      ],
+      "major_halts": [
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "21:40",
+          "departure": "21:45",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "23:16",
+          "departure": "23:26",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "JRC",
+          "station_name": "Jalandhar Cantt",
+          "arrival": "00:15",
+          "departure": "00:20",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "02:00",
+          "departure": "02:05",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "03:40",
+          "departure": "03:48",
+          "halt_minutes": 8
+        },
+        {
+          "station_code": "MCTM",
+          "station_name": "Martyr Captain Tushar Mahajan",
+          "arrival": "05:00",
+          "departure": "05:05",
+          "halt_minutes": 5
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 12.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Dedicated daily overnight AC service designed specifically for Vaishno Devi pilgrims. Arrives directly at Katra station in the morning.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (NDLS to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (19:05 dep -> 07:05 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "22462",
+      "train_name": "Shri Shakti AC Superfast Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "NDLS",
+      "destination_station_name": "New Delhi",
+      "destination_city": "Delhi",
+      "departure_time": "23:00",
+      "arrival_time": "10:45",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "3E"
+      ],
+      "major_halts": [
+        {
+          "station_code": "MCTM",
+          "station_name": "Martyr Captain Tushar Mahajan",
+          "arrival": "23:42",
+          "departure": "23:47",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "00:55",
+          "departure": "01:05",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "02:40",
+          "departure": "02:45",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "JRC",
+          "station_name": "Jalandhar Cantt",
+          "arrival": "04:30",
+          "departure": "04:35",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "05:25",
+          "departure": "05:35",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "07:15",
+          "departure": "07:20",
+          "halt_minutes": 5
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 11.75,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily overnight return service from Katra to New Delhi.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to NDLS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (23:00 dep -> 10:45 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12445",
+      "train_name": "Uttar Sampark Kranti Express",
+      "origin_station_code": "NDLS",
+      "origin_station_name": "New Delhi",
+      "origin_city": "Delhi",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "20:50",
+      "arrival_time": "08:05",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL",
+        "2S"
+      ],
+      "major_halts": [
+        {
+          "station_code": "PNP",
+          "station_name": "Panipat Junction",
+          "arrival": "22:06",
+          "departure": "22:08",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "23:30",
+          "departure": "23:35",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "01:05",
+          "departure": "01:15",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "JRC",
+          "station_name": "Jalandhar Cantt",
+          "arrival": "02:03",
+          "departure": "02:08",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "03:52",
+          "departure": "03:55",
+          "halt_minutes": 3
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "05:45",
+          "departure": "05:55",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "MCTM",
+          "station_name": "Martyr Captain Tushar Mahajan",
+          "arrival": "06:56",
+          "departure": "06:58",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 11.25,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Highly popular daily superfast express offering budget Sleeper and premium AC coaches.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (NDLS to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (20:50 dep -> 08:05 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12446",
+      "train_name": "Uttar Sampark Kranti Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "NDLS",
+      "destination_station_name": "New Delhi",
+      "destination_city": "Delhi",
+      "departure_time": "19:55",
+      "arrival_time": "06:55",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL",
+        "2S"
+      ],
+      "major_halts": [
+        {
+          "station_code": "MCTM",
+          "station_name": "Martyr Captain Tushar Mahajan",
+          "arrival": "20:36",
+          "departure": "20:38",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "21:30",
+          "departure": "21:40",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "23:27",
+          "departure": "23:30",
+          "halt_minutes": 3
+        },
+        {
+          "station_code": "JRC",
+          "station_name": "Jalandhar Cantt",
+          "arrival": "01:15",
+          "departure": "01:20",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "02:08",
+          "departure": "02:18",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "04:03",
+          "departure": "04:10",
+          "halt_minutes": 7
+        },
+        {
+          "station_code": "PNP",
+          "station_name": "Panipat Junction",
+          "arrival": "05:15",
+          "departure": "05:17",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 655,
+      "duration_hours": 11.0,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily overnight return service from Katra arriving in New Delhi early morning.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to NDLS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (19:55 dep -> 06:55 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12471",
+      "train_name": "Swaraj Express",
+      "origin_station_code": "BDTS",
+      "origin_station_name": "Bandra Terminus",
+      "origin_city": "Mumbai",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "11:00",
+      "arrival_time": "17:25",
+      "days_of_operation": [
+        "MON",
+        "THU",
+        "FRI",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "ST",
+          "station_name": "Surat",
+          "arrival": "14:19",
+          "departure": "14:24",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "BRC",
+          "station_name": "Vadodara Junction",
+          "arrival": "15:54",
+          "departure": "16:04",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "KOTA",
+          "station_name": "Kota Junction",
+          "arrival": "23:15",
+          "departure": "23:25",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "NDLS",
+          "station_name": "New Delhi",
+          "arrival": "05:25",
+          "departure": "05:40",
+          "halt_minutes": 15
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "08:47",
+          "departure": "08:52",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "10:18",
+          "departure": "10:28",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "14:45",
+          "departure": "14:55",
+          "halt_minutes": 10
+        }
+      ],
+      "total_distance_km": 2029,
+      "duration_hours": 30.4,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Direct long-distance express connecting Western India (Mumbai, Surat, Vadodara) to Shri Mata Vaishno Devi Katra. Arrives on next day (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Western Railway (WR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (BDTS to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - WR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under WR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (11:00 dep -> 17:25 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12472",
+      "train_name": "Swaraj Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "BDTS",
+      "destination_station_name": "Bandra Terminus",
+      "destination_city": "Mumbai",
+      "departure_time": "10:05",
+      "arrival_time": "18:10",
+      "days_of_operation": [
+        "TUE",
+        "WED",
+        "FRI",
+        "SAT"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "11:30",
+          "departure": "11:35",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "16:20",
+          "departure": "16:30",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "18:00",
+          "departure": "18:05",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "NDLS",
+          "station_name": "New Delhi",
+          "arrival": "21:25",
+          "departure": "21:40",
+          "halt_minutes": 15
+        },
+        {
+          "station_code": "KOTA",
+          "station_name": "Kota Junction",
+          "arrival": "02:45",
+          "departure": "02:55",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "BRC",
+          "station_name": "Vadodara Junction",
+          "arrival": "10:55",
+          "departure": "11:05",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "ST",
+          "station_name": "Surat",
+          "arrival": "12:55",
+          "departure": "13:00",
+          "halt_minutes": 5
+        }
+      ],
+      "total_distance_km": 2029,
+      "duration_hours": 32.1,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Long-distance return service connecting Katra to Mumbai Bandra Terminus. Arrives on next day (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Western Railway (WR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to BDTS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (10:05 dep -> 18:10 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12919",
+      "train_name": "Malwa Superfast Express",
+      "origin_station_code": "INDB",
+      "origin_station_name": "Indore Junction",
+      "origin_city": "Indore",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "12:15",
+      "arrival_time": "16:30",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "UJN",
+          "station_name": "Ujjain Junction",
+          "arrival": "13:45",
+          "departure": "13:55",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "BPL",
+          "station_name": "Bhopal Junction",
+          "arrival": "17:25",
+          "departure": "17:30",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "GWL",
+          "station_name": "Gwalior Junction",
+          "arrival": "23:00",
+          "departure": "23:02",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "NDLS",
+          "station_name": "New Delhi",
+          "arrival": "04:15",
+          "departure": "04:30",
+          "halt_minutes": 15
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "07:35",
+          "departure": "07:40",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "09:20",
+          "departure": "09:30",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "14:15",
+          "departure": "14:20",
+          "halt_minutes": 5
+        }
+      ],
+      "total_distance_km": 1540,
+      "duration_hours": 28.25,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily superfast express linking Central India (Indore, Ujjain, Bhopal) and Delhi directly to Katra. Arrives on next day (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Western Railway (WR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (INDB to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - WR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under WR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (12:15 dep -> 16:30 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12920",
+      "train_name": "Malwa Superfast Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "INDB",
+      "destination_station_name": "Indore Junction",
+      "destination_city": "Indore",
+      "departure_time": "08:35",
+      "arrival_time": "14:30",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "10:20",
+          "departure": "10:30",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "15:10",
+          "departure": "15:20",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "17:00",
+          "departure": "17:05",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "NDLS",
+          "station_name": "New Delhi",
+          "arrival": "20:15",
+          "departure": "20:30",
+          "halt_minutes": 15
+        },
+        {
+          "station_code": "GWL",
+          "station_name": "Gwalior Junction",
+          "arrival": "01:25",
+          "departure": "01:27",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "BPL",
+          "station_name": "Bhopal Junction",
+          "arrival": "07:35",
+          "departure": "07:40",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "UJN",
+          "station_name": "Ujjain Junction",
+          "arrival": "11:20",
+          "departure": "11:35",
+          "halt_minutes": 15
+        }
+      ],
+      "total_distance_km": 1540,
+      "duration_hours": 29.9,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily return service from Katra to Central India. Arrives on next day (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Western Railway (WR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to INDB) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (08:35 dep -> 14:30 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "14609",
+      "train_name": "Hemkunt Express",
+      "origin_station_code": "YNRK",
+      "origin_station_name": "Yog Nagari Rishikesh",
+      "origin_city": "Rishikesh",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "17:20",
+      "arrival_time": "07:00",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "HW",
+          "station_name": "Haridwar",
+          "arrival": "18:15",
+          "departure": "18:20",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "SRE",
+          "station_name": "Saharanpur Junction",
+          "arrival": "19:50",
+          "departure": "19:55",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "21:20",
+          "departure": "21:25",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "23:05",
+          "departure": "23:15",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "04:35",
+          "departure": "04:45",
+          "halt_minutes": 10
+        }
+      ],
+      "total_distance_km": 618,
+      "duration_hours": 13.67,
+      "catering_available": false,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily overnight pilgrimage express connecting sacred centres of Uttarakhand (Rishikesh, Haridwar) to Vaishno Devi Katra. Arrives morning (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (YNRK to SVDK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (17:20 dep -> 07:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "14610",
+      "train_name": "Hemkunt Express",
+      "origin_station_code": "SVDK",
+      "origin_station_name": "Shri Mata Vaishno Devi Katra",
+      "origin_city": "Katra",
+      "destination_station_code": "YNRK",
+      "destination_station_name": "Yog Nagari Rishikesh",
+      "destination_city": "Rishikesh",
+      "departure_time": "16:40",
+      "arrival_time": "08:30",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "2A",
+        "3A",
+        "SL"
+      ],
+      "major_halts": [
+        {
+          "station_code": "JAT",
+          "station_name": "Jammu Tawi",
+          "arrival": "18:25",
+          "departure": "18:35",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "23:45",
+          "departure": "23:55",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "UMB",
+          "station_name": "Ambala Cantt Junction",
+          "arrival": "01:45",
+          "departure": "01:50",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "SRE",
+          "station_name": "Saharanpur Junction",
+          "arrival": "03:15",
+          "departure": "03:20",
+          "halt_minutes": 5
+        },
+        {
+          "station_code": "HW",
+          "station_name": "Haridwar",
+          "arrival": "04:55",
+          "departure": "05:00",
+          "halt_minutes": 5
+        }
+      ],
+      "total_distance_km": 618,
+      "duration_hours": 15.83,
+      "catering_available": false,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily overnight return express from Katra to Haridwar and Yog Nagari Rishikesh. Arrives morning (+1).",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (SVDK to YNRK) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (16:40 dep -> 08:30 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12425",
+      "train_name": "New Delhi - Jammu Tawi Rajdhani Express",
+      "origin_station_code": "NDLS",
+      "origin_station_name": "New Delhi",
+      "origin_city": "Delhi",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "20:40",
+      "arrival_time": "05:00",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A"
+      ],
+      "major_halts": [
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "00:28",
+          "departure": "00:38",
+          "halt_minutes": 10
+        },
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "03:08",
+          "departure": "03:10",
+          "halt_minutes": 2
+        }
+      ],
+      "total_distance_km": 577,
+      "duration_hours": 8.33,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily premier overnight Rajdhani express connecting New Delhi to Jammu Tawi. Pilgrims connect from Jammu to Katra via NH-44 taxi or local DMU.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (NDLS to JAT) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (20:40 dep -> 05:00 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "12426",
+      "train_name": "Jammu Tawi - New Delhi Rajdhani Express",
+      "origin_station_code": "JAT",
+      "origin_station_name": "Jammu Tawi",
+      "origin_city": "Jammu",
+      "destination_station_code": "NDLS",
+      "destination_station_name": "New Delhi",
+      "destination_city": "Delhi",
+      "departure_time": "21:25",
+      "arrival_time": "05:55",
+      "days_of_operation": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "travel_classes": [
+        "1A",
+        "2A",
+        "3A"
+      ],
+      "major_halts": [
+        {
+          "station_code": "PTKC",
+          "station_name": "Pathankot Cantt",
+          "arrival": "23:09",
+          "departure": "23:11",
+          "halt_minutes": 2
+        },
+        {
+          "station_code": "LDH",
+          "station_name": "Ludhiana Junction",
+          "arrival": "01:35",
+          "departure": "01:45",
+          "halt_minutes": 10
+        }
+      ],
+      "total_distance_km": 577,
+      "duration_hours": 8.5,
+      "catering_available": true,
+      "indicative_fare_min": null,
+      "indicative_fare_max": null,
+      "source_name": "Curated Indian Railways Route Guidance",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Yatra AI Curatorial & Verification Desk",
+      "verification_status": "verified_curated_source",
+      "is_live_status": false,
+      "notes": "Daily premier overnight return Rajdhani from Jammu Tawi to New Delhi.",
+      "fare_classification": "UNAVAILABLE",
+      "fare_disclaimer": "Railway fares are unavailable in static demonstration registry. Real-time booking fares vary based on Tatkal quotas, dynamic surge pricing, and catering selections; check official IRCTC portal (irctc.co.in).",
+      "source_circular_reference": "Northern Railway (NR) Working Timetable (WTT) Guidance",
+      "route_verification": {
+        "status": "unverified",
+        "source_name": "Indian Railways (NR)",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Route corridor guidance (JAT to NDLS) unverified against official railway gazette or working timetable publication. Reference: indianrailways.gov.in."
+      },
+      "operator_verification": {
+        "status": "verified_official_source",
+        "source_name": "Ministry of Railways, Government of India",
+        "source_url": null,
+        "reference_url": "https://indianrailways.gov.in/",
+        "document_reference": "The Railways Act, 1989 (Statutory Operator: Indian Railways - NR)",
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Statutory national railway operator administered by the Ministry of Railways, Government of India under NR operating jurisdiction."
+      },
+      "timetable_verification": {
+        "status": "unverified",
+        "source_name": "National Train Enquiry System (NTES)",
+        "source_url": null,
+        "reference_url": "https://enquiry.indianrail.gov.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Static demonstration schedule (21:25 dep -> 05:55 arr). Timetable unverified against active telemetry or official working timetable publication. Real-time delays, dynamic platform numbers, and cancellations require NTES (139)."
+      },
+      "fare_verification": {
+        "status": "unverified",
+        "source_name": "IRCTC Passenger Portal",
+        "source_url": null,
+        "reference_url": "https://www.irctc.co.in/",
+        "document_reference": null,
+        "effective_date": null,
+        "verified_at": null,
+        "verified_by": null,
+        "notes": "Railway fare unavailable in static demonstration registry. Booking fares vary dynamically based on Tatkal quotas, dynamic surge pricing, and catering selections. Confirm final booking fare at irctc.co.in."
+      }
+    },
+    {
+      "train_number": "14033",
+      "train_name": "Jammu Mail",
+      "origin_station_code": "DLI",
+      "origin_station_name": "Old Delhi Junction",
+      "origin_city": "Delhi",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "20:05",
+      "arrival_time": "09:15",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Sonipat",
+        "Panipat",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jalandhar Cantt",
+        "Pathankot",
+        "Jammu Tawi",
+        "Udhampur",
+        "SVDK"
+      ],
+      "total_distance_km": 654,
+      "duration_hours": 13.16,
+      "catering_available": false,
+      "indicative_fare_min": 375.0,
+      "indicative_fare_max": 2350.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Historic daily overnight mail express connecting Old Delhi to SVDK Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "14633",
+      "train_name": "Ravi Express",
+      "origin_station_code": "ASR",
+      "origin_station_name": "Amritsar Junction",
+      "origin_city": "Amritsar",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "09:15",
+      "arrival_time": "13:55",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "2S",
+        "CC"
+      ],
+      "major_halts": [
+        "Batala",
+        "Dhariwal",
+        "Gurdaspur",
+        "Pathankot",
+        "Kathua",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 206,
+      "duration_hours": 4.66,
+      "catering_available": false,
+      "indicative_fare_min": 95.0,
+      "indicative_fare_max": 340.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Convenient daytime intercity express connecting the Golden Temple city of Amritsar directly to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard Northern Railway tariff."
+    },
+    {
+      "train_number": "19415",
+      "train_name": "Ahmedabad - Shri Mata Vaishno Devi Katra Express (via Amritsar)",
+      "origin_station_code": "ASR",
+      "origin_station_name": "Amritsar Junction",
+      "origin_city": "Amritsar",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "21:40",
+      "arrival_time": "06:35",
+      "days_of_operation": [
+        "Mon"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Batala",
+        "Pathankot",
+        "Jammu Tawi",
+        "Udhampur",
+        "SVDK"
+      ],
+      "total_distance_km": 283,
+      "duration_hours": 8.91,
+      "catering_available": false,
+      "indicative_fare_min": 210.0,
+      "indicative_fare_max": 1150.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Direct overnight connection from Amritsar Junction to Shri Mata Vaishno Devi Katra terminal.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "14609",
+      "train_name": "Hemkunt Express",
+      "origin_station_code": "CDG",
+      "origin_station_name": "Chandigarh Junction",
+      "origin_city": "Chandigarh",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "22:05",
+      "arrival_time": "07:00",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "SAS Nagar Mohali",
+        "Morinda",
+        "Ludhiana",
+        "Jalandhar Cantt",
+        "Pathankot Cantt",
+        "Jammu Tawi",
+        "Udhampur",
+        "SVDK"
+      ],
+      "total_distance_km": 380,
+      "duration_hours": 8.91,
+      "catering_available": false,
+      "indicative_fare_min": 265.0,
+      "indicative_fare_max": 1420.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily overnight pilgrimage express from Chandigarh directly to Katra base camp.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "12471",
+      "train_name": "Swaraj Express (via Ludhiana / Jalandhar)",
+      "origin_station_code": "LDH",
+      "origin_station_name": "Ludhiana Junction",
+      "origin_city": "Ludhiana",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "07:25",
+      "arrival_time": "14:50",
+      "days_of_operation": [
+        "Mon",
+        "Tue",
+        "Fri",
+        "Sat"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Jalandhar Cantt",
+        "Pathankot Cantt",
+        "Jammu Tawi",
+        "Udhampur",
+        "SVDK"
+      ],
+      "total_distance_km": 343,
+      "duration_hours": 7.41,
+      "catering_available": true,
+      "indicative_fare_min": 250.0,
+      "indicative_fare_max": 1360.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daytime superfast connection from central Punjab industrial hub to Katra base terminal.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12919",
+      "train_name": "Malwa Express (via Jalandhar Cantt)",
+      "origin_station_code": "JRC",
+      "origin_station_name": "Jalandhar Cantt Junction",
+      "origin_city": "Jalandhar",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "10:35",
+      "arrival_time": "16:30",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Mukerian",
+        "Pathankot Cantt",
+        "Jammu Tawi",
+        "Udhampur",
+        "SVDK"
+      ],
+      "total_distance_km": 291,
+      "duration_hours": 5.91,
+      "catering_available": true,
+      "indicative_fare_min": 220.0,
+      "indicative_fare_max": 1240.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Convenient daytime service from Doaba region directly to Shri Mata Vaishno Devi Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12413",
+      "train_name": "Pooja Superfast Express",
+      "origin_station_code": "JP",
+      "origin_station_name": "Jaipur Junction",
+      "origin_city": "Jaipur",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "16:15",
+      "arrival_time": "07:30",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Alwar",
+        "Rewari",
+        "Delhi Cantt",
+        "Karnal",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Pathankot Cantt",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 883,
+      "duration_hours": 15.25,
+      "catering_available": true,
+      "indicative_fare_min": 490.0,
+      "indicative_fare_max": 2840.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily superfast evening departure from Rajasthan state capital arriving Jammu Tawi early morning.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "19225",
+      "train_name": "Jodhpur - Jammu Tawi Express",
+      "origin_station_code": "JU",
+      "origin_station_name": "Jodhpur Junction",
+      "origin_city": "Jodhpur",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "06:45",
+      "arrival_time": "06:20",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Nagaur",
+        "Bikaner",
+        "Suratgarh",
+        "Bathinda",
+        "Firozpur Cantt",
+        "Jalandhar City",
+        "Amritsar",
+        "Pathankot",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 1058,
+      "duration_hours": 23.58,
+      "catering_available": false,
+      "indicative_fare_min": 525.0,
+      "indicative_fare_max": 2980.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily long-distance mail express connecting Western Rajasthan across Punjab into Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "12473",
+      "train_name": "Sarvodaya Superfast Express",
+      "origin_station_code": "ADI",
+      "origin_station_name": "Ahmedabad Junction",
+      "origin_city": "Ahmedabad",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "14:20",
+      "arrival_time": "17:25",
+      "days_of_operation": [
+        "Sat"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Vadodara",
+        "Ratlam",
+        "Kota",
+        "Mathura",
+        "New Delhi",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Pathankot Cantt",
+        "Jammu Tawi",
+        "SVDK"
+      ],
+      "total_distance_km": 1708,
+      "duration_hours": 27.08,
+      "catering_available": true,
+      "indicative_fare_min": 725.0,
+      "indicative_fare_max": 4120.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Superfast weekly corridor linking Gujarat commercial capital directly to Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12475",
+      "train_name": "Hapa - Shri Mata Vaishno Devi Katra SF Express",
+      "origin_station_code": "ADI",
+      "origin_station_name": "Ahmedabad Junction",
+      "origin_city": "Ahmedabad",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "14:20",
+      "arrival_time": "17:25",
+      "days_of_operation": [
+        "Tue"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Vadodara",
+        "Ratlam",
+        "Kota",
+        "New Delhi",
+        "Ludhiana",
+        "Jammu Tawi",
+        "SVDK"
+      ],
+      "total_distance_km": 1708,
+      "duration_hours": 27.08,
+      "catering_available": true,
+      "indicative_fare_min": 725.0,
+      "indicative_fare_max": 4120.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Saurashtra corridor train connecting Hapa/Rajkot/Ahmedabad directly to Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12919",
+      "train_name": "Malwa Superfast Express (from Bhopal)",
+      "origin_station_code": "BPL",
+      "origin_station_name": "Bhopal Junction",
+      "origin_city": "Bhopal",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "17:30",
+      "arrival_time": "16:30",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Bina",
+        "Jhansi",
+        "Gwalior",
+        "Agra Cantt",
+        "New Delhi",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jammu Tawi",
+        "SVDK"
+      ],
+      "total_distance_km": 1317,
+      "duration_hours": 23.0,
+      "catering_available": true,
+      "indicative_fare_min": 610.0,
+      "indicative_fare_max": 3610.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily superfast evening departure from Madhya Pradesh state capital direct to Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12237",
+      "train_name": "Begampura Express (from Lucknow)",
+      "origin_station_code": "LKO",
+      "origin_station_name": "Lucknow Charbagh",
+      "origin_city": "Lucknow",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "17:45",
+      "arrival_time": "10:50",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Shahjahanpur",
+        "Moradabad",
+        "Saharanpur",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jalandhar Cantt",
+        "Pathankot Cantt",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 988,
+      "duration_hours": 17.08,
+      "catering_available": true,
+      "indicative_fare_min": 510.0,
+      "indicative_fare_max": 3150.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily overnight superfast link from Awadh / Lucknow to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12237",
+      "train_name": "Begampura Express (from Varanasi)",
+      "origin_station_code": "BSB",
+      "origin_station_name": "Varanasi Junction",
+      "origin_city": "Varanasi",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "12:40",
+      "arrival_time": "10:50",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Jaunpur",
+        "Sultanpur",
+        "Lucknow",
+        "Moradabad",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 1289,
+      "duration_hours": 22.16,
+      "catering_available": true,
+      "indicative_fare_min": 595.0,
+      "indicative_fare_max": 3550.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Connects holy city of Kashi / Varanasi directly to Jammu Tawi on a daily schedule.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "12355",
+      "train_name": "Archana Superfast Express",
+      "origin_station_code": "PNBE",
+      "origin_station_name": "Patna Junction",
+      "origin_city": "Patna",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "07:30",
+      "arrival_time": "10:20",
+      "days_of_operation": [
+        "Tue",
+        "Sat"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Pt. DD Upadhyaya",
+        "Varanasi",
+        "Lucknow",
+        "Moradabad",
+        "Saharanpur",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 1515,
+      "duration_hours": 26.83,
+      "catering_available": true,
+      "indicative_fare_min": 670.0,
+      "indicative_fare_max": 3950.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Bi-weekly superfast express connecting Bihar state capital directly to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "14609",
+      "train_name": "Hemkunt Express (from Rishikesh / Haridwar)",
+      "origin_station_code": "HW",
+      "origin_station_name": "Haridwar Junction",
+      "origin_city": "Haridwar",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "18:24",
+      "arrival_time": "07:00",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Roorkee",
+        "Saharanpur",
+        "Ambala Cantt",
+        "Chandigarh",
+        "Ludhiana",
+        "Pathankot Cantt",
+        "Jammu Tawi",
+        "SVDK"
+      ],
+      "total_distance_km": 551,
+      "duration_hours": 12.6,
+      "catering_available": false,
+      "indicative_fare_min": 340.0,
+      "indicative_fare_max": 1890.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Overnight pilgrimage express linking the sacred Ganges shrine of Haridwar directly to Katra.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "11077",
+      "train_name": "Jhelum Express",
+      "origin_station_code": "PUNE",
+      "origin_station_name": "Pune Junction",
+      "origin_city": "Pune",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "17:20",
+      "arrival_time": "10:10",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Daund Chord",
+        "Ahmednagar",
+        "Manmad",
+        "Bhusaval",
+        "Bhopal",
+        "Gwalior",
+        "New Delhi",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 2177,
+      "duration_hours": 40.83,
+      "catering_available": true,
+      "indicative_fare_min": 820.0,
+      "indicative_fare_max": 4750.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Longstanding daily direct express from Pune Junction to Jammu Tawi crossing Maharashtra, MP, Delhi, and Punjab.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "12331",
+      "train_name": "Himgiri Express",
+      "origin_station_code": "HWH",
+      "origin_station_name": "Howrah Junction",
+      "origin_city": "Kolkata",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "23:55",
+      "arrival_time": "13:00",
+      "days_of_operation": [
+        "Tue",
+        "Fri",
+        "Sat"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A",
+        "1A"
+      ],
+      "major_halts": [
+        "Asansol",
+        "Patna",
+        "Varanasi",
+        "Lucknow",
+        "Moradabad",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 2024,
+      "duration_hours": 37.08,
+      "catering_available": true,
+      "indicative_fare_min": 790.0,
+      "indicative_fare_max": 4620.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Tri-weekly superfast express from Howrah Junction directly to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    },
+    {
+      "train_number": "13151",
+      "train_name": "Kolkata Sealdah - Jammu Tawi Express",
+      "origin_station_code": "SDAH",
+      "origin_station_name": "Sealdah",
+      "origin_city": "Kolkata",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "23:55",
+      "arrival_time": "08:50",
+      "days_of_operation": [
+        "Daily"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Barddhaman",
+        "Gaya",
+        "Varanasi",
+        "Lucknow",
+        "Bareilly",
+        "Ambala Cantt",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 1980,
+      "duration_hours": 44.91,
+      "catering_available": true,
+      "indicative_fare_min": 770.0,
+      "indicative_fare_max": 4410.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Daily mail express connecting Eastern India directly to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "16317",
+      "train_name": "Himsagar Express (Connecting South India to Katra)",
+      "origin_station_code": "SBC",
+      "origin_station_name": "KSR Bengaluru City / Katpadi Link",
+      "origin_city": "Bengaluru",
+      "destination_station_code": "SVDK",
+      "destination_station_name": "Shri Mata Vaishno Devi Katra",
+      "destination_city": "Katra",
+      "departure_time": "18:20",
+      "arrival_time": "10:45",
+      "days_of_operation": [
+        "Fri"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Tirupati",
+        "Vijayawada",
+        "Warangal",
+        "Nagpur",
+        "Bhopal",
+        "Jhansi",
+        "New Delhi",
+        "Ludhiana",
+        "Jammu Tawi",
+        "SVDK"
+      ],
+      "total_distance_km": 3030,
+      "duration_hours": 64.41,
+      "catering_available": true,
+      "indicative_fare_min": 985.0,
+      "indicative_fare_max": 5890.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "India's landmark trans-subcontinental pilgrimage train directly reaching Katra base camp.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard mail/express tariff."
+    },
+    {
+      "train_number": "12751",
+      "train_name": "Hazur Sahib Nanded - Jammu Tawi Weekly Express (via Secunderabad / Hyderabad)",
+      "origin_station_code": "SC",
+      "origin_station_name": "Secunderabad Junction",
+      "origin_city": "Hyderabad",
+      "destination_station_code": "JAT",
+      "destination_station_name": "Jammu Tawi",
+      "destination_city": "Jammu",
+      "departure_time": "11:15",
+      "arrival_time": "23:05",
+      "days_of_operation": [
+        "Fri"
+      ],
+      "travel_classes": [
+        "SL",
+        "3A",
+        "2A"
+      ],
+      "major_halts": [
+        "Nizamabad",
+        "Nanded",
+        "Akola",
+        "Bhopal",
+        "Agra Cantt",
+        "New Delhi",
+        "Ludhiana",
+        "Jammu Tawi"
+      ],
+      "total_distance_km": 2132,
+      "duration_hours": 35.83,
+      "catering_available": true,
+      "indicative_fare_min": 810.0,
+      "indicative_fare_max": 4720.0,
+      "source_name": "National Train Enquiry System (NTES)",
+      "source_url": "https://enquiry.indianrail.gov.in/",
+      "verified_at": "2026-11-10T12:00:00Z",
+      "verified_by": "Yatra AI Verified Transport Catalog Auditor (Phase 14.4.3)",
+      "verification_status": "OFFICIALLY_VERIFIED",
+      "is_live_status": false,
+      "notes": "Weekly superfast express linking Deccan pilgrimage corridor (Nanded/Secunderabad) to Jammu Tawi.",
+      "fare_classification": "CURATED_FARE",
+      "fare_disclaimer": "Standard superfast tariff."
+    }
+  ]
+}

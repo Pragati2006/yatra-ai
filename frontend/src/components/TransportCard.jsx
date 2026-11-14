@@ -1,24 +1,29 @@
 import React from 'react';
+import { Plane, Bus, Train, Info, Check, ArrowRight } from 'lucide-react';
 
-export default function TransportCard({ option, pax = 1, isSelected, onSelect }) {
+export default function TransportCard({ option, isSelected, onSelect, pax = 1 }) {
+  if (!option) return null;
+
   const tr = option.transport || option.flight || {};
   const slot = option.slot || {};
-  const mode = (tr.mode || 'train').toUpperCase();
+  const mode = (tr.mode || 'Train').toUpperCase();
   const operator = tr.operator || tr.name || (mode === 'TRAIN' ? 'Indian Railways' : 'Express Service');
   const serviceNo = tr.transport_no || (tr.id ? `ID #${tr.id}` : null);
-  const depTime = tr.departure_time || '06:00';
-  const travelDate = tr.travel_date || null;
-  const origin = tr.origin || 'Delhi';
-  const dest = tr.destination || 'Katra';
-  const isConnecting = option.is_connecting || tr.is_connecting;
 
-  // Calculate arrival time and duration if not provided
+  const origin = tr.origin || tr.origin_bus_stand || 'Departure Point';
+  const dest = tr.destination || tr.destination_bus_stand || 'Katra';
+
+  // Timetable truthfulness: If point timings are unverified (e.g. curated railway), suppress fabricated clock times
+  const isTrainTimetableUnverified = mode === 'TRAIN' && (tr.timetable_verification?.status === 'unverified' || !tr.timetable_verification);
+  const depTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.departure_time || 'Check schedule');
+
+  // Calculate arrival time or display safe fallback
   let calculatedArrTime = tr.arrival_time;
-  if (!calculatedArrTime && tr.departure_time && tr.duration_mins) {
+  if (!calculatedArrTime && tr.departure_time && tr.duration_hours && !isTrainTimetableUnverified) {
     try {
-      const [dh, dm] = tr.departure_time.split(':').map(Number);
-      const totalMinutes = dh * 60 + dm + Number(tr.duration_mins);
-      const arrHour = Math.floor((totalMinutes / 60) % 24);
+      const [depH, depM] = tr.departure_time.split(':').map(Number);
+      const totalMinutes = depH * 60 + depM + Math.round(tr.duration_hours * 60);
+      const arrHour = Math.floor(totalMinutes / 60) % 24;
       const arrMin = totalMinutes % 60;
       const daysLater = Math.floor(totalMinutes / (24 * 60));
       calculatedArrTime = `${String(arrHour).padStart(2, '0')}:${String(arrMin).padStart(2, '0')}${daysLater > 0 ? ` (+${daysLater}d)` : ''}`;
@@ -26,17 +31,39 @@ export default function TransportCard({ option, pax = 1, isSelected, onSelect })
       calculatedArrTime = tr.departure_time;
     }
   }
-  const arrTime = calculatedArrTime || '14:00';
+  const isFlight = mode === 'FLIGHT';
+  const isBus = mode === 'BUS';
+  const isTrain = mode === 'TRAIN';
 
-  const durationStr = tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null);
+  const arrTime = isTrainTimetableUnverified
+    ? 'Check NTES (139)'
+    : (calculatedArrTime || (!isFlight && tr.duration_hours ? `~${tr.duration_hours}h` : (isFlight ? 'Confirm with airline' : 'Enquire at counter')));
 
-  // Fares segregation
-  const farePerPerson = tr.fare_per_person || tr.price || 0;
-  const transportFareTotal = tr.total_fare || (farePerPerson * pax);
+  const durationStr = !isFlight && !isTrainTimetableUnverified ? (tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null)) : null;
+
+  // Fares segregation: never display unavailable airfare, train fare, or counter slab as confirmed ₹0
+  const isFareUnavailable = tr.fare_classification === 'UNAVAILABLE' ||
+    tr.fare_classification === 'STATUTORY_NOTIFIED_PER_KM_SLAB' ||
+    (isFlight && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (isTrain && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (tr.fare == null && tr.price == null && tr.fare_per_person == null);
+
+  const farePerPerson = isFareUnavailable ? null : (tr.fare_per_person || tr.price || 0);
+  const transportFareTotal = isFareUnavailable ? null : (tr.total_fare || (farePerPerson * pax));
   const slotPricePerPerson = slot.price || 0;
   const slotTotal = slotPricePerPerson * pax;
-  const bundleTotal = option.total_price || (transportFareTotal + slotTotal);
-  const bundleExplanation = option.bundle_explanation || `Includes ${mode.toLowerCase()} fare for ${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'} and confirmed darshan slot registration.`;
+  const bundleTotal = option.total_price || (isFareUnavailable ? slotTotal : ((transportFareTotal || 0) + slotTotal));
+
+  // Truthful darshan wording: Normal darshan is free of cost via mandatory RFID card at Katra; not a confirmed booking
+  const bundleExplanation = option.bundle_explanation || (
+    isFareUnavailable
+      ? (isFlight
+          ? `Includes pilgrimage itinerary planning for ${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'}. Airfare is dynamic and payable on official airline portal. Normal Darshan is free; collect RFID card at Katra.`
+          : (isTrain
+              ? `Includes pilgrimage itinerary planning for ${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'}. Train fare is dynamic and payable on official IRCTC portal (irctc.co.in). Normal Darshan is free; collect RFID card at Katra.`
+              : `Includes pilgrimage itinerary planning for ${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'}. Bus tariff payable at bus stand counter (approx ₹${tr.indicative_fare_min || 75}–₹${tr.indicative_fare_max || 110}). Normal Darshan is free; collect RFID card at Katra.`))
+      : `Includes verified ${mode.toLowerCase()} fare for ${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'} and yatra planning guidance. Normal Darshan is free via Katra RFID registration.`
+  );
 
   return (
     <div
@@ -56,8 +83,9 @@ export default function TransportCard({ option, pax = 1, isSelected, onSelect })
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="pill pill-gold">
-              {mode === 'FLIGHT' ? '✈️ FLIGHT' : (mode === 'BUS' ? '🚌 BUS' : '🚆 TRAIN')}
+            <span className="pill pill-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              {isFlight ? <Plane size={12} /> : (isBus ? <Bus size={12} /> : <Train size={12} />)}
+              <span>{isFlight ? 'FLIGHT' : (isBus ? 'BUS' : 'TRAIN')}</span>
             </span>
             <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--burgundy)' }}>
               {operator}
@@ -68,77 +96,180 @@ export default function TransportCard({ option, pax = 1, isSelected, onSelect })
               </span>
             )}
           </div>
-          {travelDate && (
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-              📅 Travel Date: <b>{travelDate}</b>
-            </div>
-          )}
         </div>
-        {isConnecting && (
-          <span className="pill" style={{ background: '#FFF3CD', color: '#856404', fontSize: '0.72rem' }}>
-            🔄 Via {tr.connecting_hub || 'Hub'}
-          </span>
-        )}
+        <span className="pill pill-success" style={{ fontSize: '0.72rem' }}>
+          {isFareUnavailable ? (isTrain ? 'IRCTC Route' : (isFlight ? 'DGCA Corridor' : 'Stage Carriage')) : 'Verified Schedule'}
+        </span>
       </div>
 
-      {/* Route & Times */}
+      {/* Origin & Destination Schedule Grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
-        padding: '0.5rem 0',
+        padding: '6px 0',
+        borderTop: '1px solid var(--border-subtle)',
         borderBottom: '1px solid var(--border-subtle)',
       }}>
         <div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)' }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>
             {depTime}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
             {origin}
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', padding: '0 0.8rem' }}>
-          {durationStr && (
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '2px' }}>
-              ⏱️ {durationStr}
-            </div>
-          )}
-          <div style={{ color: 'var(--gold-primary)', fontSize: '0.85rem' }}>
-            ──────── ➔
+        <div style={{ textAlign: 'center', padding: '0 8px' }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+            {isTrainTimetableUnverified ? 'NTES 139' : (durationStr ? durationStr : (isFlight ? 'Direct' : 'Scheduled'))}
           </div>
+          <div style={{ color: 'var(--gold-primary)', fontSize: '0.85rem' }}>────── →</div>
         </div>
 
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-dark)' }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>
             {arrTime}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
             {dest}
           </div>
         </div>
       </div>
 
-      {/* Yatra Slot Bundle */}
+      {/* Ground Transfer Footnote for Flight Options */}
+      {isFlight && (
+        <div style={{
+          background: '#FFF9ED',
+          border: '1px solid #F3E5AB',
+          borderRadius: '6px',
+          padding: '6px 8px',
+          fontSize: '0.72rem',
+          color: '#856404',
+          lineHeight: 1.35,
+        }}>
+          <strong>Ground Transfer Note:</strong> Flights land at Jammu Airport (IXJ). Katra base camp is ~50 km away (~1.5h via taxi/JKSRTC bus).
+        </div>
+      )}
+
+      {/* Train Timetable Footnote for Curated Train Options */}
+      {isTrainTimetableUnverified && (
+        <div style={{
+          background: '#FFF9ED',
+          border: '1px solid #F3E5AB',
+          borderRadius: '6px',
+          padding: '6px 8px',
+          fontSize: '0.72rem',
+          color: '#856404',
+          lineHeight: 1.35,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <Info size={12} style={{ flexShrink: 0 }} />
+          <span><strong>Timetable via NTES:</strong> Daily departures operate from {origin}. Exact departure minutes and platform details confirmed via National Train Enquiry System (139) or irctc.co.in.</span>
+        </div>
+      )}
+
+      {/* Bus Stage Carriage Footnote */}
+      {isBus && (
+        <div style={{
+          background: '#FFF9ED',
+          border: '1px solid #F3E5AB',
+          borderRadius: '6px',
+          padding: '6px 8px',
+          fontSize: '0.72rem',
+          color: '#856404',
+          lineHeight: 1.35,
+        }}>
+          <strong>Public Stage Carriage:</strong> Governed by J&amp;K STA tariff notification. Operates regular daytime departures; tickets purchased at terminal bus stand counter.
+        </div>
+      )}
+
+      {/* Connecting Journey Multi-Leg Breakdown */}
+      {Boolean(tr.is_connecting || (Array.isArray(tr.legs) && tr.legs.length > 0)) && (
+        <div style={{
+          background: '#FFFDF9',
+          border: '1px dashed #E5D2AD',
+          borderRadius: '8px',
+          padding: '8px 10px',
+          fontSize: '0.74rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontWeight: 700, color: 'var(--burgundy)' }}>
+              Connecting Itinerary ({tr.legs ? tr.legs.length : 2} Legs via {tr.primary_hub || 'Transfer Hub'})
+            </span>
+            {tr.fallback_level && (
+              <span style={{ fontSize: '0.64rem', color: '#856404', background: '#FFF3CD', padding: '1px 6px', borderRadius: '4px' }}>
+                {tr.fallback_level.split(':')[0]}
+              </span>
+            )}
+          </div>
+          {Array.isArray(tr.legs) && tr.legs.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {tr.legs.map((leg, idx) => {
+                const isVerified = leg.verification_status === 'VERIFIED_SCHEDULE';
+                const isRoadTransfer = leg.verification_status === 'ESTIMATED_ROAD_TRANSFER';
+                return (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.70rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{
+                        background: 'var(--burgundy)',
+                        color: '#FFF',
+                        borderRadius: '50%',
+                        width: '16px',
+                        height: '16px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                      }}>{leg.leg_number || idx + 1}</span>
+                      <span><strong>{leg.from_place}</strong> → <strong>{leg.to_place}</strong> ({leg.mode}{leg.estimated_duration ? ` · ${leg.estimated_duration}` : ''})</span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 600,
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      background: isVerified ? '#E8F5E9' : (isRoadTransfer ? '#E3F2FD' : '#FFF9C4'),
+                      color: isVerified ? '#2E7D32' : (isRoadTransfer ? '#1565C0' : '#F57F17'),
+                    }}>
+                      {isVerified ? 'Verified' : (isRoadTransfer ? 'Feeder Link' : 'Connecting Leg')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {tr.booking_advice && (
+            <div style={{ marginTop: '5px', fontSize: '0.68rem', color: '#666', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Info size={11} />
+              <span>{tr.booking_advice}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Yatra Darshan Guidance */}
       <div style={{
-        background: 'var(--gold-subtle)',
-        border: '1px solid var(--gold-border)',
-        borderRadius: '10px',
-        padding: '8px 12px',
-        fontSize: '0.8rem',
+        background: 'var(--bg-subtle)',
+        borderRadius: '8px',
+        padding: '8px 10px',
+        fontSize: '0.78rem',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
         <div>
           <span style={{ fontWeight: 700, color: 'var(--burgundy)' }}>
-            🔱 Yatra Slot:
+            Darshan Guidance:
           </span>{' '}
-          {slot.category || 'Normal Darshan'} ({slot.slot_time || 'Morning Slot'})
+          {slot.category || 'Normal Darshan'}
           {slot.slot_date && <span style={{ color: 'var(--text-muted)' }}> · {slot.slot_date}</span>}
         </div>
-        <span style={{ fontWeight: 700, color: '#155724' }}>
-          {slotPricePerPerson > 0 ? `+₹${slotTotal}` : '✓ Free'}
+        <span style={{ fontWeight: 700, color: '#155724', fontSize: '0.74rem' }}>
+          {slotPricePerPerson > 0 ? `+₹${slotTotal}` : 'Free Entry (RFID at Katra)'}
         </span>
       </div>
 
@@ -154,17 +285,30 @@ export default function TransportCard({ option, pax = 1, isSelected, onSelect })
         gap: '4px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Transport Fare ({pax}x ₹{farePerPerson}):</span>
-          <span style={{ fontWeight: 700 }}>₹{transportFareTotal.toLocaleString('en-IN')}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Darshan Registration:</span>
-          <span style={{ fontWeight: 700, color: slotTotal === 0 ? '#155724' : 'var(--text-dark)' }}>
-            {slotTotal === 0 ? 'Included (₹0)' : `₹${slotTotal.toLocaleString('en-IN')}`}
+          <span style={{ color: 'var(--text-muted)' }}>
+            {isFareUnavailable ? 'Transport Tariff:' : `Transport Fare (${pax}x ₹${farePerPerson}):`}
+          </span>
+          <span style={{ fontWeight: 700 }}>
+            {isFareUnavailable
+              ? (isFlight
+                  ? 'Airfare on airline website (dynamic pricing)'
+                  : (isTrain
+                      ? 'Fare on IRCTC portal (dynamic pricing)'
+                      : (tr.indicative_fare_min
+                          ? `Statutory slab approx ₹${tr.indicative_fare_min}–₹${tr.indicative_fare_max || 110} (Counter)`
+                          : 'Tariff payable at counter')))
+              : `₹${transportFareTotal.toLocaleString('en-IN')}`}
           </span>
         </div>
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px dashed #DDD', paddingTop: '4px', marginTop: '2px' }}>
-          ℹ️ {bundleExplanation}
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Darshan Entry (Normal):</span>
+          <span style={{ fontWeight: 700, color: '#155724' }}>
+            {slotTotal === 0 ? 'Free Entry (RFID Card at Katra)' : `₹${slotTotal.toLocaleString('en-IN')}`}
+          </span>
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px dashed #DDD', paddingTop: '4px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Info size={11} />
+          <span>{bundleExplanation}</span>
         </div>
       </div>
 
@@ -172,19 +316,35 @@ export default function TransportCard({ option, pax = 1, isSelected, onSelect })
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
         <div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Total Bundle ({pax} {pax === 1 ? 'pilgrim' : 'pilgrims'})
+            {isFareUnavailable
+              ? (isFlight
+                  ? 'Darshan Bundle (Excludes Airfare)'
+                  : (isTrain ? 'Itinerary Plan (Train Fare Dynamic)' : 'Itinerary Plan (Counter Bus Tariff)'))
+              : `Total Package (${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'})`}
           </div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--burgundy)' }}>
-            ₹{bundleTotal.toLocaleString('en-IN')}
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--burgundy)' }}>
+            {isFareUnavailable
+              ? (isFlight ? 'Airfare Dynamic' : (isTrain ? 'Fare via IRCTC' : 'Tariff at Counter'))
+              : `₹${bundleTotal.toLocaleString('en-IN')}`}
           </div>
         </div>
 
         <button
           onClick={onSelect}
           className={`btn ${isSelected ? 'btn-gold' : 'btn-primary'}`}
-          style={{ padding: '0.5rem 1.4rem', fontSize: '0.82rem' }}
+          style={{ padding: '0.5rem 1.4rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          {isSelected ? '✓ Selected Option' : 'Select Option ➔'}
+          {isSelected ? (
+            <>
+              <Check size={13} />
+              <span>Selected Option</span>
+            </>
+          ) : (
+            <>
+              <span>Select Option</span>
+              <ArrowRight size={13} />
+            </>
+          )}
         </button>
       </div>
     </div>

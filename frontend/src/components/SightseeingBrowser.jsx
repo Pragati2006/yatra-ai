@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Mountain, MapPin, Check, ArrowRight, X, Lightbulb, Search, AlertCircle, Clock, SkipForward, ClipboardList, ArrowLeft } from 'lucide-react';
 import SightseeingCard from './SightseeingCard';
 import { getSightseeing } from '../services/api';
 
@@ -125,7 +126,7 @@ export default function SightseeingBrowser({
             color: 'var(--burgundy)',
             marginBottom: '6px',
           }}>
-            <span>🏔️</span> Jammu &amp; Kashmir Destination Catalogue
+            <Mountain size={14} /> Jammu &amp; Kashmir Destination Catalogue
           </div>
           <h2 style={{
             fontFamily: 'var(--font-serif)',
@@ -139,8 +140,8 @@ export default function SightseeingBrowser({
           <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: 0 }}>
             {subtitle || (isStandalone ? `Showing ${allPlaces.length} verified spiritual shrines, scenic valleys, and heritage sites across Katra and Jammu.` : `Showing ${allPlaces.length} verified destinations across Katra, Jammu, and surrounding valleys. Select destinations to customize your timeline.`)}
             {tripRequest?.origin && (
-              <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)' }}>
-                📍 {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
+              <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <MapPin size={12} /> {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
               </span>
             )}
           </p>
@@ -152,9 +153,9 @@ export default function SightseeingBrowser({
             <span
               data-testid="selected-count-badge"
               className="pill pill-gold"
-              style={{ fontSize: '0.84rem', padding: '6px 14px', fontWeight: 700 }}
+              style={{ fontSize: '0.84rem', padding: '6px 14px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
             >
-              ✓ {effectiveSelected.length} Places Selected
+              <Check size={14} /> {effectiveSelected.length} Places Selected
             </span>
           )}
           {isStandalone && onPlanYatra && (
@@ -163,9 +164,9 @@ export default function SightseeingBrowser({
               data-testid="standalone-start-yatra-btn"
               onClick={() => onPlanYatra(effectiveSelected)}
               className="btn btn-primary"
-              style={{ padding: '0.65rem 1.6rem', fontSize: '0.86rem' }}
+              style={{ padding: '0.65rem 1.6rem', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Plan Yatra with Destinations ➔
+              Plan Yatra with Destinations <ArrowRight size={14} />
             </button>
           )}
           {!isStandalone && onGenerateItinerary && (
@@ -175,9 +176,15 @@ export default function SightseeingBrowser({
               onClick={onGenerateItinerary}
               disabled={loading}
               className="btn btn-primary"
-              style={{ padding: '0.65rem 1.6rem', fontSize: '0.86rem' }}
+              style={{ padding: '0.65rem 1.6rem', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              {loading ? 'Building Timeline...' : `Build Itinerary (${effectiveSelected.length}) ➔`}
+              {loading ? (
+                'Building Timeline...'
+              ) : (
+                <>
+                  Build Itinerary ({effectiveSelected.length}) <ArrowRight size={14} />
+                </>
+              )}
             </button>
           )}
         </div>
@@ -205,8 +212,8 @@ export default function SightseeingBrowser({
               flexWrap: 'wrap',
               gap: '8px',
             }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--burgundy)' }}>
-                📍 {isStandalone ? 'Selected Destinations' : 'Selected for Your Yatra'} ({effectiveSelected.length}):
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--burgundy)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <MapPin size={14} /> {isStandalone ? 'Selected Destinations' : 'Selected for Your Yatra'} ({effectiveSelected.length}):
               </span>
               <button
                 type="button"
@@ -261,7 +268,7 @@ export default function SightseeingBrowser({
                       boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
-                    <span>🔱 {name}</span>
+                    <span>{name}</span>
                     <button
                       type="button"
                       data-testid={`remove-place-${slug}`}
@@ -284,7 +291,7 @@ export default function SightseeingBrowser({
                         alignItems: 'center',
                       }}
                     >
-                      ✕
+                      <X size={12} />
                     </button>
                   </span>
                 );
@@ -297,7 +304,10 @@ export default function SightseeingBrowser({
               {isStandalone ? (
                 <span><b>Explore &amp; Discover:</b> Inspect verified historical facts, route guidance, timings, and entry fees for 29 sacred destinations. Click any card to read heritage details, ask the AI companion, or start a customized pilgrimage plan.</span>
               ) : (
-                <span><b>💡 Optional Sightseeing:</b> Choose spiritual shrines and scenic spots to include in your personalized itinerary, or click <b>Decide Later</b> to focus solely on the Maa Vaishno Devi pilgrimage.</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Lightbulb size={14} color="var(--gold-primary)" />
+                  <span><b>Optional Sightseeing:</b> Choose spiritual shrines and scenic spots to include in your personalized itinerary, or click <b>Decide Later</b> to focus solely on the Maa Vaishno Devi pilgrimage.</span>
+                </span>
               )}
             </div>
             {!isStandalone && onChooseLater && (
@@ -336,9 +346,10 @@ export default function SightseeingBrowser({
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
-              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
             }}>
-              🔍
+              <Search size={16} />
             </span>
             <input
               type="text"
@@ -368,10 +379,12 @@ export default function SightseeingBrowser({
                   border: 'none',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  fontSize: '0.9rem',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                ✕
+                <X size={14} />
               </button>
             )}
           </div>
@@ -441,8 +454,11 @@ export default function SightseeingBrowser({
           borderRadius: '10px',
           marginBottom: '1.25rem',
           fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
         }}>
-          ⚠️ {error}
+          <AlertCircle size={16} /> {error}
         </div>
       )}
 
@@ -459,7 +475,9 @@ export default function SightseeingBrowser({
             marginBottom: '2.5rem',
           }}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+          <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+            <Clock size={32} color="var(--burgundy)" />
+          </div>
           <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--burgundy)', fontWeight: 700 }}>
             Loading Sacred &amp; Scenic Destinations...
           </div>
@@ -496,7 +514,9 @@ export default function SightseeingBrowser({
             marginBottom: '2.5rem',
           }}
         >
-          <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🔍</div>
+          <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+            <Search size={36} color="var(--text-muted)" />
+          </div>
           <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--burgundy)', margin: '0 0 6px 0' }}>
             No Destinations Found
           </h3>
@@ -540,9 +560,9 @@ export default function SightseeingBrowser({
                   data-testid="destinations-back-home-btn"
                   onClick={onBack}
                   className="btn btn-outline"
-                  style={{ fontSize: '0.85rem' }}
+                  style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ← Back to Home
+                  <ArrowLeft size={14} /> Back to Home
                 </button>
               )}
             </div>
@@ -553,9 +573,9 @@ export default function SightseeingBrowser({
                   data-testid="destinations-plan-trip-btn"
                   onClick={() => onPlanYatra(effectiveSelected)}
                   className="btn btn-primary"
-                  style={{ padding: '0.65rem 2rem', fontSize: '0.88rem' }}
+                  style={{ padding: '0.65rem 2rem', fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  Plan Your Yatra Now ➔
+                  Plan Your Yatra Now <ArrowRight size={14} />
                 </button>
               )}
             </div>
@@ -569,9 +589,9 @@ export default function SightseeingBrowser({
                   data-testid="sightseeing-back-btn"
                   onClick={onBack}
                   className="btn btn-outline"
-                  style={{ fontSize: '0.85rem' }}
+                  style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ← Back to Accommodation
+                  <ArrowLeft size={14} /> Back to Accommodation
                 </button>
               )}
             </div>
@@ -589,9 +609,12 @@ export default function SightseeingBrowser({
                     color: 'var(--burgundy)',
                     fontSize: '0.85rem',
                     fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  ⏭️ Skip Sightseeing
+                  <SkipForward size={14} /> Skip Sightseeing
                 </button>
               )}
 
@@ -624,9 +647,12 @@ export default function SightseeingBrowser({
                     color: 'var(--burgundy)',
                     fontSize: '0.85rem',
                     fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  📋 Review Trip &amp; Continue ➔
+                  <ClipboardList size={14} /> Review Trip &amp; Continue <ArrowRight size={14} />
                 </button>
               )}
 
@@ -636,9 +662,9 @@ export default function SightseeingBrowser({
                   data-testid="back-to-review-btn"
                   onClick={onReviewTripDirectly}
                   className="btn btn-secondary"
-                  style={{ fontSize: '0.85rem' }}
+                  style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ↩ Back to Trip Review
+                  <ArrowLeft size={14} /> Back to Trip Review
                 </button>
               )}
 
@@ -653,11 +679,18 @@ export default function SightseeingBrowser({
                     padding: '0.75rem 2rem',
                     fontSize: '0.9rem',
                     fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  {loading
-                    ? 'Building Timeline...'
-                    : `Generate Day-Wise Itinerary (${effectiveSelected.length} selected) ➔`}
+                  {loading ? (
+                    'Building Timeline...'
+                  ) : (
+                    <>
+                      Generate Day-Wise Itinerary ({effectiveSelected.length} selected) <ArrowRight size={14} />
+                    </>
+                  )}
                 </button>
               )}
             </div>

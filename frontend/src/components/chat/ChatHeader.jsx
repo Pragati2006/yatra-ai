@@ -1,9 +1,25 @@
 import React from 'react';
+import {
+  History,
+  Plus,
+  MessageSquare,
+  Compass,
+  Ticket,
+  MapPin,
+  Settings,
+  User,
+  LogOut,
+} from 'lucide-react';
+import YatraLogo from '../common/YatraLogo';
 
 /**
- * Minimal, modern Header for Yatra AI.
- * Incorporates Yatra AI branding, history drawer toggle, new chat trigger,
- * minimal navigation, and user authentication/profile controls.
+ * Polished, professional Header for Yatra AI Web.
+ * Clean vector line icons, zero emojis, responsive navigation:
+ * 1. AI Assistant (Central conversational intelligence)
+ * 2. My Trips (Simulated booking passes & saved itineraries)
+ * 3. Booking Wizard (Step-by-step darshan & travel intake)
+ * 4. Destinations (Jammu & Kashmir religious and scenic catalogue)
+ * 5. Settings (Dedicated settings, preferences, and account management)
  */
 export default function ChatHeader({
   activeTab,
@@ -14,6 +30,7 @@ export default function ChatHeader({
   onLogout,
   onToggleHistory,
   onStartNewChat,
+  onReturnToLanding = null,
   isHistoryOpen = false,
 }) {
   return (
@@ -22,7 +39,7 @@ export default function ChatHeader({
       style={{
         background: '#FFFFFF',
         borderBottom: '1px solid var(--gold-border, #E5D2AD)',
-        padding: '0.65rem 1.25rem',
+        padding: '0.65rem 1.15rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -31,10 +48,11 @@ export default function ChatHeader({
         zIndex: 100,
         boxShadow: '0 2px 10px rgba(88, 17, 26, 0.03)',
         flexShrink: 0,
+        gap: '8px',
       }}
     >
-      {/* Left: History Button + Branding */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {/* Left: History Button + Brand Identity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         {/* Compact History Toggle Button */}
         <button
           type="button"
@@ -44,7 +62,7 @@ export default function ChatHeader({
           aria-expanded={isHistoryOpen}
           style={{
             background: isHistoryOpen ? 'var(--gold-subtle, #F5ECDA)' : '#FFFFFF',
-            border: '1.5px solid var(--gold-border, #E5D2AD)',
+            border: `1.5px solid ${isHistoryOpen ? 'var(--gold-primary, #B8860B)' : 'var(--gold-border, #E5D2AD)'}`,
             borderRadius: '10px',
             padding: '6px 10px',
             display: 'flex',
@@ -58,7 +76,7 @@ export default function ChatHeader({
           }}
           title="View saved conversations & trip history"
         >
-          <span style={{ fontSize: '0.95rem' }}>⏱️</span>
+          <History size={16} strokeWidth={2.2} />
           <span className="hide-on-mobile">History</span>
         </button>
 
@@ -74,7 +92,7 @@ export default function ChatHeader({
             padding: '6px 10px',
             display: 'flex',
             alignItems: 'center',
-            gap: '5px',
+            gap: '6px',
             fontSize: '0.82rem',
             fontWeight: 600,
             color: 'var(--burgundy, #58111A)',
@@ -83,23 +101,27 @@ export default function ChatHeader({
           }}
           title="Start fresh conversation"
         >
-          <span>➕</span>
+          <Plus size={16} strokeWidth={2.2} />
           <span className="hide-on-mobile">New Chat</span>
         </button>
 
         {/* Divider */}
         <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle, #EBE1D0)' }} />
 
-        {/* Brand */}
+        {/* Official Brand Identity */}
         <div
           data-testid="nav-brand-logo"
           role="button"
           tabIndex={0}
-          onClick={() => setActiveTab('assistant')}
+          onClick={() => (onReturnToLanding ? onReturnToLanding() : setActiveTab('assistant'))}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setActiveTab('assistant');
+              if (onReturnToLanding) {
+                onReturnToLanding();
+              } else {
+                setActiveTab('assistant');
+              }
             }
           }}
           style={{
@@ -110,30 +132,13 @@ export default function ChatHeader({
             textDecoration: 'none',
           }}
         >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--burgundy, #58111A) 0%, var(--burgundy-dark, #3D0810) 100%)',
-              border: '1.5px solid var(--gold-primary, #B8860B)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#E5D2AD',
-              fontSize: '1rem',
-              boxShadow: '0 2px 6px rgba(88, 17, 26, 0.15)',
-              flexShrink: 0,
-            }}
-          >
-            🔱
-          </div>
+          <YatraLogo size={34} />
           <div>
             <div
               style={{
                 fontFamily: 'var(--font-serif, Cinzel, serif)',
                 fontWeight: 800,
-                fontSize: '1rem',
+                fontSize: '1.02rem',
                 color: 'var(--burgundy, #58111A)',
                 letterSpacing: '0.04em',
                 lineHeight: 1.1,
@@ -142,27 +147,29 @@ export default function ChatHeader({
               YATRA AI
             </div>
             <div
+              className="hide-on-mobile"
               style={{
-                fontSize: '0.65rem',
-                fontWeight: 600,
+                fontSize: '0.62rem',
+                fontWeight: 700,
                 color: 'var(--gold-primary, #B8860B)',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
                 lineHeight: 1,
+                marginTop: '1px',
               }}
             >
-              Pilgrimage Companion
+              Pilgrimage &amp; Tourism Assistant
             </div>
           </div>
         </div>
       </div>
 
-      {/* Center: Minimal Navigation Pills */}
+      {/* Center: Core Capability Navigation Pills */}
       <nav
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
+          gap: '3px',
           background: 'var(--bg-subtle, #F8F4EC)',
           padding: '3px 4px',
           borderRadius: '999px',
@@ -185,9 +192,37 @@ export default function ChatHeader({
             cursor: 'pointer',
             transition: 'all 0.15s ease',
             boxShadow: activeTab === 'assistant' ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          AI Assistant
+          <MessageSquare size={14} strokeWidth={activeTab === 'assistant' ? 2.4 : 1.8} />
+          <span className="hide-on-small-mobile">Assistant</span>
+        </button>
+
+        <button
+          type="button"
+          data-testid="nav-saved-trips-tab"
+          onClick={onOpenSavedTrips}
+          style={{
+            background: 'transparent',
+            border: '1px solid transparent',
+            color: 'var(--text-muted, #6B5C5C)',
+            fontWeight: 600,
+            fontSize: '0.8rem',
+            padding: '5px 12px',
+            borderRadius: '999px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+          title="Open saved trips, itineraries, and simulated booking passes"
+        >
+          <Compass size={14} strokeWidth={1.8} />
+          <span className="hide-on-mobile">My Trips</span>
         </button>
 
         <button
@@ -206,9 +241,13 @@ export default function ChatHeader({
             cursor: 'pointer',
             transition: 'all 0.15s ease',
             boxShadow: activeTab === 'booking' ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          Darshan Bookings
+          <Ticket size={14} strokeWidth={activeTab === 'booking' ? 2.4 : 1.8} />
+          <span className="hide-on-mobile">Booking Wizard</span>
         </button>
 
         <button
@@ -227,33 +266,45 @@ export default function ChatHeader({
             cursor: 'pointer',
             transition: 'all 0.15s ease',
             boxShadow: activeTab === 'sightseeing' ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          Destinations
+          <MapPin size={14} strokeWidth={activeTab === 'sightseeing' ? 2.4 : 1.8} />
+          <span className="hide-on-mobile">Destinations</span>
+        </button>
+
+        {/* Dedicated Settings Tab */}
+        <button
+          type="button"
+          data-testid="nav-settings"
+          aria-current={activeTab === 'settings' ? 'page' : undefined}
+          onClick={() => setActiveTab('settings')}
+          style={{
+            background: activeTab === 'settings' ? '#FFFFFF' : 'transparent',
+            border: activeTab === 'settings' ? '1px solid var(--gold-border, #E5D2AD)' : '1px solid transparent',
+            color: activeTab === 'settings' ? 'var(--burgundy, #58111A)' : 'var(--text-muted, #6B5C5C)',
+            fontWeight: activeTab === 'settings' ? 800 : 600,
+            fontSize: '0.8rem',
+            padding: '5px 12px',
+            borderRadius: '999px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: activeTab === 'settings' ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+          title="Open application settings, preferences, and account controls"
+        >
+          <Settings size={14} strokeWidth={activeTab === 'settings' ? 2.4 : 1.8} />
+          <span className="hide-on-small-mobile">Settings</span>
         </button>
       </nav>
 
-      {/* Right: Plan Yatra + Auth & Account Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button
-          type="button"
-          data-testid="nav-plan-yatra-btn"
-          onClick={() => setActiveTab('booking')}
-          className="btn btn-primary"
-          style={{
-            padding: '0.42rem 0.95rem',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-          title="Open guided yatra booking wizard"
-        >
-          <span>Plan Your Yatra</span>
-          <span>➔</span>
-        </button>
-
+      {/* Right: Account & Authentication Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
         {!user ? (
           <button
             type="button"
@@ -282,8 +333,8 @@ export default function ChatHeader({
               e.currentTarget.style.background = '#FFFDF9';
             }}
           >
-            <span>👤</span>
-            <span>Sign In</span>
+            <User size={15} strokeWidth={2.2} />
+            <span className="hide-on-small-mobile">Sign In</span>
           </button>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -302,12 +353,12 @@ export default function ChatHeader({
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                maxWidth: '180px',
+                gap: '6px',
+                maxWidth: '160px',
               }}
-              title={`Account: ${user.email}`}
+              title={`Account: ${user.email}. Click to view saved trips & profile.`}
             >
-              <span>👤</span>
+              <User size={14} strokeWidth={2.2} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.email || 'My Account'}
               </span>
@@ -327,9 +378,13 @@ export default function ChatHeader({
                 fontSize: '0.78rem',
                 cursor: 'pointer',
                 fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              Sign Out
+              <LogOut size={13} strokeWidth={2} />
+              <span className="hide-on-small-mobile">Sign Out</span>
             </button>
           </div>
         )}

@@ -47,6 +47,24 @@ body {
   min-height: 100vh;
 }
 
+/* Global Chat Input Visibility & Accessibility */
+#chat-user-input {
+  color: #1A0407 !important;
+  background-color: #FFFFFF !important;
+  caret-color: #58111A !important;
+  font-family: var(--font-sans);
+}
+
+#chat-user-input::placeholder {
+  color: #736262 !important;
+  opacity: 1 !important;
+}
+
+#chat-user-input::selection {
+  background-color: #E5D2AD !important;
+  color: #58111A !important;
+}
+
 /* Headings */
 h1, h2, h3, h4, .brand-font {
   font-family: var(--font-serif);

@@ -103,7 +103,10 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
 
         # 5. Financial Summary
         b_eval = plan["budget_evaluation"]
-        self.assertGreater(b_eval["grand_total"], 0)
+        self.assertIn("grand_total", b_eval)
+        # Train fares are UNAVAILABLE per Phase 9.8.3.1.4, so grand_total is None
+        self.assertIsNone(b_eval["grand_total"])
+        self.assertFalse(b_eval.get("is_complete", True))
         self.assertEqual(plan["pax"], 2)
 
     # =========================================================================
@@ -240,7 +243,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
             accommodation=new_hotel,
             duration_days=4
         )
-        self.assertNotEqual(new_budget["grand_total"], plan_init["plan"]["budget_evaluation"]["grand_total"])
+        self.assertNotEqual(new_budget["verified_direct_charges"]["accommodation"], plan_init["plan"]["budget_evaluation"]["verified_direct_charges"]["accommodation"])
 
     # =========================================================================
     # 7. Budget and itinerary update after a change
@@ -269,7 +272,7 @@ class TestFlexibleBookingWorkflow(unittest.TestCase):
             estimated_costs=plan["budget_evaluation"]["estimated_costs"]["items"],
             estimate_return_if_missing=True,
         )
-        self.assertGreater(updated_budget["grand_total"], base_grand_total)
+        self.assertGreater(updated_budget["verified_direct_charges"]["accommodation"], plan["budget_evaluation"]["verified_direct_charges"]["accommodation"])
 
     # =========================================================================
     # 8. Unaffected valid selections are preserved

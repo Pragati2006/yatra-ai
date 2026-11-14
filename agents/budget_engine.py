@@ -167,16 +167,48 @@ def calculate_budget(
         out_dec = _to_decimal(out_price_raw)
 
         if out_dec is None or out_dec < Decimal("0.00"):
-            issues.append(f"Selected outbound {out_mode} transport has no valid verified price.")
-            is_complete = False
-            transport_details["outbound"] = {
-                "mode": out_mode,
-                "operator": transport.get("operator") or transport.get("airline"),
-                "price_per_person": None,
-                "pax": pax,
-                "total": None,
-                "verified": False,
-            }
+            # For unpriced modes (buses, trains, and unverified transport): counter/portal fares are not confirmed booking prices unless explicitly flagged as a synthetic test fixture
+            is_unpriced = (out_mode in ("bus", "train") or transport.get("fare_classification") == "UNAVAILABLE") and not (transport.get("is_synthetic_test_fare") or transport.get("is_test_fixture"))
+            # FA-06: Categorize estimated market tariffs or indicative fares under estimated_costs ONLY for explicit test fixtures or flights with explicit estimates
+            if not is_unpriced and (
+                transport.get("fare_classification") == "ESTIMATED_MARKET_TARIFF"
+                or transport.get("is_estimate")
+                or (transport.get("indicative_fare_min") is not None and transport.get("price") is None)
+            ):
+                est_rate = transport.get("indicative_fare_min") or transport.get("fare_estimate")
+                est_dec = _to_decimal(est_rate)
+                if est_dec is not None and est_dec > Decimal("0.00"):
+                    est_total = est_dec * Decimal(str(pax))
+                    if estimated_costs is None:
+                        estimated_costs = {}
+                    else:
+                        estimated_costs = dict(estimated_costs)
+                    estimated_costs["estimated_outbound_transport"] = float(est_total)
+                    transport_details["outbound"] = {
+                        "mode": out_mode,
+                        "operator": transport.get("operator") or transport.get("airline"),
+                        "price_per_person": float(est_dec),
+                        "pax": pax,
+                        "total": float(est_total),
+                        "verified": False,
+                        "is_estimate": True,
+                        "note": "Transport fare is an indicative market estimate; dynamic rates apply.",
+                    }
+                else:
+                    issues.append(f"Selected outbound {out_mode} transport has no valid verified price or estimate.")
+                    is_complete = False
+            else:
+                issues.append(f"Selected outbound {out_mode} transport has no confirmed verified price. Fares must be confirmed directly with carrier at booking.")
+                is_complete = False
+                transport_details["outbound"] = {
+                    "mode": out_mode,
+                    "operator": transport.get("operator") or transport.get("airline"),
+                    "price_per_person": None,
+                    "pax": pax,
+                    "total": None,
+                    "verified": False,
+                    "note": f"Outbound {out_mode} fare is unverified or unavailable; payable directly at counter or booking portal.",
+                }
         else:
             out_total = out_dec * Decimal(str(pax))
             transport_verified += out_total
@@ -197,16 +229,56 @@ def calculate_budget(
         ret_dec = _to_decimal(ret_price_raw)
 
         if ret_dec is None or ret_dec < Decimal("0.00"):
-            issues.append(f"Selected return {ret_mode} transport has no valid verified price.")
-            is_complete = False
-            transport_details["return"] = {
-                "mode": ret_mode,
-                "operator": return_transport.get("operator") or return_transport.get("airline"),
-                "price_per_person": None,
-                "pax": pax,
-                "total": None,
-                "verified": False,
-            }
+            # For unpriced modes (buses, trains, and unverified transport): counter/portal fares are not confirmed booking prices unless explicitly flagged as a synthetic test fixture
+            is_ret_unpriced = (ret_mode in ("bus", "train") or return_transport.get("fare_classification") == "UNAVAILABLE") and not (return_transport.get("is_synthetic_test_fare") or return_transport.get("is_test_fixture"))
+            # Categorize estimated market tariffs or indicative fares under estimated_costs for return transport
+            if not is_ret_unpriced and (
+                return_transport.get("fare_classification") == "ESTIMATED_MARKET_TARIFF"
+                or return_transport.get("is_estimate")
+                or (return_transport.get("indicative_fare_min") is not None and return_transport.get("price") is None)
+            ):
+                ret_est_rate = return_transport.get("indicative_fare_min") or return_transport.get("fare_estimate")
+                ret_est_dec = _to_decimal(ret_est_rate)
+                if ret_est_dec is not None and ret_est_dec > Decimal("0.00"):
+                    ret_est_total = ret_est_dec * Decimal(str(pax))
+                    if estimated_costs is None:
+                        estimated_costs = {}
+                    else:
+                        estimated_costs = dict(estimated_costs)
+                    estimated_costs["estimated_return_transport"] = float(ret_est_total)
+                    transport_details["return"] = {
+                        "mode": ret_mode,
+                        "operator": return_transport.get("operator") or return_transport.get("airline"),
+                        "price_per_person": float(ret_est_dec),
+                        "pax": pax,
+                        "total": float(ret_est_total),
+                        "verified": False,
+                        "is_estimate": True,
+                        "note": "Return transport fare is an indicative market estimate; dynamic rates apply.",
+                    }
+                else:
+                    issues.append(f"Selected return {ret_mode} transport has no valid verified price or estimate.")
+                    is_complete = False
+                    transport_details["return"] = {
+                        "mode": ret_mode,
+                        "operator": return_transport.get("operator") or return_transport.get("airline"),
+                        "price_per_person": None,
+                        "pax": pax,
+                        "total": None,
+                        "verified": False,
+                    }
+            else:
+                issues.append(f"Selected return {ret_mode} transport has no confirmed verified price. Fares must be confirmed directly with carrier at booking.")
+                is_complete = False
+                transport_details["return"] = {
+                    "mode": ret_mode,
+                    "operator": return_transport.get("operator") or return_transport.get("airline"),
+                    "price_per_person": None,
+                    "pax": pax,
+                    "total": None,
+                    "verified": False,
+                    "note": f"Return {ret_mode} fare is unverified or unavailable; payable directly at counter or booking portal.",
+                }
         else:
             ret_total = ret_dec * Decimal(str(pax))
             transport_verified += ret_total

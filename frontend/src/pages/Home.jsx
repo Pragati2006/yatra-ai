@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Compass, ArrowRight, MessageSquare, Clock, BookOpen, CreditCard, Bell, CloudSun, Helicopter, X, MapPin, Play } from 'lucide-react';
 import TravelSearch from '../components/TravelSearch';
 import AIChat from '../components/AIChat';
 import { getSightseeing } from '../services/api';
@@ -60,7 +61,7 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
             letterSpacing: '0.06em',
             marginBottom: '1rem',
           }}>
-            <span>🔱</span> JAI MATA DI · SACRED PILGRIMAGE PORTAL
+            <Compass size={14} /> JAI MATA DI · SACRED PILGRIMAGE PORTAL
           </div>
 
           <h1 className="hero-title">
@@ -75,16 +76,16 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
             <button
               onClick={() => onStartBooking()}
               className="btn btn-gold"
-              style={{ padding: '0.8rem 2rem', fontSize: '0.95rem' }}
+              style={{ padding: '0.8rem 2rem', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Plan Your Yatra Now ➔
+              Plan Your Yatra Now <ArrowRight size={16} />
             </button>
             <a
               href="#ai-assistant-section"
               className="btn btn-outline"
-              style={{ padding: '0.8rem 1.8rem', fontSize: '0.95rem' }}
+              style={{ padding: '0.8rem 1.8rem', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              💬 Ask AI Companion
+              <MessageSquare size={16} /> Ask AI Companion
             </a>
           </div>
         </div>
@@ -113,7 +114,7 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
             textTransform: 'uppercase',
             marginBottom: '4px',
           }}>
-            <span>🔱</span> INTELLIGENT COMPANION
+            <Compass size={14} /> INTELLIGENT COMPANION
           </div>
           <h2 style={{ fontSize: '2rem', color: 'var(--burgundy-dark)', marginBottom: '6px' }}>
             AI Companion & Yatra Assistant
@@ -155,9 +156,9 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
             data-testid="view-all-destinations-btn"
             onClick={() => onViewAllDestinations ? onViewAllDestinations() : onStartBooking()}
             className="btn btn-outline"
-            style={{ fontSize: '0.82rem' }}
+            style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            View All 29 Destinations ➔
+            View All 29 Destinations <ArrowRight size={14} />
           </button>
         </div>
 
@@ -200,8 +201,8 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)' }}>
                 {place.name}
               </div>
-              <div style={{ fontSize: '0.76rem', color: 'var(--gold-primary)', fontWeight: 600, margin: '2px 0 6px' }}>
-                ⏱️ {place.distance || 'Katra Region'} · {place.timings || 'Open daily'}
+              <div style={{ fontSize: '0.76rem', color: 'var(--gold-primary)', fontWeight: 600, margin: '2px 0 6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={12} /> {place.distance || 'Katra Region'} · {place.timings || 'Open daily'}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, flex: 1, marginBottom: '12px' }}>
                 {place.description ? place.description.slice(0, 95) + '...' : ''}
@@ -218,9 +219,9 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
                 <button
                   onClick={() => onExplorePlaceQuery ? onExplorePlaceQuery(`Tell me about ${place.name}`) : null}
                   className="btn btn-secondary"
-                  style={{ flex: 1, padding: '0.45rem', fontSize: '0.78rem' }}
+                  style={{ flex: 1, padding: '0.45rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                 >
-                  Ask AI 💬
+                  <MessageSquare size={12} /> Ask AI
                 </button>
               </div>
             </div>
@@ -237,37 +238,37 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
         boxShadow: 'var(--shadow-sm)',
         marginBottom: '2rem',
       }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--burgundy)', marginBottom: '1rem' }}>
-          📜 Pilgrimage Essentials & Yatra Guidelines
+        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--burgundy)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BookOpen size={20} /> Pilgrimage Essentials & Yatra Guidelines
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🆔 RFID Yatra Card
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CreditCard size={15} /> RFID Yatra Card
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
               Mandatory RFID-based Yatra Access Cards must be acquired at Katra railway station or bus stand counters before commencing the trek.
             </div>
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🛕 Holy Aarti Timings
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Bell size={15} /> Holy Aarti Timings
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
               Sacred Aarti takes place at Bhawan twice daily: Morning 06:00 AM to 08:00 AM and Evening 07:00 PM to 08:30 PM.
             </div>
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🧳 Weather & Packing
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CloudSun size={15} /> Weather & Packing
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
               The Bhawan shrine (~5,200 ft) is noticeably cooler than Katra town. Always carry comfortable trekking footwear and light woollens.
             </div>
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🚁 Helicopter & Battery Cars
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--burgundy)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Helicopter size={15} /> Helicopter & Battery Cars
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
               Helicopter operates between Katra and Sanjichhat. Eco-friendly battery cars operate between Ardhkuwari and Bhawan for elderly pilgrims.
@@ -305,9 +306,9 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
               </div>
               <button
                 onClick={() => setSelectedPlaceModal(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
               >
-                ✕
+                <X size={20} />
               </button>
             </div>
 
@@ -321,8 +322,12 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <span className="pill pill-gold">{selectedPlaceModal.category}</span>
-              <span className="pill pill-gold">📍 {selectedPlaceModal.distance}</span>
-              <span className="pill pill-gold">⏱️ {selectedPlaceModal.timings}</span>
+              <span className="pill pill-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                <MapPin size={11} /> {selectedPlaceModal.distance}
+              </span>
+              <span className="pill pill-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                <Clock size={11} /> {selectedPlaceModal.timings}
+              </span>
             </div>
 
             <div style={{ fontSize: '0.88rem', color: 'var(--text-dark)', lineHeight: 1.5, marginBottom: '12px' }}>
@@ -331,8 +336,8 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
 
             {selectedPlaceModal.historical_background && (
               <div style={{ background: '#FFF9F0', border: '1px solid #E5D2AD', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
-                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.85rem', color: 'var(--burgundy)', marginBottom: '4px' }}>
-                  📜 Historical Significance
+                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.85rem', color: 'var(--burgundy)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <BookOpen size={14} /> Historical Significance
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-dark)', lineHeight: 1.45 }}>
                   {selectedPlaceModal.historical_background}
@@ -347,9 +352,9 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-outline"
-                  style={{ fontSize: '0.82rem' }}
+                  style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                 >
-                  ▶ Watch Video Guide
+                  <Play size={12} /> Watch Video Guide
                 </a>
               )}
               <button
@@ -358,9 +363,9 @@ export default function Home({ onStartBooking, onExplorePlaceQuery, onViewAllDes
                   if (onExplorePlaceQuery) onExplorePlaceQuery(`Tell me about ${selectedPlaceModal.name}`);
                 }}
                 className="btn btn-primary"
-                style={{ fontSize: '0.82rem' }}
+                style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                Ask Companion About This ➔
+                Ask Companion About This <ArrowRight size={14} />
               </button>
             </div>
           </div>

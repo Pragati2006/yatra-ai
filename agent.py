@@ -30,7 +30,10 @@ REGION_TO_HUB = {
     "jaipur": "Delhi", "jodhpur": "Delhi", "udaipur": "Delhi", "rajasthan": "Delhi",
     "lucknow": "Delhi", "kanpur": "Delhi", "varanasi": "Delhi", "agra": "Delhi", "up": "Delhi", "uttar pradesh": "Delhi",
     "bhopal": "Delhi", "indore": "Delhi", "gwalior": "Delhi", "jabalpur": "Delhi", "mp": "Delhi", "madhya pradesh": "Delhi",
-    "chandigarh": "Delhi", "amritsar": "Delhi", "ludhiana": "Delhi", "jalandhar": "Delhi", "punjab": "Delhi", "haryana": "Delhi",
+    # Punjab / Himachal / Northern corridor connects via Jammu (never routed South via Delhi)
+    "chandigarh": "Jammu", "amritsar": "Jammu", "ludhiana": "Jammu", "jalandhar": "Jammu", "punjab": "Jammu",
+    "shimla": "Jammu", "dharamshala": "Jammu", "manali": "Jammu", "himachal": "Jammu", "himachal pradesh": "Jammu",
+    "srinagar": "Jammu", "anantnag": "Jammu", "kashmir": "Jammu",
     # South India -> Bangalore or Chennai
     "kochi": "Bangalore", "trivandrum": "Bangalore", "calicut": "Bangalore", "kerala": "Bangalore",
     "hyderabad": "Bangalore", "secunderabad": "Bangalore", "telangana": "Bangalore", "andhra": "Bangalore",
@@ -67,8 +70,15 @@ def _use_llm():
 def _extract_pax(text):
     if not text:
         return None
+    try:
+        from agents import conversation_state
+        pax_val, is_exp = conversation_state.extract_pilgrim_count(text)
+        if pax_val is not None and is_exp:
+            return pax_val
+    except Exception:
+        pass
     t = text.lower()
-    m = re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims|travellers|travelers)\b", t)
+    m = re.search(r"(\d+)\s*(people|pax|person|persons|members|pilgrims|travellers|travelers|adults|adult|seniors|children|kids)\b", t)
     if m:
         return max(1, int(m.group(1)))
     m2 = re.search(r"\b(?:we are|for|group of|total|we are a group of|family of|make that|make it|i meant)\s+(\d+)\b", t)
@@ -83,7 +93,7 @@ def _extract_pax(text):
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
     }
     for word, num in words_to_num.items():
-        if re.search(r"\b" + word + r"\s*(people|pax|person|persons|members|pilgrims|travellers|travelers)\b", t):
+        if re.search(r"\b" + word + r"\s*(people|pax|person|persons|members|pilgrims|travellers|travelers|adults|adult|seniors|children|kids)\b", t):
             return num
         if re.search(r"\b(?:travellers|travelers|pilgrims|people|pax|members)\s+(?:to|is|become)\s+" + word + r"\b", t):
             return num
@@ -93,9 +103,16 @@ def _extract_pax(text):
 def _extract_origin(text):
     if not text:
         return None
+    try:
+        from agents import conversation_state
+        orig = conversation_state.extract_origin_city(text)
+        if orig:
+            return orig
+    except Exception:
+        pass
     t = text.strip()
     m = re.search(
-        r"\b(?:from|out of|leaving|travelling from|traveling from|departing from|starting from|starting city to|city to|from city|starting city|change my starting city to|change origin to)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)",
+        r"\b(?:from|out of|leaving|travelling from|traveling from|departing from|starting from|starting city to|city to|from city|starting city|change my starting city to|change the starting city to|change the origin to|change origin to|change my origin to)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)",
         t,
         re.IGNORECASE,
     )
@@ -108,7 +125,9 @@ def _extract_origin(text):
         "trip", "yatra", "day", "days", "duration", "durations", "time", "date", "dates", "cost", "price", "pricing", "amount", "total", "people", "pax", "person", "persons", "pilgrim", "pilgrims", "members", "traveller", "travellers", "traveler", "travelers", "relaxed", "devotional", "budget",
         "update", "modify", "edit", "fix", "switch", "keep", "more", "less", "friendly", "comfortable",
         "premium", "luxury", "balanced", "sightseeing", "mixed", "family", "solo", "couple", "friends",
-        "group", "pilgrimage", "parents", "fast", "slow", "packed", "peaceful", "actually"
+        "group", "pilgrimage", "parents", "fast", "slow", "packed", "peaceful", "actually",
+        "tomorrow", "today", "yesterday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "tonight", "morning", "evening", "night", "week", "month", "year", "weekend", "start", "leave", "depart"
     }
     if m:
         candidate = re.sub(r"[^A-Za-z\s]", "", m.group(1)).strip()
@@ -146,12 +165,22 @@ def _extract_mode(text):
     return None
 
 
+_WORD_TO_NUM = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+}
+
+
 def _extract_duration(text):
     if not text:
         return None
-    m = re.search(r"(\d+)[\s-]*days?", text.lower())
+    t = text.lower()
+    m = re.search(r"(\d+)[\s-]*days?", t)
     if m:
         return int(m.group(1))
+    wm = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten)[\s-]*days?", t)
+    if wm:
+        return _WORD_TO_NUM[wm.group(1)]
     return None
 
 
@@ -339,9 +368,15 @@ def parse_request(text, current_request=None):
 
     pax_val = _extract_pax(text)
     prefs = recommendation_agent.extract_preferences(text)
+    try:
+        from agents import conversation_state
+        dest_val = conversation_state.extract_destination_location(text)
+    except Exception:
+        dest_val = None
     parsed = {
         "pax": pax_val,
         "origin": _extract_origin(text),
+        "destination": dest_val,
         "category": _extract_category(text),
         "mode": _extract_mode(text),
         "duration_days": _extract_duration(text),
@@ -366,12 +401,14 @@ def merge_requests(old_req, new_req, text=""):
         res = dict(new_req)
         if res.get("pax") is None:
             res["pax"] = 1
+        if not res.get("destination"):
+            res["destination"] = "Katra"
         return res
 
     merged = dict(old_req)
 
     # 1. Direct explicit field updates from new_req
-    for k in ("origin", "category", "mode", "season", "duration_days", "group_type", "travel_style", "trip_focus", "budget_preference"):
+    for k in ("origin", "destination", "category", "mode", "season", "duration_days", "group_type", "travel_style", "trip_focus", "budget_preference"):
         v = new_req.get(k)
         if v is not None:
             merged[k] = v
@@ -463,26 +500,54 @@ def resolve_hub(origin):
 
 
 def _enrich_flight_transfer(r):
-    """Enriches flight options with verified road transfer details from Jammu Airport to Katra."""
+    """Enriches flight options with verified road transfer details from Jammu Airport to Katra with claim-level provenance."""
     if r.get("mode") == "flight":
         r["is_flight_connecting_transfer"] = True
         r["arrival_hub"] = "Jammu Airport"
         r["transfer_mode"] = "Taxi / Bus"
         r["transfer_route"] = "Jammu Airport → Katra"
         r["transfer_distance"] = "approx. 44-55 km"
-        r["transfer_duration"] = "approx. 1-1.5 hours by road"
+        r["transfer_duration"] = "approx. 1.5-2 hours by road (traffic dependent)"
+
+        # Correction D: Separate claim-level verification states
+        r["transfer_claims"] = {
+            "route_corridor": {
+                "claim": "Jammu Airport (IXJ) to Katra via NH-44 highway",
+                "status": "verified_curated_source",
+                "authority": "National Highways Authority of India & J&K Traffic Department",
+            },
+            "distance": {
+                "claim": "approx. 44-55 km",
+                "status": "verified_curated_source",
+                "source": "Survey of India & NHAI",
+            },
+            "travel_duration": {
+                "claim": "approx. 1.5-2 hours by road (traffic dependent)",
+                "status": "indicative_information",
+                "notes": "Journey time varies with highway traffic, checkpoints, and weather; exact duration not guaranteed.",
+            },
+            "prepaid_taxi": {
+                "claim": "Authorized Prepaid Taxi Counter directly at airport arrivals terminal",
+                "status": "verified_official_source",
+                "source": "Airports Authority of India (AAI) Jammu Airport Passenger Facilities",
+            },
+            "public_bus": {
+                "claim": "Public JKRTC buses connecting Katra depart from Jammu Railway Station / General Bus Stand (~8 km from airport)",
+                "status": "verified_official_source",
+                "notes": "Buses do not depart directly from airport arrivals terminal; local transfer required to reach bus stand.",
+            },
+        }
+
+        note_body = (
+            "From IXJ, Katra is ~50 km (~1.5-2h). Authorized prepaid taxis operate directly from the arrivals terminal. "
+            "Public JKRTC buses depart from Jammu Railway Station (~8 km away)."
+        )
         if r.get("is_connecting") and r.get("connecting_hub"):
             hub = r["connecting_hub"]
-            r["transfer_note"] = (
-                f"Direct flight to Katra is not available. This option flies from {hub} to Jammu, "
-                "followed by a local taxi/bus transfer to Katra."
-            )
+            r["transfer_note"] = f"Direct flight to Katra is not available. This option flies from {hub} to Jammu, followed by a local taxi/bus transfer to Katra. {note_body}"
             r["display_route"] = f"{r.get('origin', '')} → {hub} → Jammu Airport → Katra"
         else:
-            r["transfer_note"] = (
-                "Direct flight to Katra is not available. This option flies to Jammu, "
-                "followed by a local taxi/bus transfer to Katra."
-            )
+            r["transfer_note"] = f"Direct flight to Katra is not available. This option flies to Jammu, followed by a local taxi/bus transfer to Katra. {note_body}"
             r["display_route"] = f"{r.get('origin', '')} → Jammu Airport → Katra"
     return r
 
@@ -538,7 +603,22 @@ def _search_transport(request):
 def _transport_arrival_datetime(tr):
     """Real arrival moment: departure + travel duration, plus a Jammu-Katra
     taxi buffer for flights (trains/buses already terminate in Katra)."""
-    dep = datetime.strptime(f"{tr['travel_date']} {tr['departure_time']}", "%Y-%m-%d %H:%M")
+    raw_dep = tr.get("departure_time") or tr.get("departure")
+    if not raw_dep:
+        dep_win = tr.get("departure_window") or tr.get("operating_hours")
+        if dep_win and " to " in str(dep_win):
+            raw_dep = str(dep_win).split(" to ")[0].strip()
+        else:
+            raw_dep = "06:00"
+    raw_dep = str(raw_dep).strip()
+    if " to " in raw_dep:
+        raw_dep = raw_dep.split(" to ")[0].strip()
+    try:
+        travel_dt = tr.get("travel_date") or date.today().isoformat()
+        dep = datetime.strptime(f"{travel_dt} {raw_dep}", "%Y-%m-%d %H:%M")
+    except Exception:
+        travel_dt = tr.get("travel_date") or date.today().isoformat()
+        dep = datetime.strptime(f"{travel_dt} 06:00", "%Y-%m-%d %H:%M")
     duration = tr.get("duration_mins")
     arrival = dep + timedelta(minutes=int(duration)) if duration else dep
     if tr.get("mode") == "flight":
@@ -612,10 +692,11 @@ def build_plan(request):
                 dur = tr_copy.get("duration_mins", 0)
                 if dur:
                     tr_copy["duration_str"] = f"{dur // 60}h {dur % 60}m"
-                tr_copy["fare_per_person"] = tr_copy.get("price", 0)
-                tr_copy["total_fare"] = tr_copy.get("price", 0) * request["pax"]
-                total = (tr["price"] + s["price"]) * request["pax"]
-                combos.append({"flight": tr_copy, "transport": tr_copy, "slot": s, "total_price": total})
+                tr_p = tr.get("price")
+                tr_copy["fare_per_person"] = tr_p
+                tr_copy["total_fare"] = tr_p * request["pax"] if tr_p is not None else None
+                total = ((tr_p or 0) + s["price"]) * request["pax"]
+                combos.append({"flight": tr_copy, "transport": tr_copy, "slot": s, "total_price": total if tr_p is not None else (s["price"] * request["pax"])})
 
     if not combos:
         return {
@@ -739,4 +820,3 @@ def process_message(text, api_key=None, base_url=None):
     plan = build_plan(request)
     plan["_request"] = request
     return plan
-

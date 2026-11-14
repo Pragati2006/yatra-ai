@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle, CheckCircle2, Ticket, Download, Printer, RefreshCw, ArrowRight } from 'lucide-react';
 import { generatePilgrimPassPDF } from '../utils/pdfGenerator';
 
 export default function BookingConfirmation({ confirmationData, bookingSummary, onReturnHome, onStartNewBooking }) {
@@ -17,7 +18,9 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
           borderRadius: '16px',
         }}
       >
-        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚠️</div>
+        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+          <AlertTriangle size={44} color="#D97706" />
+        </div>
         <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--burgundy, #58111A)', marginBottom: '0.75rem' }}>
           No Active Confirmed Booking
         </h2>
@@ -27,27 +30,28 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
         <button
           onClick={onReturnHome}
           className="btn btn-primary"
-          style={{ padding: '0.75rem 2rem' }}
+          style={{ padding: '0.75rem 2rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          Return to Booking Portal ➔
+          <span>Return to Booking Portal</span>
+          <ArrowRight size={14} />
         </button>
       </div>
     );
   }
 
   const { booking_id, message, receipt } = confirmationData;
-  const { option, pax = 1, hotel, hotelNights = 2, origin = 'Delhi', tripRequest } = bookingSummary || {};
+  const { option, pax = 1, hotel, hotelNights = 2, origin = '', tripRequest } = bookingSummary || {};
 
   const tr = option?.transport || option?.flight || {};
   const slot = option?.slot || {};
   const mode = (tr.mode || 'Train').toUpperCase();
   const operator = tr.operator || tr.name || 'Express Service';
-  const depTime = tr.departure_time || '06:00';
+  const depTime = tr.departure_time || 'Check schedule';
   const travelDate = tr.travel_date || tripRequest?.start_date || '2026-10-20';
   const slotCategory = slot.category || confirmationData.category || 'Normal Darshan';
-  const slotTime = slot.slot_time || confirmationData.slot_time || 'Morning Slot (06:00)';
+  const slotTime = slot.slot_time || confirmationData.slot_time || 'General Queue (RFID Card)';
   const hotelName = hotel ? hotel.name : 'Self-arranged Katra stay';
-  const totalAmount = confirmationData.total_price || bookingSummary?.total_price || receipt?.total_price || 16092;
+  const totalAmount = confirmationData.total_price != null ? confirmationData.total_price : (bookingSummary?.total_price != null ? bookingSummary.total_price : (receipt?.total_price != null ? receipt.total_price : null));
 
   const handleDownload = () => {
     generatePilgrimPassPDF(confirmationData, bookingSummary);
@@ -76,7 +80,10 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
           boxShadow: '0 2px 6px rgba(245, 158, 11, 0.1)',
         }}
       >
-        ⚠️ DEMO — LOCAL MOCK PORTAL — NOT AN OFFICIAL SHRINE BOARD BOOKING
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <AlertTriangle size={14} />
+          <span>DEMO — LOCAL MOCK PORTAL — NOT AN OFFICIAL SHRINE BOARD BOOKING</span>
+        </div>
       </div>
 
       {/* Main Success Banner */}
@@ -95,7 +102,9 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
           overflow: 'hidden',
         }}
       >
-        <div style={{ fontSize: '3rem', marginBottom: '8px' }}>🔱</div>
+        <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+          <CheckCircle2 size={48} color="#E5D2AD" />
+        </div>
         <div
           className="pilgrim-pass-title"
           style={{
@@ -181,8 +190,9 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             gap: '8px',
           }}
         >
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--burgundy, #58111A)' }}>
-            🎫 Demo Pilgrim Yatra Pass Particulars
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--burgundy, #58111A)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Ticket size={20} />
+            <span>Demo Pilgrim Yatra Pass Particulars</span>
           </div>
           <span
             className="badge"
@@ -196,7 +206,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
               borderRadius: '12px',
             }}
           >
-            ✓ MOCK RPA VERIFIED
+            MOCK RPA VERIFIED
           </span>
         </div>
 
@@ -213,7 +223,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
               Travel Route & Operator
             </div>
             <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-dark, #2D3748)', marginTop: '2px' }}>
-              {origin} ➔ Katra
+              {origin} to Katra
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {operator} ({mode}) · Departs {depTime}
@@ -273,10 +283,10 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
               Security Checkpoints
             </div>
             <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#166534', marginTop: '2px' }}>
-              OTP Verified ✓
+              OTP Verified
             </div>
             <div style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 700 }}>
-              CAPTCHA Challenge Solved ✓
+              CAPTCHA Challenge Solved
             </div>
           </div>
         </div>
@@ -298,7 +308,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             lineHeight: 1.5,
           }}
         >
-          <span style={{ fontSize: '1.25rem' }}>🎫</span>
+          <Ticket size={20} color="#166534" />
           <div>
             <b>RFID Access Card Instruction:</b> Please present this official booking reference (<b>{booking_id}</b>) at the Katra Yatra Registration Counter / Banganga Checkpost to obtain physical Shrine Board RFID Yatra Access Cards before starting the Holy Bhawan trek.
           </div>
@@ -330,7 +340,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             gap: '8px',
           }}
         >
-          <span>📄</span> Download Pass (PDF)
+          <Download size={14} /> Download Pass (PDF)
         </button>
 
         <button
@@ -347,7 +357,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             gap: '8px',
           }}
         >
-          <span>🖨️</span> Print Pass
+          <Printer size={14} /> Print Pass
         </button>
 
         {onStartNewBooking && (
@@ -360,9 +370,12 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
               padding: '0.75rem 1.6rem',
               fontSize: '0.92rem',
               fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            🔄 Plan Another Yatra
+            <RefreshCw size={14} /> Plan Another Yatra
           </button>
         )}
 

@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-11-07T12:00:00Z",
+  "issuing_authority_registry": [
+    "Shri Mata Vaishno Devi Shrine Board (SMVDSB)",
+    "Traffic Police Headquarters, Jammu & Kashmir"
+  ],
+  "notices": [
+    {
+      "notice_id": "smvdsb_gen_rfid_mandatory",
+      "notice_title": "Mandatory RFID-based Yatra Access Card Registration Advisory",
+      "notice_text": "All pilgrims undertaking the Shri Mata Vaishno Devi Yatra must obtain an RFID-based Yatra Access Card prior to commencing their journey from Katra. Yatra registration is free of cost and must be collected from designated Yatra Registration Counters (YRC) at Katra Bus Stand, Railway Station, Niharika Complex, Counter No. 02, Serli Helipad, or Tarakote Marg.",
+      "issuing_authority": "Shri Mata Vaishno Devi Shrine Board (SMVDSB)",
+      "source_url": "https://www.maavaishnodevi.org/yatra-guidelines.aspx",
+      "affected_location": "Katra & All Trek Corridors",
+      "affected_route": "Katra-Bhawan Yatra Trek",
+      "category": "REGISTRATION_RESTRICTION",
+      "severity": "ADVISORY",
+      "publication_timestamp": "2026-01-01T00:00:00Z",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_until": null,
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Official SMVDSB Guidelines Audit",
+      "verification_status": "verified_curated_source",
+      "notice_lifecycle_status": "ACTIVE",
+      "superseded_by_notice_id": null,
+      "supersedes_notice_id": null,
+      "translated_summary": "Pilgrims must collect their RFID card from Katra counters before beginning the trek.",
+      "notes": "Verified authentic ongoing statutory operational guideline."
+    },
+    {
+      "notice_id": "smvdsb_gen_unauthorized_agents",
+      "notice_title": "Advisory Warning Against Unauthorized Travel Agents and Fraudulent Portals",
+      "notice_text": "Devotees are informed that all official online bookings for helicopter services, battery cars, room accommodations, and Atka Aarti are conducted exclusively through the official portal (maavaishnodevi.org). The Shrine Board does not authorize any private travel agents, tour operators, or third-party web portals.",
+      "issuing_authority": "Shri Mata Vaishno Devi Shrine Board (SMVDSB)",
+      "source_url": "https://www.maavaishnodevi.org/public-notices.aspx",
+      "affected_location": "SMVDSB Online & On-site Services",
+      "affected_route": "All Pilgrimage Services",
+      "category": "GENERAL_OPERATIONAL_NOTICE",
+      "severity": "ADVISORY",
+      "publication_timestamp": "2026-01-01T00:00:00Z",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_until": null,
+      "verified_at": "2026-11-07T12:00:00Z",
+      "verified_by": "Official SMVDSB Circular Audit",
+      "verification_status": "verified_curated_source",
+      "notice_lifecycle_status": "ACTIVE",
+      "superseded_by_notice_id": null,
+      "supersedes_notice_id": null,
+      "translated_summary": "Book only via official Shrine Board portal; avoid unauthorized private agents.",
+      "notes": "Verified authentic public circular warning."
+    }
+  ]
+}

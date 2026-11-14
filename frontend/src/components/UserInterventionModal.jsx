@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Check, X, Clock, AlertTriangle, ShieldCheck, Lock, Smartphone, Puzzle, RefreshCw, Printer, Settings, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { resumeRPAWorkflow, cancelRPAWorkflow, getRPAWorkflowStatus } from '../services/api';
 
 export default function UserInterventionModal({
@@ -231,35 +232,35 @@ export default function UserInterventionModal({
   const getModalStageStatus = (num) => {
     switch (num) {
       case 1:
-        return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Completed', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
       case 2:
-        return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Completed', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
       case 3:
         if (isCompleted || isCaptcha || resumingPhase === 'PAYMENT_SANDBOX') {
-          return { status: 'Verified', tone: 'success', icon: '✓' };
+          return { status: 'Verified', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
         }
-        if (isExpired && isOtp) return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
-        if (isOtp && resuming) return { status: 'In Progress', tone: 'info', icon: '⏳' };
-        if (isOtp) return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
-        return { status: 'Verified', tone: 'success', icon: '✓' };
+        if (isExpired && isOtp) return { status: 'Failed / Expired', tone: 'danger', icon: <X size={11} strokeWidth={3} /> };
+        if (isOtp && resuming) return { status: 'In Progress', tone: 'info', icon: <Clock size={11} /> };
+        if (isOtp) return { status: 'Waiting for User', tone: 'warning', icon: <AlertTriangle size={11} /> };
+        return { status: 'Verified', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
       case 4:
         if (isCompleted || resumingPhase === 'PAYMENT_SANDBOX') {
-          return { status: 'Verified', tone: 'success', icon: '✓' };
+          return { status: 'Verified', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
         }
-        if (isExpired && isCaptcha) return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
-        if (isCaptcha && resuming) return { status: 'In Progress', tone: 'info', icon: '⏳' };
-        if (isCaptcha) return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+        if (isExpired && isCaptcha) return { status: 'Failed / Expired', tone: 'danger', icon: <X size={11} strokeWidth={3} /> };
+        if (isCaptcha && resuming) return { status: 'In Progress', tone: 'info', icon: <Clock size={11} /> };
+        if (isCaptcha) return { status: 'Waiting for User', tone: 'warning', icon: <AlertTriangle size={11} /> };
         return { status: 'Pending', tone: 'neutral', icon: '4' };
       case 5:
-        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
-        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
+        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: <Clock size={11} /> };
         return { status: 'Pending', tone: 'neutral', icon: '5' };
       case 6:
-        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
-        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
+        if (resumingPhase === 'PAYMENT_SANDBOX') return { status: 'In Progress', tone: 'info', icon: <Clock size={11} /> };
         return { status: 'Pending', tone: 'neutral', icon: '6' };
       case 7:
-        if (isCompleted) return { status: 'Completed', tone: 'success', icon: '✓' };
+        if (isCompleted) return { status: 'Completed', tone: 'success', icon: <Check size={11} strokeWidth={3} /> };
         return { status: 'Pending', tone: 'neutral', icon: '7' };
       default:
         return { status: 'Pending', tone: 'neutral', icon: '•' };
@@ -303,12 +304,12 @@ export default function UserInterventionModal({
         {/* Pilgrimage Booking Progress Indicator */}
         <div style={{ marginBottom: '18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--burgundy, #6E1423)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              🛕 Vaishno Devi Yatra Booking
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--burgundy, #6E1423)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ShieldCheck size={16} /> Vaishno Devi Yatra Booking
             </span>
             {!isExpired && !isCancelled && !isCompleted && (
-              <span style={{ fontSize: '0.78rem', color: '#B45309', fontWeight: 700, background: '#FEF3C7', padding: '3px 8px', borderRadius: '6px' }}>
-                ⏳ Expires in: {formatCountdown(secondsRemaining)}
+              <span style={{ fontSize: '0.78rem', color: '#B45309', fontWeight: 700, background: '#FEF3C7', padding: '3px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={12} /> Expires in: {formatCountdown(secondsRemaining)}
               </span>
             )}
           </div>
@@ -389,7 +390,7 @@ export default function UserInterventionModal({
         {/* Dynamic State Title */}
         <div style={{ marginBottom: '14px', borderBottom: '1px solid #F0E6D2', paddingBottom: '10px' }}>
           <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', color: 'var(--burgundy, #6E1423)', fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{isCompleted ? '🎉' : (isOtp ? '🔐' : (isCaptcha ? '🛡️' : '⚠️'))}</span>
+            <span>{isCompleted ? <CheckCircle2 size={20} color="#166534" /> : (isOtp ? <Lock size={20} color="var(--burgundy)" /> : (isCaptcha ? <ShieldCheck size={20} color="var(--burgundy)" /> : <AlertTriangle size={20} color="#D97706" />))}</span>
             {isCompleted
               ? 'Jai Mata Di! Your Simulated Booking Is Confirmed'
               : (isOtp ? 'Additional Verification Required' : 'CAPTCHA Security Challenge')}
@@ -419,7 +420,9 @@ export default function UserInterventionModal({
         {/* Resuming in progress notice */}
         {resuming && (
           <div style={{ background: '#EFF6FF', border: '1px solid #93C5FD', borderRadius: '10px', padding: '14px', marginBottom: '14px', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.3rem', marginBottom: '4px' }}>⏳</div>
+            <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+              <Clock size={24} color="#1E40AF" />
+            </div>
             <div style={{ fontWeight: 800, color: '#1E40AF', fontSize: '0.95rem' }}>
               Verification successful! Your booking is being processed.
             </div>
@@ -435,7 +438,7 @@ export default function UserInterventionModal({
             {isOtp && (
               <div style={{ background: '#FFFDF0', border: '1px solid #F6D860', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
                 <div style={{ fontWeight: 800, color: '#744210', fontSize: '0.9rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>📱</span> Simulated OTP Delivery
+                  <Smartphone size={16} /> Simulated OTP Delivery
                 </div>
                 <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', color: '#4A3B32', lineHeight: 1.4 }}>
                   A mock verification code has been dispatched to pilgrim's mobile number:
@@ -458,9 +461,16 @@ export default function UserInterventionModal({
                       borderRadius: '6px',
                       cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
                       fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
-                    {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : '🔄 Resend Verification Code'}
+                    {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : (
+                      <>
+                        <RefreshCw size={12} /> Resend Verification Code
+                      </>
+                    )}
                   </button>
                   {resendNotice && <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>{resendNotice}</span>}
                 </div>
@@ -470,7 +480,7 @@ export default function UserInterventionModal({
             {isCaptcha && (
               <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
                 <div style={{ fontWeight: 800, color: '#1E40AF', fontSize: '0.9rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>🧩</span> Simulated CAPTCHA Puzzle
+                  <Puzzle size={16} /> Simulated CAPTCHA Puzzle
                 </div>
                 <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', color: '#1E3A8A', lineHeight: 1.4 }}>
                   Solve the visual puzzle shown on the authorized booking window:
@@ -508,7 +518,11 @@ export default function UserInterventionModal({
                   className="btn btn-primary"
                   style={{ fontSize: '0.82rem', padding: '8px 14px', whiteSpace: 'nowrap' }}
                 >
-                  {resuming ? 'Validating...' : 'Verify & Continue ➔'}
+                  {resuming ? 'Validating...' : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      Verify & Continue <ArrowRight size={14} />
+                    </span>
+                  )}
                 </button>
               </div>
               <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '4px' }}>
@@ -537,9 +551,9 @@ export default function UserInterventionModal({
                 type="button"
                 onClick={() => window.print()}
                 className="btn btn-outline"
-                style={{ fontSize: '0.75rem', padding: '4px 10px', borderColor: '#86EFAC', color: '#166534' }}
+                style={{ fontSize: '0.75rem', padding: '4px 10px', borderColor: '#86EFAC', color: '#166534', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
-                🖨️ Print Demo Pass
+                <Printer size={12} /> Print Demo Pass
               </button>
             </div>
 
@@ -551,7 +565,7 @@ export default function UserInterventionModal({
             </div>
 
             <div style={{ fontSize: '0.82rem', color: '#047857', marginTop: '10px', fontStyle: 'italic', textAlign: 'center', background: '#DCFCE7', padding: '6px', borderRadius: '6px' }}>
-              🙏 Jai Mata Di! May Maa Vaishno Devi bless you and your family with peace and happiness.
+              May Maa Vaishno Devi bless you and your family with peace and happiness.
             </div>
           </div>
         )}
@@ -579,8 +593,8 @@ export default function UserInterventionModal({
 
         {/* Phase 5: Technical Details Section (Hidden behind collapsible summary) */}
         <details style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 12px', fontSize: '0.78rem', color: '#64748B', marginTop: '12px' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#475569' }}>
-            ⚙️ Technical Details & Diagnostics
+          <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Settings size={14} /> Technical Details & Diagnostics
           </summary>
           <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'monospace' }}>
             <div>Workflow ID: {workflowId}</div>
@@ -600,9 +614,9 @@ export default function UserInterventionModal({
                 onClick={handleCancel}
                 disabled={cancelling || resuming}
                 className="btn btn-outline"
-                style={{ fontSize: '0.82rem', padding: '8px 14px', color: '#C53030', borderColor: '#FEB2B2' }}
+                style={{ fontSize: '0.82rem', padding: '8px 14px', color: '#C53030', borderColor: '#FEB2B2', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
-                {cancelling ? 'Cancelling...' : '✕ Cancel Workflow'}
+                {cancelling ? 'Cancelling...' : <><X size={12} /> Cancel Workflow</>}
               </button>
 
               <button
@@ -610,9 +624,9 @@ export default function UserInterventionModal({
                 onClick={() => handleResume(true)}
                 disabled={resuming || cancelling}
                 className="btn btn-gold"
-                style={{ fontSize: '0.84rem', padding: '8px 16px', fontWeight: 700 }}
+                style={{ fontSize: '0.84rem', padding: '8px 16px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                {resuming ? '⏳ Continuing...' : 'Continue Booking ➔'}
+                {resuming ? 'Continuing...' : <>Continue Booking <ArrowRight size={14} /></>}
               </button>
             </>
           )}

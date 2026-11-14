@@ -1,0 +1,26 @@
+{
+  "name": "Yatra AI — Unified Pilgrimage & Tourism Assistant",
+  "short_name": "Yatra AI",
+  "description": "Your unified AI-powered pilgrimage and tourism assistant for Shri Mata Vaishno Devi Yatra.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#58111A",
+  "background_color": "#FDFBF7",
+  "categories": ["travel", "navigation", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/yatra-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

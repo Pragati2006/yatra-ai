@@ -39,8 +39,60 @@ from utils.logger import log_event
 
 logger = logging.getLogger(__name__)
 
-# Server-side HMAC secret for OTP signature (from env or fallback)
-AUTH_HMAC_SECRET = os.getenv("AUTH_HMAC_SECRET", os.getenv("AUTH_SALT", "yatra_secure_hmac_secret_2026_vaishno_devi"))
+DEV_DEFAULT_AUTH_SECRET = "yatra_secure_hmac_secret_2026_vaishno_devi"
+MIN_SECRET_LENGTH = 32
+
+
+def is_production_mode() -> bool:
+    env = os.getenv("APP_ENV", os.getenv("ENV", "development")).lower()
+    return env in ("production", "prod", "live")
+
+
+def validate_and_get_auth_secret() -> str:
+    """
+    Validates and retrieves the server-side HMAC secret for OTP hashing and authentication.
+    - In production mode (APP_ENV in ('production', 'prod', 'live')):
+      - Must be explicitly configured via AUTH_HMAC_SECRET or AUTH_SALT.
+      - Must NOT use the development default fallback.
+      - Must be at least 32 characters long.
+      - Raises RuntimeError if missing, default, or weak.
+    - In development mode:
+      - Uses configured secret if present, otherwise safely falls back to DEV_DEFAULT_AUTH_SECRET.
+    - Never logs the secret value.
+    """
+    is_prod = is_production_mode()
+    secret = os.getenv("AUTH_HMAC_SECRET", os.getenv("AUTH_SALT", "")).strip()
+
+    if is_prod:
+        if not secret:
+            raise RuntimeError(
+                "CRITICAL DEPLOYMENT ERROR: AUTH_HMAC_SECRET (or AUTH_SALT) must be explicitly "
+                "configured in production mode. Refusing to start with missing authentication secret."
+            )
+        if secret == DEV_DEFAULT_AUTH_SECRET:
+            raise RuntimeError(
+                "CRITICAL DEPLOYMENT ERROR: AUTH_HMAC_SECRET is using the insecure development default salt. "
+                "A unique, high-entropy production secret (minimum 32 characters) must be configured."
+            )
+        if len(secret) < MIN_SECRET_LENGTH:
+            raise RuntimeError(
+                f"CRITICAL DEPLOYMENT ERROR: AUTH_HMAC_SECRET is too short ({len(secret)} chars). "
+                f"Production requires a strong secret of at least {MIN_SECRET_LENGTH} characters."
+            )
+        return secret
+
+    return secret if secret else DEV_DEFAULT_AUTH_SECRET
+
+
+# Server-side HMAC secret for OTP signature (dynamic fallback wrapper)
+def _get_active_auth_secret() -> str:
+    try:
+        return validate_and_get_auth_secret()
+    except RuntimeError:
+        return DEV_DEFAULT_AUTH_SECRET
+
+
+AUTH_HMAC_SECRET = _get_active_auth_secret()
 AUTH_SALT = AUTH_HMAC_SECRET
 OTP_EXPIRY_SECONDS = 300  # 5 minutes
 RESEND_COOLDOWN_SECONDS = 60  # 1 minute
@@ -92,7 +144,7 @@ def compute_otp_hmac(plain_otp: str, normalized_email: str, created_at: str = ""
     Uses server-side secret (AUTH_HMAC_SECRET), challenge-specific data (normalized email, creation timestamp, purpose),
     and constant-time comparison properties.
     """
-    secret = os.getenv("AUTH_HMAC_SECRET", os.getenv("AUTH_SALT", "yatra_secure_hmac_secret_2026_vaishno_devi")).encode("utf-8")
+    secret = validate_and_get_auth_secret().encode("utf-8")
     payload = f"purpose=otp-verification:email={normalized_email}:created_at={created_at}:otp={plain_otp}".encode("utf-8")
     return hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
@@ -155,11 +207,15 @@ class SMTPEmailProvider(BaseEmailProvider):
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = os.getenv("SMTP_USER")
         self.smtp_pass = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@yatra-booking-agent.org")
+        self.from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@yatra-ai.org")
+
+    def is_configured(self) -> bool:
+        """Returns True if required SMTP host and authentication credentials exist."""
+        return bool(self.smtp_host and self.smtp_user and self.smtp_pass)
 
     def send_otp(self, to_email: str, otp_code: str) -> bool:
-        if not self.smtp_host or not self.smtp_user or not self.smtp_pass:
-            logger.warning("SMTP credentials not configured. Falling back to mock dispatch.")
+        if not self.is_configured():
+            logger.warning("SMTP credentials not configured in environment.")
             return False
 
         import smtplib
@@ -189,15 +245,20 @@ class SMTPEmailProvider(BaseEmailProvider):
             return False
 
 
-# Global email provider singleton (defaults to Mock in dev/testing)
-_email_provider: BaseEmailProvider = MockEmailProvider()
+# Global email provider singleton (defaults to None; dynamically resolves if unset)
+_email_provider: Optional[BaseEmailProvider] = None
 
 
 def get_email_provider() -> BaseEmailProvider:
-    return _email_provider
+    global _email_provider
+    if _email_provider is not None:
+        return _email_provider
+    if is_production_mode():
+        return SMTPEmailProvider()
+    return MockEmailProvider()
 
 
-def set_email_provider(provider: BaseEmailProvider):
+def set_email_provider(provider: Optional[BaseEmailProvider]):
     global _email_provider
     _email_provider = provider
 
@@ -240,7 +301,7 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_auth_sessions_user 
+            CREATE INDEX IF NOT EXISTS idx_auth_sessions_user
             ON auth_sessions (user_id);
             """
         )
@@ -270,7 +331,7 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_saved_itineraries_user 
+            CREATE INDEX IF NOT EXISTS idx_saved_itineraries_user
             ON saved_itineraries (user_id);
             """
         )
@@ -288,7 +349,7 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_saved_conversations_user 
+            CREATE INDEX IF NOT EXISTS idx_saved_conversations_user
             ON saved_conversations (user_id);
             """
         )
@@ -318,13 +379,13 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_user_bookings_user 
+            CREATE INDEX IF NOT EXISTS idx_user_bookings_user
             ON user_bookings (user_id);
             """
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_user_bookings_created 
+            CREATE INDEX IF NOT EXISTS idx_user_bookings_created
             ON user_bookings (created_at DESC);
             """
         )
@@ -340,7 +401,24 @@ class AuthService:
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or DEFAULT_AUTH_DB_PATH
-        init_auth_db(self.db_path)
+        if is_production_mode():
+            validate_and_get_auth_secret()
+        if self.is_mongodb():
+            try:
+                from agents import mongo_store
+                mongo_store.ensure_indexes()
+            except Exception as exc:
+                logger.warning("MongoDB index initialization notice: %s", exc)
+        else:
+            init_auth_db(self.db_path)
+
+    def is_mongodb(self) -> bool:
+        """Checks if MongoDB persistence backend is active."""
+        try:
+            from agents import mongo_store
+            return mongo_store.is_mongodb_mode()
+        except Exception:
+            return False
 
     # -------------------------------------------------------------------------
     # A. Request OTP
@@ -362,15 +440,11 @@ class AuthService:
         now_iso = now.isoformat()
         expires_at = (now + timedelta(seconds=OTP_EXPIRY_SECONDS)).isoformat()
 
-        with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT last_requested_at FROM otp_challenges WHERE email = ?",
-                (normalized,),
-            )
-            row = cursor.fetchone()
-            if row:
-                last_req = datetime.fromisoformat(row[0])
+        if self.is_mongodb():
+            from agents import mongo_store
+            existing = mongo_store.get_otp_challenge(normalized)
+            if existing and existing.get("last_requested_at"):
+                last_req = datetime.fromisoformat(existing["last_requested_at"])
                 elapsed_sec = (now - last_req).total_seconds()
                 if elapsed_sec < RESEND_COOLDOWN_SECONDS:
                     wait_sec = int(RESEND_COOLDOWN_SECONDS - elapsed_sec)
@@ -389,24 +463,74 @@ class AuthService:
                         "message": f"Please wait {wait_sec} seconds before requesting a new code.",
                     }
 
-            # Generate cryptographically secure OTP
             plain_otp = generate_secure_otp(length=6)
             hashed_val = compute_otp_hmac(plain_otp, normalized, created_at=now_iso)
+            mongo_store.save_otp_challenge(normalized, hashed_val, now_iso, expires_at)
+        else:
+            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT last_requested_at FROM otp_challenges WHERE email = ?",
+                    (normalized,),
+                )
+                row = cursor.fetchone()
+                if row:
+                    last_req = datetime.fromisoformat(row[0])
+                    elapsed_sec = (now - last_req).total_seconds()
+                    if elapsed_sec < RESEND_COOLDOWN_SECONDS:
+                        wait_sec = int(RESEND_COOLDOWN_SECONDS - elapsed_sec)
+                        log_event(
+                            logger,
+                            logging.WARNING,
+                            "AUTH_OTP_REQUEST",
+                            "OTP request rate limited by cooldown",
+                            error_category="RATE_LIMIT",
+                            details={"email": mask_email(normalized), "wait_sec": wait_sec},
+                        )
+                        return {
+                            "status": "rate_limited",
+                            "error_code": "RATE_LIMITED",
+                            "retry_after_seconds": wait_sec,
+                            "message": f"Please wait {wait_sec} seconds before requesting a new code.",
+                        }
 
-            # Store hashed challenge (replace existing)
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO otp_challenges 
-                (email, otp_hash, attempts, created_at, expires_at, last_requested_at)
-                VALUES (?, ?, 0, ?, ?, ?)
-                """,
-                (normalized, hashed_val, now_iso, expires_at, now_iso),
-            )
-            conn.commit()
+                # Generate cryptographically secure OTP
+                plain_otp = generate_secure_otp(length=6)
+                hashed_val = compute_otp_hmac(plain_otp, normalized, created_at=now_iso)
+
+                # Store hashed challenge (replace existing)
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO otp_challenges
+                    (email, otp_hash, attempts, created_at, expires_at, last_requested_at)
+                    VALUES (?, ?, 0, ?, ?, ?)
+                    """,
+                    (normalized, hashed_val, now_iso, expires_at, now_iso),
+                )
+                conn.commit()
 
         # Send via configured email provider
         provider = get_email_provider()
-        delivered = provider.send_otp(normalized, plain_otp)
+
+        # In production mode: enforce that mock provider is NEVER silently used to leak OTPs
+        if is_production_mode():
+            if isinstance(provider, MockEmailProvider) or (hasattr(provider, "is_configured") and not provider.is_configured()):
+                logger.error("Production email dispatch blocked: SMTP provider is not configured.")
+                return {
+                    "status": "error",
+                    "error_code": "EMAIL_SERVICE_UNAVAILABLE",
+                    "message": "Email verification service is currently unavailable. Please contact the administrator.",
+                }
+            delivered = provider.send_otp(normalized, plain_otp)
+            if not delivered:
+                logger.error("Production SMTP email dispatch failed for %s", mask_email(normalized))
+                return {
+                    "status": "error",
+                    "error_code": "EMAIL_SERVICE_UNAVAILABLE",
+                    "message": "Failed to deliver verification email. Please try again later.",
+                }
+        else:
+            delivered = provider.send_otp(normalized, plain_otp)
 
         log_event(
             logger,
@@ -447,30 +571,23 @@ class AuthService:
 
         now = datetime.now(timezone.utc)
 
-        with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT otp_hash, attempts, expires_at, created_at FROM otp_challenges WHERE email = ?",
-                (normalized,),
-            )
-            row = cursor.fetchone()
-            if not row:
+        if self.is_mongodb():
+            from agents import mongo_store
+            challenge = mongo_store.get_otp_challenge(normalized)
+            if not challenge:
                 return {
                     "status": "error",
                     "error_code": "NO_ACTIVE_CHALLENGE",
                     "message": "No verification code was requested for this email, or it has expired.",
                 }
-
-            stored_hash, attempts, expires_at_str, created_at_str = row
-            expires_at = datetime.fromisoformat(expires_at_str)
-
-            # Compute HMAC for entered code using challenge timestamp
+            stored_hash = challenge["otp_hash"]
+            attempts = challenge.get("attempts", 0)
+            expires_at = datetime.fromisoformat(challenge["expires_at"])
+            created_at_str = challenge["created_at"]
             entered_hash = compute_otp_hmac(code, normalized, created_at=created_at_str)
 
-            # 1. Check expiration
             if now > expires_at:
-                cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
-                conn.commit()
+                mongo_store.delete_otp_challenge(normalized)
                 log_event(
                     logger,
                     logging.WARNING,
@@ -486,10 +603,8 @@ class AuthService:
                     "message": "Verification code has expired. Please request a new code.",
                 }
 
-            # 2. Check max attempts
             if attempts >= MAX_VERIFICATION_ATTEMPTS:
-                cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
-                conn.commit()
+                mongo_store.delete_otp_challenge(normalized)
                 log_event(
                     logger,
                     logging.WARNING,
@@ -505,12 +620,10 @@ class AuthService:
                     "message": "Maximum verification attempts exceeded. Please request a new code.",
                 }
 
-            # 3. Verify HMAC match using constant-time comparison
             if not hmac.compare_digest(stored_hash, entered_hash):
                 new_attempts = attempts + 1
                 if new_attempts >= MAX_VERIFICATION_ATTEMPTS:
-                    cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
-                    conn.commit()
+                    mongo_store.delete_otp_challenge(normalized)
                     log_event(
                         logger,
                         logging.WARNING,
@@ -526,11 +639,7 @@ class AuthService:
                         "message": "Maximum verification attempts exceeded. Please request a new code.",
                     }
                 else:
-                    cursor.execute(
-                        "UPDATE otp_challenges SET attempts = ? WHERE email = ?",
-                        (new_attempts, normalized),
-                    )
-                    conn.commit()
+                    mongo_store.update_otp_attempts(normalized, new_attempts)
                     remaining = MAX_VERIFICATION_ATTEMPTS - new_attempts
                     log_event(
                         logger,
@@ -548,15 +657,17 @@ class AuthService:
                         "message": f"Incorrect verification code. {remaining} attempt(s) remaining.",
                     }
 
-            # 4. Successful match -> Invalidate challenge (Single-use invariant)
-            cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
+            mongo_store.delete_otp_challenge(normalized)
+            user = mongo_store.get_user_by_email(normalized)
+            is_new_user = False
+            if not user:
+                user_id = f"usr_{uuid.uuid4().hex[:12]}"
+                user = mongo_store.create_user(user_id, normalized, {}, now.isoformat())
+                is_new_user = True
 
-            # 5. Find or create user account
-            user, is_new_user = self._get_or_create_user(normalized, cursor)
-
-            # 6. Create authenticated server session
             session_token = secrets.token_urlsafe(32)
             session_expiry = (now + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+            mongo_store.create_auth_session(session_token, user["user_id"], normalized, now.isoformat(), session_expiry)
 
             log_event(
                 logger,
@@ -566,14 +677,134 @@ class AuthService:
                 details={"email": mask_email(normalized), "user_id": user["user_id"], "is_new_user": is_new_user},
                 final_outcome="SUCCESS",
             )
-            cursor.execute(
-                """
-                INSERT INTO auth_sessions (session_token, user_id, email, created_at, expires_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (session_token, user["user_id"], normalized, now.isoformat(), session_expiry),
-            )
-            conn.commit()
+        else:
+            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT otp_hash, attempts, expires_at, created_at FROM otp_challenges WHERE email = ?",
+                    (normalized,),
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return {
+                        "status": "error",
+                        "error_code": "NO_ACTIVE_CHALLENGE",
+                        "message": "No verification code was requested for this email, or it has expired.",
+                    }
+
+                stored_hash, attempts, expires_at_str, created_at_str = row
+                expires_at = datetime.fromisoformat(expires_at_str)
+
+                # Compute HMAC for entered code using challenge timestamp
+                entered_hash = compute_otp_hmac(code, normalized, created_at=created_at_str)
+
+                # 1. Check expiration
+                if now > expires_at:
+                    cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
+                    conn.commit()
+                    log_event(
+                        logger,
+                        logging.WARNING,
+                        "AUTH_OTP_VERIFY",
+                        "Verification code expired",
+                        error_category="AUTHENTICATION_ERROR",
+                        details={"email": mask_email(normalized), "error_code": "CODE_EXPIRED"},
+                        final_outcome="FAILED",
+                    )
+                    return {
+                        "status": "error",
+                        "error_code": "CODE_EXPIRED",
+                        "message": "Verification code has expired. Please request a new code.",
+                    }
+
+                # 2. Check max attempts
+                if attempts >= MAX_VERIFICATION_ATTEMPTS:
+                    cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
+                    conn.commit()
+                    log_event(
+                        logger,
+                        logging.WARNING,
+                        "AUTH_OTP_VERIFY",
+                        "Maximum OTP verification attempts exceeded",
+                        error_category="AUTHENTICATION_ERROR",
+                        details={"email": mask_email(normalized), "error_code": "MAX_ATTEMPTS_EXCEEDED"},
+                        final_outcome="FAILED",
+                    )
+                    return {
+                        "status": "error",
+                        "error_code": "MAX_ATTEMPTS_EXCEEDED",
+                        "message": "Maximum verification attempts exceeded. Please request a new code.",
+                    }
+
+                # 3. Verify HMAC match using constant-time comparison
+                if not hmac.compare_digest(stored_hash, entered_hash):
+                    new_attempts = attempts + 1
+                    if new_attempts >= MAX_VERIFICATION_ATTEMPTS:
+                        cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
+                        conn.commit()
+                        log_event(
+                            logger,
+                            logging.WARNING,
+                            "AUTH_OTP_VERIFY",
+                            "Maximum OTP verification attempts exceeded on incorrect code",
+                            error_category="AUTHENTICATION_ERROR",
+                            details={"email": mask_email(normalized), "error_code": "MAX_ATTEMPTS_EXCEEDED"},
+                            final_outcome="FAILED",
+                        )
+                        return {
+                            "status": "error",
+                            "error_code": "MAX_ATTEMPTS_EXCEEDED",
+                            "message": "Maximum verification attempts exceeded. Please request a new code.",
+                        }
+                    else:
+                        cursor.execute(
+                            "UPDATE otp_challenges SET attempts = ? WHERE email = ?",
+                            (new_attempts, normalized),
+                        )
+                        conn.commit()
+                        remaining = MAX_VERIFICATION_ATTEMPTS - new_attempts
+                        log_event(
+                            logger,
+                            logging.WARNING,
+                            "AUTH_OTP_VERIFY",
+                            "Incorrect OTP verification code entered",
+                            error_category="AUTHENTICATION_ERROR",
+                            details={"email": mask_email(normalized), "error_code": "INCORRECT_CODE", "remaining_attempts": remaining},
+                            final_outcome="FAILED",
+                        )
+                        return {
+                            "status": "error",
+                            "error_code": "INCORRECT_CODE",
+                            "remaining_attempts": remaining,
+                            "message": f"Incorrect verification code. {remaining} attempt(s) remaining.",
+                        }
+
+                # 4. Successful match -> Invalidate challenge (Single-use invariant)
+                cursor.execute("DELETE FROM otp_challenges WHERE email = ?", (normalized,))
+
+                # 5. Find or create user account
+                user, is_new_user = self._get_or_create_user(normalized, cursor)
+
+                # 6. Create authenticated server session
+                session_token = secrets.token_urlsafe(32)
+                session_expiry = (now + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "AUTH_OTP_VERIFY",
+                    "User authenticated successfully via OTP",
+                    details={"email": mask_email(normalized), "user_id": user["user_id"], "is_new_user": is_new_user},
+                    final_outcome="SUCCESS",
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO auth_sessions (session_token, user_id, email, created_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (session_token, user["user_id"], normalized, now.isoformat(), session_expiry),
+                )
+                conn.commit()
 
         return {
             "status": "success",
@@ -631,6 +862,16 @@ class AuthService:
             return None
 
         now = datetime.now(timezone.utc)
+        if self.is_mongodb():
+            from agents import mongo_store
+            sess = mongo_store.get_auth_session(token)
+            if not sess:
+                return None
+            if now > datetime.fromisoformat(sess["expires_at"]):
+                mongo_store.delete_auth_session(token)
+                return None
+            return mongo_store.get_user_by_id(sess["user_id"])
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -669,6 +910,20 @@ class AuthService:
         """Revokes authenticated session token server-side."""
         if not token:
             return False
+        if self.is_mongodb():
+            from agents import mongo_store
+            revoked = mongo_store.delete_auth_session(token)
+            if revoked:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "AUTH_LOGOUT",
+                    "User session token revoked successfully",
+                    details={"token": mask_token(token)},
+                    final_outcome="SUCCESS",
+                )
+            return revoked
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM auth_sessions WHERE session_token = ?", (token,))
@@ -694,6 +949,10 @@ class AuthService:
         now_iso = datetime.now(timezone.utc).isoformat()
         t_clean = (title or "Vaishno Devi Yatra Itinerary").strip()
 
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.save_itinerary(itin_id, user_id, t_clean, now_iso, itinerary_data)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -715,13 +974,17 @@ class AuthService:
 
     def get_saved_itineraries(self, user_id: str) -> List[Dict[str, Any]]:
         """Retrieves all saved itineraries belonging strictly to user_id."""
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_saved_itineraries(user_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT itinerary_id, title, created_at, data_json 
-                FROM saved_itineraries 
-                WHERE user_id = ? 
+                SELECT itinerary_id, title, created_at, data_json
+                FROM saved_itineraries
+                WHERE user_id = ?
                 ORDER BY created_at DESC
                 """,
                 (user_id,),
@@ -739,6 +1002,10 @@ class AuthService:
 
     def delete_saved_itinerary(self, user_id: str, itinerary_id: str) -> bool:
         """Deletes a saved itinerary strictly verifying user ownership."""
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.delete_saved_itinerary(user_id, itinerary_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -759,6 +1026,32 @@ class AuthService:
         conv_id = (conversation_id.strip() if conversation_id and conversation_id.strip() else f"conv_{uuid.uuid4().hex[:12]}")
         now_iso = datetime.now(timezone.utc).isoformat()
         t_clean = (title or "Yatra Consultation Chat").strip()
+
+        if self.is_mongodb():
+            from agents import mongo_store
+            res = mongo_store.save_conversation(conv_id, user_id, t_clean, now_iso, messages)
+            try:
+                from agents import session_store
+                session_rec = session_store.get_session(conv_id)
+                if not session_rec:
+                    session_store.create_session(session_id=conv_id, user_id=user_id)
+                existing_msgs = session_store.get_messages(conv_id)
+                if not existing_msgs and messages:
+                    for m in messages:
+                        session_store.add_message(
+                            session_id=conv_id,
+                            role=m.get("role", "user"),
+                            content=m.get("content", ""),
+                            metadata=m.get("metadata") or {
+                                "recommendation": m.get("recommendation"),
+                                "plan": m.get("plan"),
+                                "request": m.get("request"),
+                                "itinerary": m.get("itinerary"),
+                            },
+                        )
+            except Exception as exc:
+                logger.debug("Silently ignored session_store sync in save_conversation: %s", exc)
+            return res
 
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
@@ -823,13 +1116,17 @@ class AuthService:
 
     def get_saved_conversations(self, user_id: str) -> List[Dict[str, Any]]:
         """Retrieves all saved conversations belonging strictly to user_id."""
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_saved_conversations(user_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT conversation_id, title, created_at, messages_json 
-                FROM saved_conversations 
-                WHERE user_id = ? 
+                SELECT conversation_id, title, created_at, messages_json
+                FROM saved_conversations
+                WHERE user_id = ?
                 ORDER BY created_at DESC
                 """,
                 (user_id,),
@@ -849,6 +1146,10 @@ class AuthService:
         """Retrieves a single saved conversation strictly verifying user ownership."""
         if not conversation_id or not user_id:
             return None
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_saved_conversation(user_id, conversation_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -904,6 +1205,27 @@ class AuthService:
         """Syncs newly added messages from session_store back into saved_conversations."""
         if not user_id or not conversation_id:
             return False
+        if self.is_mongodb():
+            from agents import mongo_store
+            from agents import session_store
+            conv = mongo_store.get_saved_conversation(user_id, conversation_id)
+            if not conv:
+                return False
+            latest_msgs = session_store.get_messages(conversation_id.strip())
+            if latest_msgs:
+                cleaned = [
+                    {
+                        "id": m.get("id"),
+                        "role": m.get("role"),
+                        "content": m.get("content"),
+                        "created_at": m.get("created_at"),
+                        "metadata": m.get("metadata"),
+                    }
+                    for m in latest_msgs
+                ]
+                return mongo_store.sync_saved_conversation_messages(user_id, conversation_id, cleaned)
+            return True
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -941,6 +1263,10 @@ class AuthService:
 
     def delete_saved_conversation(self, user_id: str, conversation_id: str) -> bool:
         """Deletes a saved conversation strictly verifying user ownership."""
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.delete_saved_conversation(user_id, conversation_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -990,6 +1316,29 @@ class AuthService:
             receipt.setdefault("title", "Simulated Yatra Booking Confirmation")
             receipt.setdefault("pass_type", "Demo Pilgrim Pass (Local Simulation)")
             receipt.setdefault("booking_id", bid)
+
+        if self.is_mongodb():
+            from agents import mongo_store
+            b_payload = dict(booking_data)
+            b_payload.update({
+                "booking_id": bid,
+                "created_at": created_at,
+                "user_name": user_name,
+                "pax_count": pax_count,
+                "slot_date": slot_date,
+                "category": category,
+                "slot_time": slot_time,
+                "transport_mode": transport_mode,
+                "transport_info": transport_info,
+                "hotel_name": hotel_name,
+                "total_price": total_price,
+                "payment_status": payment_status,
+                "status": status,
+                "session_id": session_id,
+                "plan_version": plan_version,
+                "receipt": receipt,
+            })
+            return mongo_store.save_booking(user_id, b_payload)
 
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
@@ -1045,6 +1394,10 @@ class AuthService:
 
     def get_user_bookings(self, user_id: str) -> List[Dict[str, Any]]:
         """Retrieves all confirmed simulated bookings belonging strictly to user_id."""
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_user_bookings(user_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -1086,6 +1439,10 @@ class AuthService:
         """Retrieves a single booking record strictly verifying user ownership."""
         if not user_id or not booking_id:
             return None
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_user_booking(user_id, booking_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -1179,7 +1536,8 @@ class AuthService:
         budget = state.get("budget_evaluation", {})
         plan_ver = state.get("plan_version", 1)
 
-        t_clean = (title or f"Yatra Trip from {req.get('origin') or 'Delhi'}").strip()
+        origin_title = f" from {req.get('origin')}" if req.get('origin') else ""
+        t_clean = (title or f"Yatra Trip{origin_title} to Katra").strip()
         trip_data = {
             "origin": req.get("origin"),
             "destination": req.get("destination", "Katra"),
@@ -1250,6 +1608,10 @@ class AuthService:
         """Retrieves user profile along with summary counts of saved trips, chats, and bookings."""
         if not user_id:
             return None
+        if self.is_mongodb():
+            from agents import mongo_store
+            return mongo_store.get_user_profile_summary(user_id)
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
             cursor.execute(

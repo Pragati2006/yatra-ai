@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Compass, MapPin, Calendar, Users, Train, CheckCircle2, Clock, Coins, Footprints, Building2, Mountain, ArrowRight } from 'lucide-react';
 
 const POPULAR_HUBS = [
   'Delhi', 'Jammu', 'Mumbai', 'Ahmedabad', 'Amritsar', 
-  'Srinagar', 'Surat', 'Bhopal', 'Haridwar', 'Kolkata'
+  'Srinagar', 'Surat', 'Bhopal', 'Haridwar', 'Kolkata',
+  'Chandigarh', 'Jaipur', 'Lucknow', 'Patna', 'Pune',
+  'Palampur', 'Mandi', 'Dharamshala', 'Una', 'Reasi', 'Udhampur', 'Bangalore'
 ];
 
 export default function TravelSearch({ onSearch, loading = false, initialValues = {} }) {
-  const [origin, setOrigin] = useState(initialValues.origin || 'Delhi');
+  const [origin, setOrigin] = useState(initialValues.origin || '');
   const [startDate, setStartDate] = useState(initialValues.startDate || initialValues.start_date || '2026-11-10');
   const [pax, setPax] = useState(initialValues.pax || 2);
   const [mode, setMode] = useState(initialValues.mode || 'any');
@@ -110,8 +113,9 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--burgundy)' }}>
-            🔱 Plan Your Sacred Yatra
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--burgundy)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Compass size={20} color="var(--burgundy)" />
+            Plan Your Sacred Yatra
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Search verified trains, flights, buses, and shrine darshan slots to Katra
@@ -131,25 +135,29 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
         }}>
           {/* Origin */}
           <div>
-            <label htmlFor="travel-origin" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              📍 Departure City
+            <label htmlFor="travel-origin" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <MapPin size={14} /> Departure City
             </label>
-            <select
+            <input
               id="travel-origin"
+              type="text"
+              list="popular-hubs-list"
               value={origin}
               onChange={(e) => setOrigin(e.target.value)}
-              style={{ padding: '0.55rem 0.75rem' }}
-            >
+              placeholder="e.g. Delhi, Mandi, Palampur, Reasi, Pune..."
+              style={{ padding: '0.55rem 0.75rem', width: '100%', boxSizing: 'border-box' }}
+            />
+            <datalist id="popular-hubs-list">
               {POPULAR_HUBS.map((h) => (
-                <option key={h} value={h}>{h}</option>
+                <option key={h} value={h} />
               ))}
-            </select>
+            </datalist>
           </div>
 
           {/* Travel Date */}
           <div>
-            <label htmlFor="travel-start-date" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              📅 Yatra Start Date
+            <label htmlFor="travel-start-date" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Calendar size={14} /> Yatra Start Date
             </label>
             <input
               id="travel-start-date"
@@ -162,8 +170,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Pilgrims */}
           <div>
-            <label htmlFor="travel-pax" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              👤 Pilgrims (Pax)
+            <label htmlFor="travel-pax" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Users size={14} /> Pilgrims (Pax)
             </label>
             <select
               id="travel-pax"
@@ -179,8 +187,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Transport Mode */}
           <div>
-            <label htmlFor="travel-mode" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🚆 Travel Mode
+            <label htmlFor="travel-mode" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Train size={14} /> Travel Mode
             </label>
             <select
               id="travel-mode"
@@ -197,8 +205,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Darshan Slot */}
           <div>
-            <label htmlFor="travel-category" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🙏 Darshan Category
+            <label htmlFor="travel-category" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <CheckCircle2 size={14} /> Darshan Category
             </label>
             <select
               id="travel-category"
@@ -214,8 +222,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Duration */}
           <div>
-            <label htmlFor="travel-duration" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              ⏱️ Trip Duration
+            <label htmlFor="travel-duration" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Clock size={14} /> Trip Duration
             </label>
             <select
               id="travel-duration"
@@ -231,8 +239,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Budget Scope */}
           <div>
-            <label htmlFor="travel-budget-type" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              💰 Budget Scope
+            <label htmlFor="travel-budget-type" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Coins size={14} /> Budget Scope
             </label>
             <select
               id="travel-budget-type"
@@ -247,8 +255,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Budget Amount */}
           <div>
-            <label htmlFor="travel-budget-amount" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              💵 Budget Amount (₹)
+            <label htmlFor="travel-budget-amount" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Coins size={14} /> Budget Amount (₹)
             </label>
             <input
               id="travel-budget-amount"
@@ -264,8 +272,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Travel Pace */}
           <div>
-            <label htmlFor="travel-pace" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🚶 Travel Pace / Style
+            <label htmlFor="travel-pace" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Footprints size={14} /> Travel Pace / Style
             </label>
             <select
               id="travel-pace"
@@ -281,8 +289,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Accommodation Preference */}
           <div>
-            <label htmlFor="travel-accommodation" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🏨 Stay Preference
+            <label htmlFor="travel-accommodation" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Building2 size={14} /> Stay Preference
             </label>
             <select
               id="travel-accommodation"
@@ -298,8 +306,8 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Sightseeing Approach */}
           <div>
-            <label htmlFor="travel-sightseeing" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              🌄 Sightseeing Plan
+            <label htmlFor="travel-sightseeing" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Mountain size={14} /> Sightseeing Plan
             </label>
             <select
               id="travel-sightseeing"
@@ -319,9 +327,13 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
             type="submit"
             disabled={loading}
             className="btn btn-primary"
-            style={{ padding: '0.75rem 2rem', fontSize: '0.92rem' }}
+            style={{ padding: '0.75rem 2rem', fontSize: '0.92rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            {loading ? 'Searching Verified Options...' : 'Search Yatra Options ➔'}
+            {loading ? 'Searching Verified Options...' : (
+              <>
+                Search Yatra Options <ArrowRight size={16} />
+              </>
+            )}
           </button>
         </div>
       </form>

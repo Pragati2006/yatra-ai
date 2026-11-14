@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ShieldCheck, X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { requestOtp, verifyOtp } from '../services/api';
 
 export default function AuthModal({
@@ -170,7 +171,7 @@ export default function AuthModal({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.4rem' }}>🪔</span>
+            <ShieldCheck size={24} color="#E5D2AD" />
             <div>
               <div style={{ fontFamily: 'var(--font-serif, serif)', fontWeight: 700, fontSize: '1.15rem' }}>
                 {step === 'success' ? 'Welcome, Pilgrim!' : 'Sign In / Save Your Trips'}
@@ -188,13 +189,15 @@ export default function AuthModal({
               background: 'transparent',
               border: 'none',
               color: '#E5D2AD',
-              fontSize: '1.4rem',
               cursor: 'pointer',
               lineHeight: 1,
               padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
@@ -239,8 +242,9 @@ export default function AuthModal({
               </div>
 
               {errorMsg && (
-                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', color: '#C53030', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem' }}>
-                  ⚠️ {errorMsg}
+                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', color: '#C53030', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={14} />
+                  <span>{errorMsg}</span>
                 </div>
               )}
 
@@ -262,11 +266,16 @@ export default function AuthModal({
                   gap: '8px',
                 }}
               >
-                {loading ? 'Sending Code...' : 'Send Verification Code ➔'}
+                {loading ? 'Sending Code...' : (
+                  <>
+                    <span>Send Verification Code</span>
+                    <ArrowRight size={14} />
+                  </>
+                )}
               </button>
 
               <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: '#FFFDF9', borderRadius: '10px', border: '1px dashed #E5D2AD', fontSize: '0.78rem', color: '#7D6A5D', lineHeight: 1.4 }}>
-                <strong>🌟 Default Guest Mode:</strong> Sign-in is 100% optional. You can explore yatra information, generate itineraries, and check availability as a guest at any time without creating an account.
+                <strong>Default Guest Mode:</strong> Sign-in is 100% optional. You can explore yatra information, generate itineraries, and check availability as a guest at any time without creating an account.
               </div>
             </form>
           )}
@@ -275,8 +284,9 @@ export default function AuthModal({
           {step === 'otp' && (
             <form onSubmit={handleVerifyOtp}>
               {successMsg && (
-                <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem' }}>
-                  ✉️ {successMsg}
+                <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 size={14} />
+                  <span>{successMsg}</span>
                 </div>
               )}
 
@@ -335,8 +345,9 @@ export default function AuthModal({
               )}
 
               {errorMsg && (
-                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', color: '#C53030', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem' }}>
-                  ⚠️ {errorMsg}
+                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', color: '#C53030', padding: '0.65rem', borderRadius: '8px', fontSize: '0.84rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={14} />
+                  <span>{errorMsg}</span>
                 </div>
               )}
 
@@ -386,7 +397,9 @@ export default function AuthModal({
           {/* STEP 3: Success Screen */}
           {step === 'success' && (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🙏</div>
+              <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'center' }}>
+                <CheckCircle2 size={44} color="#15803D" />
+              </div>
               <h3 style={{ fontFamily: 'var(--font-serif, serif)', color: 'var(--burgundy, #58111A)', marginTop: 0 }}>
                 Jai Mata Di!
               </h3>
@@ -398,9 +411,10 @@ export default function AuthModal({
                 type="button"
                 className="btn btn-primary"
                 onClick={handleClose}
-                style={{ padding: '0.65rem 2rem', fontSize: '0.92rem', fontWeight: 700 }}
+                style={{ padding: '0.65rem 2rem', fontSize: '0.92rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                Continue to Application ➔
+                <span>Continue to Application</span>
+                <ArrowRight size={14} />
               </button>
             </div>
           )}

@@ -1,9 +1,12 @@
 import React from 'react';
+import { Ticket, ArrowRight } from 'lucide-react';
+import FreshnessIndicator from '../provenance/FreshnessIndicator';
 
 /**
  * Booking Handoff Action Card for AI Chat stream.
  * Renders when the user indicates intent to book or when NAVIGATE_TO_BOOKING is returned.
  * Prepopulates trip context and transitions smoothly to the guided booking review flow.
+ * Explicitly communicates simulated sandboxed demonstration status.
  */
 export default function BookingHandoffCard({
   message,
@@ -64,26 +67,36 @@ export default function BookingHandoffCard({
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: '8px',
           marginBottom: '8px',
         }}
       >
-        <span style={{ fontSize: '1.2rem' }}>🕉️</span>
-        <div>
-          <div
-            style={{
-              fontFamily: 'var(--font-serif, Cinzel, serif)',
-              fontWeight: 800,
-              fontSize: '0.92rem',
-              color: 'var(--burgundy, #58111A)',
-            }}
-          >
-            Sacred Yatra Booking Handoff
-          </div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6B5C5C)' }}>
-            Your trip details have been organized. Review options before human authorization.
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Ticket size={20} color="var(--burgundy)" />
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-serif, Cinzel, serif)',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                color: 'var(--burgundy, #58111A)',
+              }}
+            >
+              Sacred Yatra Booking Handoff
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6B5C5C)' }}>
+              Your trip details have been organized. Review options before human authorization.
+            </div>
           </div>
         </div>
+
+        <FreshnessIndicator
+          freshnessStatus="simulated"
+          sourceType="simulated_data"
+          customText="Simulated Booking Portal"
+        />
       </div>
 
       {/* Summary grid */}
@@ -101,7 +114,7 @@ export default function BookingHandoffCard({
       >
         <div>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Route</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--burgundy)' }}>{origin} ➔ Katra</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--burgundy)' }}>{origin} to Katra</div>
         </div>
         <div>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Pilgrims & Mode</div>
@@ -137,10 +150,10 @@ export default function BookingHandoffCard({
             boxShadow: '0 3px 10px rgba(184, 134, 11, 0.25)',
           }}
         >
-          <span>➔</span> Review & Proceed with Booking
+          <ArrowRight size={14} /> Review & Proceed with Booking
         </button>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          *Requires your explicit confirmation before booking execution
+          *Simulated demonstration environment. Human authorization strictly required before any automated actions.
         </span>
       </div>
     </div>

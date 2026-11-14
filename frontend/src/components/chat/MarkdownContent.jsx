@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 /**
  * Enhanced, robust Markdown renderer for Yatra AI responses.
@@ -414,9 +415,22 @@ function CodeBlock({ code, language }) {
             padding: '2px 8px',
             fontSize: '0.7rem',
             cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
           }}
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? (
+            <>
+              <Check size={11} />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={11} />
+              <span>Copy</span>
+            </>
+          )}
         </button>
       </div>
       <pre
@@ -482,13 +496,16 @@ function renderInlineSpans(text) {
       return <em key={idx}>{part.slice(1, -1)}</em>;
     }
 
-    // Link [label](url)
+    // Link [label](url) - Sanitized against javascript: and malicious schemes
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
+      const rawHref = (linkMatch[2] || '').trim();
+      const isSafe = /^(https?:|mailto:|tel:)/i.test(rawHref);
+      const safeHref = isSafe ? rawHref : '#';
       return (
         <a
           key={idx}
-          href={linkMatch[2]}
+          href={safeHref}
           target="_blank"
           rel="noopener noreferrer"
           style={{

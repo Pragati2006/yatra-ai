@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Compass, AlertCircle, X, ClipboardList, MessageSquare, Check, ArrowRight, MapPin, CheckCircle2, Info, Mountain, RotateCcw } from 'lucide-react';
 import TravelSearch from '../components/TravelSearch';
 import RecommendedYatra from '../components/RecommendedYatra';
 import TransportCard from '../components/TransportCard';
@@ -140,7 +141,7 @@ export default function YatraBooking({
     try {
       const result = await searchYatra(params.queryText);
       const req = {
-        origin: params.origin || 'Delhi',
+        origin: params.origin || (result.request?.origin || ''),
         pax: params.pax || 2,
         start_date: params.startDate || '2026-10-20',
         mode: params.mode || 'any',
@@ -152,7 +153,7 @@ export default function YatraBooking({
         travel_style: params.travel_style || 'balanced',
         accommodation_preference: params.accommodation_preference || 'Standard',
         sightseeing_choice: params.sightseeing_choice || 'recommend',
-        ...(result.request || {}),
+        ...result.request,
       };
       setTripRequest(req);
 
@@ -211,7 +212,14 @@ export default function YatraBooking({
       }
     } catch (err) {
       console.error('Yatra Search Error:', err);
-      setErrorMsg('Search failed. Please ensure the backend is running.');
+      const isMisconfigured = err?.message && (
+        err.message.includes('Production API URL') ||
+        err.message.includes('Insecure backend URL') ||
+        err.message.includes('Malformed API URL')
+      );
+      setErrorMsg(isMisconfigured
+        ? `Backend Disconnected: ${err.message}`
+        : 'Search failed. Please ensure the backend is running.');
     } finally {
       setLoading(false);
     }
@@ -310,7 +318,7 @@ export default function YatraBooking({
     if (data.plan_version) setPlanVersion(data.plan_version);
 
     if (data.request) {
-      setTripRequest((prev) => ({ ...(prev || {}), ...data.request }));
+      setTripRequest((prev) => ({ ...prev, ...data.request }));
       if (data.request.sightseeing_places && Array.isArray(data.request.sightseeing_places)) {
         const placeObjs = data.request.sightseeing_places.map((p) => {
           if (typeof p === 'object' && p.name) return p;
@@ -416,7 +424,7 @@ export default function YatraBooking({
         hotel_nights: 2,
         sightseeing_places: placeNames,
         request: {
-          ...(tripRequest || {}),
+          ...tripRequest,
           sightseeing_places: placeNames,
           sightseeing_choice: choice,
         },
@@ -456,7 +464,7 @@ export default function YatraBooking({
         hotel_nights: 2,
         sightseeing_places: [],
         request: {
-          ...(tripRequest || {}),
+          ...tripRequest,
           sightseeing_choice: 'later',
         },
       });
@@ -560,7 +568,7 @@ export default function YatraBooking({
         hotel_nights: 2,
         sightseeing_places: [],
         request: {
-          ...(tripRequest || {}),
+          ...tripRequest,
           sightseeing_places: [],
           sightseeing_choice: 'skipped',
         },
@@ -613,12 +621,14 @@ export default function YatraBooking({
           justifyContent: 'space-between',
           alignItems: 'center',
         }}>
-          <div><b>⚠️ Alert:</b> {errorMsg}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <AlertCircle size={16} /> <b>Alert:</b> {errorMsg}
+          </div>
           <button
             onClick={() => setErrorMsg('')}
-            style={{ background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', color: '#721C24' }}
+            style={{ background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', color: '#721C24', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -642,7 +652,7 @@ export default function YatraBooking({
               color: 'var(--burgundy)',
               marginBottom: '1rem',
             }}>
-              <span>🔱</span> Shri Mata Vaishno Devi Yatra Planning
+              <Compass size={16} /> Shri Mata Vaishno Devi Yatra Planning
             </div>
             <h1 style={{
               fontFamily: 'var(--font-serif)',
@@ -688,7 +698,7 @@ export default function YatraBooking({
             >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <span style={{ fontSize: '2.5rem' }}>📋</span>
+                  <ClipboardList size={36} color="var(--burgundy)" />
                   <span style={{
                     background: '#FAF5EE',
                     border: '1px solid var(--gold-border)',
@@ -727,16 +737,16 @@ export default function YatraBooking({
                   gap: '10px',
                 }}>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Guided step-by-step preference intake
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Guided step-by-step preference intake
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Compare direct train & flight options
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Compare direct train & flight options
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Select Katra hotels and sightseeing spots
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Select Katra hotels and sightseeing spots
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Clear timeline with feasibility advisories
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Clear timeline with feasibility advisories
                   </li>
                 </ul>
               </div>
@@ -757,7 +767,7 @@ export default function YatraBooking({
                 }}
               >
                 <span>Plan with Form</span>
-                <span>➔</span>
+                <ArrowRight size={16} />
               </button>
             </div>
 
@@ -778,7 +788,7 @@ export default function YatraBooking({
             >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <span style={{ fontSize: '2.5rem' }}>💬</span>
+                  <MessageSquare size={36} color="#166534" />
                   <span style={{
                     background: '#F0FDF4',
                     border: '1px solid #BBF7D0',
@@ -817,16 +827,16 @@ export default function YatraBooking({
                   gap: '10px',
                 }}>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Natural speech and text conversation
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Natural speech and text conversation
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Answers tourism, weather & yatra queries
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Answers tourism, weather & yatra queries
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> AI gathers missing details conversationally
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> AI gathers missing details conversationally
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>✓</span> Switch back to form with preserved state
+                    <Check size={14} color="#2E7D32" strokeWidth={3} /> Switch back to form with preserved state
                   </li>
                 </ul>
               </div>
@@ -847,7 +857,7 @@ export default function YatraBooking({
                 }}
               >
                 <span>Chat with AI</span>
-                <span>➔</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -874,13 +884,13 @@ export default function YatraBooking({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '1.2rem' }}>💬</span>
+              <MessageSquare size={18} color="var(--burgundy)" />
               <div>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Planning Mode: </span>
                 <b style={{ color: 'var(--burgundy)', fontSize: '0.9rem' }}>Conversational AI Assistant</b>
                 {tripRequest?.origin && (
-                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)' }}>
-                    📍 {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
+                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={11} /> {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
                   </span>
                 )}
               </div>
@@ -898,9 +908,9 @@ export default function YatraBooking({
                 data-testid="switch-to-form-btn"
                 onClick={() => handleSwitchMode('form')}
                 className="btn btn-primary"
-                style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                style={{ fontSize: '0.82rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                📋 Switch to Form
+                <ClipboardList size={14} /> Switch to Form
               </button>
             </div>
           </div>
@@ -924,11 +934,14 @@ export default function YatraBooking({
                 color: '#166534',
               }}
             >
-              <div>
-                <b>✓ Active Itinerary Synced:</b> {itineraryDays.length}-Day Plan
-                {tripRequest?.origin ? ` from ${tripRequest.origin}` : ''}
-                {feasiblePlaces.length > 0 ? ` • Feasible: ${feasiblePlaces.join(', ')}` : ''}
-                {infeasiblePlaces.length > 0 ? ` • Infeasible: ${infeasiblePlaces.map(p => (typeof p === 'object' ? p.destination || p.name : p)).join(', ')}` : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <CheckCircle2 size={16} color="#166534" />
+                <span>
+                  <b>Active Itinerary Synced:</b> {itineraryDays.length}-Day Plan
+                  {tripRequest?.origin ? ` from ${tripRequest.origin}` : ''}
+                  {feasiblePlaces.length > 0 ? ` • Feasible: ${feasiblePlaces.join(', ')}` : ''}
+                  {infeasiblePlaces.length > 0 ? ` • Infeasible: ${infeasiblePlaces.map(p => (typeof p === 'object' ? p.destination || p.name : p)).join(', ')}` : ''}
+                </span>
               </div>
               <button
                 onClick={() => {
@@ -944,9 +957,12 @@ export default function YatraBooking({
                   cursor: 'pointer',
                   fontWeight: 700,
                   fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                View Full Timeline in Form ➔
+                View Full Timeline in Form <ArrowRight size={14} />
               </button>
             </div>
           )}
@@ -994,13 +1010,13 @@ export default function YatraBooking({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '1.2rem' }}>📋</span>
+              <ClipboardList size={18} color="var(--burgundy)" />
               <div>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Planning Mode: </span>
                 <b style={{ color: 'var(--burgundy)', fontSize: '0.9rem' }}>Guided Structured Form</b>
                 {tripRequest?.origin && (
-                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)' }}>
-                    📍 {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
+                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', background: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', border: '1px solid var(--gold-border)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={11} /> {tripRequest.origin} • {tripRequest.pax || 2} Pilgrims • {tripRequest.duration_days || 4} Days
                   </span>
                 )}
               </div>
@@ -1018,9 +1034,9 @@ export default function YatraBooking({
                 data-testid="switch-to-chat-btn"
                 onClick={() => handleSwitchMode('chat')}
                 className="btn btn-primary"
-                style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                style={{ fontSize: '0.82rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                💬 Switch to Chat
+                <MessageSquare size={14} /> Switch to Chat
               </button>
             </div>
           </div>
@@ -1077,7 +1093,7 @@ export default function YatraBooking({
                         title={isClickable ? `Navigate to ${step.label}` : (step.id === 4 ? 'Complete booking verification to unlock confirmation' : 'Complete search to unlock')}
                       >
                         <div className="step-circle">
-                          {isCompleted ? '✓' : step.id}
+                          {isCompleted ? <Check size={12} strokeWidth={3} /> : step.id}
                         </div>
                         <span>{step.label}</span>
                       </div>
@@ -1103,15 +1119,15 @@ export default function YatraBooking({
               justifyContent: 'space-between',
               alignItems: 'center',
             }}>
-              <div>
-                <b>ℹ️ Plan Preference Updated:</b> {planRevisionNotice}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Info size={15} /> <b>Plan Preference Updated:</b> {planRevisionNotice}
               </div>
               <button
                 type="button"
                 onClick={() => setPlanRevisionNotice('')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#8A5800' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#8A5800', display: 'flex', alignItems: 'center' }}
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
           )}
@@ -1123,7 +1139,7 @@ export default function YatraBooking({
                 onSearch={handleSearch}
                 loading={loading}
                 initialValues={{
-                  origin: tripRequest?.origin || 'Delhi',
+                  origin: tripRequest?.origin || '',
                   pax: tripRequest?.pax || 2,
                   startDate: tripRequest?.start_date || '2026-10-20',
                   mode: tripRequest?.mode || 'any',
@@ -1177,7 +1193,7 @@ export default function YatraBooking({
                   setCurrentStep('edit-sightseeing');
                 } else if (category === 'dates' || category === 'budget' || category === 'style') {
                   setCurrentStep(1);
-                  setPlanRevisionNotice(`Editing ${category}: Adjust your preference fields below and click "Search Yatra Options ➔" to refresh recommendations.`);
+                  setPlanRevisionNotice(`Editing ${category}: Adjust your preference fields below and click "Search Yatra Options" to refresh recommendations.`);
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
@@ -1195,7 +1211,7 @@ export default function YatraBooking({
                     Customize Travel & Darshan Option
                   </div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Found <b>{availableOptions.length} verified distinct option{availableOptions.length !== 1 ? 's' : ''}</b> for {tripRequest?.origin || 'Delhi'} ➔ Katra. Your accommodation and itinerary will be preserved.
+                    Found <b>{availableOptions.length} verified distinct option{availableOptions.length !== 1 ? 's' : ''}</b> for {tripRequest?.origin || 'your origin'} to Katra. Your accommodation and itinerary will be preserved.
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -1204,9 +1220,9 @@ export default function YatraBooking({
                     data-testid="return-to-recommended-yatra-btn"
                     onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     className="btn btn-primary"
-                    style={{ fontSize: '0.85rem', padding: '6px 16px' }}
+                    style={{ fontSize: '0.85rem', padding: '6px 16px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    ↩ Return to Recommended Yatra
+                    <RotateCcw size={14} /> Return to Recommended Yatra
                   </button>
                 </div>
               </div>
@@ -1229,8 +1245,9 @@ export default function YatraBooking({
                   data-testid="transport-back-to-review-btn"
                   onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="btn btn-outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ↩ Return to Recommended Yatra
+                  <RotateCcw size={14} /> Return to Recommended Yatra
                 </button>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
@@ -1239,18 +1256,24 @@ export default function YatraBooking({
                     onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={!selectedOption || loading}
                     className="btn btn-outline"
-                    style={{ borderColor: 'var(--gold-primary)', color: 'var(--burgundy)', fontWeight: 700 }}
+                    style={{ borderColor: 'var(--gold-primary)', color: 'var(--burgundy)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    📋 Save Selection & Return ➔
+                    <ClipboardList size={14} /> Save Selection & Return <ArrowRight size={14} />
                   </button>
                   <button
                     type="button"
                     onClick={handleProceedToHotels}
                     disabled={!selectedOption || loading}
                     className="btn btn-primary"
-                    style={{ padding: '0.75rem 2rem' }}
+                    style={{ padding: '0.75rem 2rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    {loading ? 'Finding Hotels...' : 'Proceed to Accommodation ➔'}
+                    {loading ? (
+                      'Finding Hotels...'
+                    ) : (
+                      <>
+                        Proceed to Accommodation <ArrowRight size={14} />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -1326,8 +1349,9 @@ export default function YatraBooking({
                   data-testid="hotel-back-to-review-btn"
                   onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="btn btn-outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ↩ Return to Recommended Yatra
+                  <RotateCcw size={14} /> Return to Recommended Yatra
                 </button>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
@@ -1336,9 +1360,9 @@ export default function YatraBooking({
                     onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={loading}
                     className="btn btn-outline"
-                    style={{ borderColor: 'var(--gold-primary)', color: 'var(--burgundy)', fontWeight: 700 }}
+                    style={{ borderColor: 'var(--gold-primary)', color: 'var(--burgundy)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    📋 Save Selection & Return ➔
+                    <ClipboardList size={14} /> Save Selection & Return <ArrowRight size={14} />
                   </button>
                   <button
                     onClick={() => { setSelectedHotel(null); triggerPlanRevision('hotel removed'); setCurrentStep(2); }}
@@ -1353,9 +1377,9 @@ export default function YatraBooking({
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className="btn btn-primary"
-                    style={{ padding: '0.75rem 2rem' }}
+                    style={{ padding: '0.75rem 2rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    Proceed to Sightseeing ({selectedPlaces.length} selected) ➔
+                    Proceed to Sightseeing ({selectedPlaces.length} selected) <ArrowRight size={14} />
                   </button>
                 </div>
               </div>
@@ -1368,17 +1392,17 @@ export default function YatraBooking({
           {(currentStep === 'edit-sightseeing' || currentStep === 'sightseeing') && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ fontSize: '0.9rem', color: 'var(--burgundy)', fontWeight: 800 }}>
-                  🌄 Customizing Jammu & Kashmir Sightseeing
+                <div style={{ fontSize: '0.9rem', color: 'var(--burgundy)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Mountain size={16} /> Customizing Jammu & Kashmir Sightseeing
                 </div>
                 <button
                   type="button"
                   data-testid="return-to-recommended-yatra-btn"
                   onClick={() => { setCurrentStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="btn btn-outline"
-                  style={{ fontSize: '0.82rem', padding: '5px 14px' }}
+                  style={{ fontSize: '0.82rem', padding: '5px 14px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ↩ Return to Recommended Yatra
+                  <RotateCcw size={14} /> Return to Recommended Yatra
                 </button>
               </div>
 
@@ -1411,7 +1435,7 @@ export default function YatraBooking({
                 sightseeingPlaces: selectedPlaces,
                 feasiblePlaces: feasiblePlaces,
                 infeasiblePlaces: infeasiblePlaces,
-                origin: tripRequest?.origin || 'Delhi',
+                origin: tripRequest?.origin || '',
                 sessionId: sessionId,
                 planVersion: planVersion,
                 tripRequest: tripRequest,
@@ -1438,8 +1462,8 @@ export default function YatraBooking({
                     category: selectedOption?.slot?.category || 'Normal Darshan',
                     slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
                     transport_mode: selectedOption?.transport?.mode || 'Train',
-                    transport_info: selectedOption?.transport?.name || `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest?.origin || 'Delhi'}`,
-                    hotel_name: selectedHotel?.name || 'Devi Darshan Hotel (Katra)',
+                    transport_info: selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`),
+                    hotel_name: selectedHotel?.name || 'Accommodation not selected',
                     total_price: bPrice,
                     session_id: sessionId,
                     plan_version: planVersion || 1,
@@ -1448,13 +1472,13 @@ export default function YatraBooking({
                       user_name: activeUser?.name || activeUser?.email || 'Pilgrim Devotee',
                       email: activeUser?.email,
                       pax_count: tripRequest?.pax || 1,
-                      origin: tripRequest?.origin || 'Delhi',
+                      origin: tripRequest?.origin || '',
                       destination: 'Katra (Shri Mata Vaishno Devi)',
                       slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
                       category: selectedOption?.slot?.category || 'Normal Darshan',
                       slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
-                      transport_info: selectedOption?.transport?.name || `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest?.origin || 'Delhi'}`,
-                      hotel_name: selectedHotel?.name || 'Devi Darshan Hotel (Katra)',
+                      transport_info: selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`),
+                      hotel_name: selectedHotel?.name || 'Accommodation not selected',
                       total_price: bPrice,
                       confirmed_at: new Date().toISOString(),
                       portal_label: 'LOCAL MOCK PORTAL / DEMO',
@@ -1494,7 +1518,7 @@ export default function YatraBooking({
                 pax: tripRequest?.pax || 1,
                 hotel: selectedHotel,
                 hotelNights: Math.max(1, (tripRequest?.duration_days || 4) - 1),
-                origin: tripRequest?.origin || 'Delhi',
+                origin: tripRequest?.origin || '',
                 tripRequest: tripRequest,
               }}
               onReturnHome={onReturnHome}

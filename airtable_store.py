@@ -26,7 +26,10 @@ One-time setup (full steps in README.md -> "Persistent storage"):
 
 import pandas as pd
 import requests
-import streamlit as st
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 
 API_ROOT = "https://api.airtable.com/v0"
 

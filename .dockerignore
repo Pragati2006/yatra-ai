@@ -1,0 +1,49 @@
+# ==============================================================================
+# Yatra AI — Docker Exclusion Rules for Hugging Face Spaces & Render
+# Ensures zero secrets, local SQLite databases, or heavy client build trees
+# are copied into the Python production backend container.
+# ==============================================================================
+
+# Git & OS artifacts
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+
+# Secrets & local environment variables
+.env
+.env.*
+!.env.production.example
+!.env.example
+
+# Local SQLite databases (EPHEMERAL / DEV ONLY - NEVER UPLOAD DEV DATA TO PRODUCTION CONTAINER)
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/auth_store.db
+data/sessions.db
+
+# Python caches & virtual environments
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+venv
+.venv
+env
+
+# Client trees (Cloud backend only needs Python server; frontend is on Cloudflare Pages, Android is built via EAS)
+frontend/
+android/
+node_modules/
+
+# Test evidence, scratch scripts & temporary logs
+evidence_redesign
+docs/screenshots
+scratch
+*.log
+
+# Windows binaries & local tunnel tooling (not needed in Linux container)
+tools/
+*.exe

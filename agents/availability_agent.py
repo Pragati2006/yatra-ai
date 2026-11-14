@@ -4,7 +4,7 @@ Week 7: LangChain Agent-RPA Integration Layer for Maa Vaishno Devi Yatra Booking
 
 Connects the LLM agent to the existing Playwright availability checking scripts:
 1. Exposes check_yatra_availability_tool as a LangChain tool.
-2. Supports parameter extraction and binding via ChatGroq (openai/gpt-oss-20b) and mock LLMs.
+2. Supports parameter extraction and binding via ChatGroq (llama-3.3-70b-versatile) and mock LLMs.
 3. Provides fallback to deterministic parameter parsing and validation when offline or testing.
 4. Returns interpreted structured results formatted for pilgrim warmth and accuracy.
 """
@@ -64,9 +64,11 @@ def get_groq_llm() -> Optional[Any]:
         return None
     try:
         return ChatGroq(
-            model="openai/gpt-oss-20b",
+            model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
             temperature=0.2,
             api_key=api_key,
+            request_timeout=3.0,
+            max_retries=1,
         )
     except Exception as exc:
         logger.warning("Failed to initialize ChatGroq: %s", exc)

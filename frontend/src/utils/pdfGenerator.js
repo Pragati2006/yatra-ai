@@ -17,16 +17,16 @@ export function generatePilgrimPassPDF(bookingData, bookingSummary = {}) {
   const slotTime = String(bookingData?.slot_time || slot.slot_time || 'Morning Slot (06:00)');
   const origin = bookingSummary?.origin || 'Delhi';
   const transport = String(bookingData?.transport_info || `${tr.operator || tr.name || 'Express Service'} (${tr.mode || 'Train'}) from ${origin}`);
-  const hotelName = String(bookingData?.hotel_name || (hotel ? hotel.name : 'Devi Darshan Hotel, Katra'));
-  const priceVal = bookingData?.total_price || bookingSummary?.total_price || 16092;
+  const hotelName = String(bookingData?.hotel_name || (hotel ? hotel.name : 'Accommodation not selected'));
+  const priceVal = bookingData?.total_price || bookingSummary?.total_price || 0;
   const totalPrice = `INR ${Number(priceVal).toLocaleString('en-IN')}`;
 
   const escapePdf = (str) => {
     return String(str || '')
       .replace(/₹/g, 'INR ')
-      .replace(/➔/g, '->')
-      .replace(/✓/g, '[X]')
-      .replace(/🙏/g, '')
+      .replace(/\u2794/g, '->')
+      .replace(/\u2713/g, '[X]')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{FE0F}]/gu, '')
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)');

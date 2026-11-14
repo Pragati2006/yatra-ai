@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sparkles, Users, Calendar, Briefcase, Footprints, CalendarDays, Train, Search, Landmark, ArrowRight, Coins, Info } from 'lucide-react';
 
 /**
  * Reusable Personalized Plan Card for AI Chat stream.
@@ -109,7 +110,7 @@ export default function PersonalizedPlanCard({
             gap: '6px',
           }}
         >
-          <span>✨</span> YOUR PERSONALIZED YATRA PLAN
+          <Sparkles size={14} color="var(--burgundy)" /> YOUR PERSONALIZED YATRA PLAN
         </div>
         {estTotalStr && (
           <div
@@ -130,17 +131,17 @@ export default function PersonalizedPlanCard({
 
       {/* Badges */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px' }}>
-          👤 {pax} {pax === 1 ? 'Pilgrim' : 'Pilgrims'}
+        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <Users size={12} /> {pax} {pax === 1 ? 'Pilgrim' : 'Pilgrims'}
         </span>
-        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px' }}>
-          📅 {duration} Days
+        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <Calendar size={12} /> {duration} Days
         </span>
-        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px' }}>
-          🧳 {groupType}
+        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <Briefcase size={12} /> {groupType}
         </span>
-        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px' }}>
-          🚶 {pace}
+        <span className="pill pill-gold" style={{ fontSize: '0.74rem', padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <Footprints size={12} /> {pace}
         </span>
       </div>
 
@@ -173,7 +174,8 @@ export default function PersonalizedPlanCard({
             gap: '6px',
           }}
         >
-          <span>🗓️</span> Explore Itinerary
+          <CalendarDays size={14} />
+          <span>Explore Itinerary</span>
         </button>
         <button
           type="button"
@@ -191,7 +193,8 @@ export default function PersonalizedPlanCard({
             gap: '6px',
           }}
         >
-          <span>🚆</span> Proceed with Booking
+          <Train size={14} />
+          <span>Proceed with Booking</span>
         </button>
       </div>
 
@@ -219,7 +222,10 @@ export default function PersonalizedPlanCard({
             justifyContent: 'space-between',
           }}
         >
-          <span>🔍 View Detailed Strategy & Recommendations</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Search size={13} />
+            <span>View Detailed Strategy & Recommendations</span>
+          </span>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6B5C5C)' }}>Details ▼</span>
         </summary>
 
@@ -261,9 +267,11 @@ export default function PersonalizedPlanCard({
                     type="button"
                     onClick={() => onExplorePlace ? onExplorePlace(p.name) : onSend(`Tell me about ${p.name}`)}
                     className="btn btn-secondary"
-                    style={{ padding: '3px 9px', fontSize: '0.74rem' }}
+                    style={{ padding: '3px 9px', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    🛕 {p.name} →
+                    <Landmark size={12} />
+                    <span>{p.name}</span>
+                    <ArrowRight size={11} />
                   </button>
                 ))}
               </div>
@@ -283,9 +291,14 @@ export default function PersonalizedPlanCard({
                 cursor: 'pointer',
                 textDecoration: 'underline',
                 padding: '2px 4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              💰 View Itemized Cost Breakdown →
+              <Coins size={12} />
+              <span>View Itemized Cost Breakdown</span>
+              <ArrowRight size={11} />
             </button>
           </div>
         </div>
@@ -302,8 +315,9 @@ export default function PersonalizedPlanCard({
             marginTop: '12px',
           }}
         >
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.84rem', color: 'var(--burgundy)', marginBottom: '3px' }}>
-            ℹ️ TRAVEL OPTIONS NOT FOUND
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '0.84rem', color: 'var(--burgundy)', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Info size={14} />
+            <span>TRAVEL OPTIONS NOT FOUND</span>
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '4px' }}>
             No verified transport combinations were found for the selected date and route.

@@ -36,7 +36,7 @@ def generate_pdf_pass_bytes(booking: Dict[str, Any]) -> bytes:
     category = escape_pdf_text(booking.get("category") or "Normal Darshan")
     slot_time = escape_pdf_text(booking.get("slot_time") or "Morning Slot (06:00)")
     transport = escape_pdf_text(booking.get("transport_info") or booking.get("transport_mode") or "Train (Delhi -> Katra)")
-    hotel = escape_pdf_text(booking.get("hotel_name") or "Devi Darshan Hotel (Katra)")
+    hotel = escape_pdf_text(booking.get("hotel_name") or "Accommodation not selected")
     total_price = escape_pdf_text(f"INR {booking.get('total_price', 0):,}")
 
     stream_lines = [

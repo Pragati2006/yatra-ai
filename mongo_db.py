@@ -59,6 +59,18 @@ def close_client():
 atexit.register(close_client)
 
 
+def get_collection(collection_name: str):
+    """Retrieves a named MongoDB collection from the configured database."""
+    global client, db
+    if not is_available():
+        return None
+    if db is None and client is not None:
+        db = client[MONGO_DB_NAME]
+    if db is not None:
+        return db[collection_name]
+    return None
+
+
 def test_connection(timeout_ms: int = 2000) -> bool:
     """Verify that MongoDB Atlas is reachable and authenticated."""
     global client, db, tourist_attractions, yatra_information

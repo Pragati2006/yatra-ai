@@ -1,0 +1,13 @@
+{
+  "backend_local_health": true,
+  "public_tunnel_url": "https://memories-directive-artists-expenditures.trycloudflare.com",
+  "public_health_status": 200,
+  "public_readiness_status": 200,
+  "security_banner_gate": "PASS",
+  "runtime_connection_activation": "PASS",
+  "ai_chat_response": "PASS",
+  "tourism_rag_query": "PASS",
+  "booking_wizard_gate": "PASS",
+  "graceful_disconnection": "PASS",
+  "public_pages_edge": "PASS"
+}

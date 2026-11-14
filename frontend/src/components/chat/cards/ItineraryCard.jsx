@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Calendar, ChevronUp, ChevronDown } from 'lucide-react';
 
 /**
  * Visual Day-by-Day Itinerary Card inside the AI Chat Stream.
@@ -34,7 +35,7 @@ export default function ItineraryCard({ itinerary }) {
         onClick={() => setIsExpanded((prev) => !prev)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '1.1rem' }}>🗓️</span>
+          <Calendar size={18} color="var(--burgundy)" />
           <div>
             <div
               style={{
@@ -62,9 +63,22 @@ export default function ItineraryCard({ itinerary }) {
             color: 'var(--burgundy)',
             fontWeight: 600,
             cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
           }}
         >
-          {isExpanded ? '▲ Hide' : '▼ View Timeline'}
+          {isExpanded ? (
+            <>
+              <ChevronUp size={12} />
+              <span>Hide</span>
+            </>
+          ) : (
+            <>
+              <ChevronDown size={12} />
+              <span>View Timeline</span>
+            </>
+          )}
         </button>
       </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Coins } from 'lucide-react';
 
 /**
  * Itemized Budget Breakdown Card for AI Chat stream.
@@ -26,7 +27,7 @@ export default function BudgetCard({ budgetEvaluation }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '1.1rem' }}>💰</span>
+          <Coins size={16} color="var(--burgundy)" />
           <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: '0.84rem', color: 'var(--burgundy)' }}>
             Itemized Pilgrimage Budget
           </span>

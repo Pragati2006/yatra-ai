@@ -587,7 +587,7 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
     duration = int(duration)
 
     travel_date = tr.get("travel_date") or req.get("start_date") or datetime.now().strftime("%Y-%m-%d")
-    origin = tr.get("origin") or req.get("origin") or "Delhi"
+    origin = tr.get("origin") or req.get("origin") or "your departure point"
     mode = (tr.get("mode") or req.get("mode") or "train").lower()
     operator = tr.get("operator") or ("Northern Railways" if mode == "train" else "Air Carrier")
     transport_no = tr.get("transport_no", "")
@@ -900,7 +900,7 @@ def generate_default_itinerary(request):
     """Generates a structured day-wise itinerary list matching request parameters."""
     req = request or {}
     duration = req.get("duration_days", 4) or 4
-    origin = req.get("origin") or "Delhi"
+    origin = req.get("origin") or "your departure point"
     mode = (req.get("mode") or "train").lower()
     cat = req.get("category") or "Normal Darshan"
     start_date_str = req.get("start_date") or datetime.now().strftime("%Y-%m-%d")

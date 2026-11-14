@@ -1,27 +1,62 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Mic, Square, Send, Globe, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'en-IN', label: 'English (India)', native: 'English' },
+  { code: 'hi-IN', label: 'Hindi (हिंदी)', native: 'हिंदी' },
+  { code: 'pa-IN', label: 'Punjabi (ਪੰਜਾਬੀ)', native: 'ਪੰਜਾਬੀ' },
+  { code: 'ur-IN', label: 'Urdu (اردو)', native: 'اردو' },
+];
 
 /**
- * Modern, anchored Message Composer with Multiline Textarea,
- * Web Speech Voice Input, Language Selector, and Keyboard Handling.
+ * Enhanced Message Composer:
+ * - High-contrast, crystal-clear input visibility across light and dark modes
+ * - Professional Lucide icon system (Zero emojis)
+ * - Distinct visual voice states: IDLE, LISTENING, PROCESSING, COMPLETED, ERROR
+ * - User review and inline editing before sending (no auto-submission)
+ * - Multi-language voice support (English, Hindi, Punjabi, Urdu)
  */
 export default function MessageComposer({
   onSend,
   loading = false,
-  placeholder = "Ask Yatra AI (e.g. 'What places can I visit around Katra?')...",
+  placeholder = "Ask Yatra AI (e.g. 'How to reach Bhawan from Katra?')...",
 }) {
   const [inputValue, setInputValue] = useState('');
-  const [micState, setMicState] = useState('idle'); // 'idle' | 'listening' | 'processing'
+  const [micState, setMicState] = useState('idle'); // 'idle' | 'listening' | 'processing' | 'completed' | 'error'
   const [micStatus, setMicStatus] = useState('');
   const [selectedLang, setSelectedLang] = useState('en-IN');
+  const [isSupported, setIsSupported] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // Auto-resize textarea up to 120px
+  useEffect(() => {
+    // Check Web Speech API availability on mount
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setIsSupported(false);
+    }
+  }, []);
+
+  // Cleanup speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  // Auto-resize textarea dynamically
   const adjustHeight = () => {
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
-      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+      el.style.height = `${Math.min(el.scrollHeight, 130)}px`;
     }
   };
 
@@ -41,6 +76,17 @@ export default function MessageComposer({
     const text = (customText !== undefined ? customText : inputValue).trim();
     if (!text || loading) return;
 
+    // If currently listening, stop recognition before sending
+    if (micState === 'listening' && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setMicState('idle');
+      setMicStatus('');
+    }
+
     onSend(text);
     setInputValue('');
     if (textareaRef.current) {
@@ -48,17 +94,28 @@ export default function MessageComposer({
     }
   };
 
-  // Web Speech API Voice Interaction
+  // Web Speech API Voice Recognition Toggle
   const toggleListening = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      setMicStatus('Voice input is not supported in this browser. Try Chrome, Edge, or Safari.');
-      setTimeout(() => setMicStatus(''), 4500);
+      setMicState('error');
+      setMicStatus('Voice input is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.');
+      setTimeout(() => {
+        setMicState('idle');
+        setMicStatus('');
+      }, 5000);
       return;
     }
 
-    if (micState === 'listening' && recognitionRef.current) {
-      recognitionRef.current.stop();
+    // If already listening, stop it cleanly
+    if (micState === 'listening') {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
       setMicState('idle');
       setMicStatus('');
       return;
@@ -67,40 +124,65 @@ export default function MessageComposer({
     try {
       const recognition = new SR();
       recognition.lang = selectedLang;
-      recognition.interimResults = false;
+      recognition.interimResults = true; // Stream interim results into input
+      recognition.continuous = false;
       recognition.maxAlternatives = 1;
       recognitionRef.current = recognition;
 
+      const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang) || SUPPORTED_LANGUAGES[0];
+
       recognition.onstart = () => {
         setMicState('listening');
-        setMicStatus('🎧 Listening... Speak your pilgrimage question.');
+        setMicStatus(`Listening in ${activeLangObj.label}... Speak clearly into your microphone.`);
       };
 
       recognition.onresult = (event) => {
-        const transcript = event.results?.[0]?.[0]?.transcript || '';
-        setMicState('processing');
-        setMicStatus(`Recognized: "${transcript}"`);
+        let interimTranscript = '';
+        let finalTranscript = '';
 
-        // Display recognized speech in the composer for review and editing
-        setInputValue(transcript);
-        adjustHeight();
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const trans = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += trans;
+          } else {
+            interimTranscript += trans;
+          }
+        }
 
-        setTimeout(() => {
-          setMicState('idle');
-          setMicStatus('');
-        }, 2000);
+        const currentSpeech = finalTranscript || interimTranscript;
+        if (currentSpeech) {
+          setInputValue((prev) => {
+            if (!prev.trim()) return currentSpeech;
+            return `${prev.trim()} ${currentSpeech}`;
+          });
+          adjustHeight();
+        }
+
+        if (finalTranscript) {
+          setMicState('completed');
+          setMicStatus(`Transcribed: "${finalTranscript.trim()}" — Review or press Send.`);
+          setTimeout(() => {
+            setMicState('idle');
+            setMicStatus('');
+          }, 4000);
+        }
       };
 
       recognition.onerror = (event) => {
-        setMicState('idle');
+        setMicState('error');
         if (event.error === 'no-speech') {
-          setMicStatus("Didn't catch that. Please speak again.");
-        } else if (event.error === 'not-allowed') {
-          setMicStatus('Microphone access was denied. Please allow microphone permission in your browser.');
+          setMicStatus("Didn't detect speech. Please click Voice Input and speak again.");
+        } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setMicStatus('Microphone permission was denied. Please allow microphone access in your browser settings.');
+        } else if (event.error === 'network') {
+          setMicStatus('Speech recognition network error. Please verify your internet connection.');
         } else {
-          setMicStatus(`Voice recognition error: ${event.error}`);
+          setMicStatus(`Voice recognition notice: ${event.error}. Please try again.`);
         }
-        setTimeout(() => setMicStatus(''), 4500);
+        setTimeout(() => {
+          setMicState('idle');
+          setMicStatus('');
+        }, 5000);
       };
 
       recognition.onend = () => {
@@ -111,12 +193,17 @@ export default function MessageComposer({
 
       recognition.start();
     } catch (err) {
-      console.error('Mic initialization error:', err);
-      setMicState('idle');
-      setMicStatus('Could not access microphone.');
-      setTimeout(() => setMicStatus(''), 4000);
+      console.error('Speech recognition initiation error:', err);
+      setMicState('error');
+      setMicStatus('Could not access microphone. Please check system audio permissions.');
+      setTimeout(() => {
+        setMicState('idle');
+        setMicStatus('');
+      }, 4000);
     }
   };
+
+  const activeLang = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang) || SUPPORTED_LANGUAGES[0];
 
   return (
     <div
@@ -128,36 +215,88 @@ export default function MessageComposer({
         padding: '0.75rem 1rem 1rem',
       }}
     >
-      {/* Mic Status Banner */}
+      {/* Live Voice Listening & Status Banner */}
       {micStatus && (
         <div
           data-testid="composer-mic-status"
           style={{
-            background: micState === 'listening' ? '#FFF9F0' : '#FFF5F5',
-            border: `1px solid ${micState === 'listening' ? 'var(--gold-border, #E5D2AD)' : '#F5C6CB'}`,
-            borderRadius: '8px',
-            padding: '6px 12px',
-            fontSize: '0.76rem',
-            color: 'var(--burgundy, #58111A)',
-            fontWeight: 600,
-            marginBottom: '6px',
+            background:
+              micState === 'listening'
+                ? '#FFF5F5'
+                : micState === 'error'
+                ? '#FFF0F0'
+                : micState === 'completed'
+                ? '#F0FDF4'
+                : '#FFF9F0',
+            border: `1.5px solid ${
+              micState === 'listening'
+                ? '#C0392B'
+                : micState === 'error'
+                ? '#E74C3C'
+                : micState === 'completed'
+                ? '#16A34A'
+                : 'var(--gold-border, #E5D2AD)'
+            }`,
+            borderRadius: '12px',
+            padding: '8px 14px',
+            fontSize: '0.82rem',
+            color:
+              micState === 'error'
+                ? '#900C3F'
+                : micState === 'completed'
+                ? '#15803D'
+                : 'var(--burgundy, #58111A)',
+            fontWeight: 700,
+            marginBottom: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            boxShadow: micState === 'listening' ? '0 0 12px rgba(192, 57, 43, 0.2)' : 'none',
           }}
         >
-          <span>{micStatus}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {micState === 'listening' ? (
+              <span
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: '#C0392B',
+                  display: 'inline-block',
+                  boxShadow: '0 0 0 3px rgba(192, 57, 43, 0.3)',
+                }}
+              />
+            ) : micState === 'error' ? (
+              <AlertCircle size={16} color="#E74C3C" />
+            ) : micState === 'completed' ? (
+              <CheckCircle2 size={16} color="#16A34A" />
+            ) : (
+              <Loader2 size={16} className="spin" />
+            )}
+            <span>{micStatus}</span>
+          </div>
           {micState === 'listening' && (
-            <span
+            <button
+              type="button"
+              onClick={toggleListening}
               style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
                 background: '#C0392B',
-                display: 'inline-block',
-                boxShadow: '0 0 0 3px rgba(192, 57, 43, 0.25)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '3px 10px',
+                fontSize: '0.74rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
-            />
+              title="Stop listening"
+            >
+              <Square size={12} fill="#FFFFFF" />
+              <span>Stop</span>
+            </button>
           )}
         </div>
       )}
@@ -166,17 +305,29 @@ export default function MessageComposer({
       <div
         style={{
           background: '#FFFFFF',
-          border: '1.5px solid var(--gold-border, #E5D2AD)',
-          borderRadius: '24px',
-          padding: '8px 12px',
-          boxShadow: '0 4px 20px rgba(88, 17, 26, 0.08)',
+          border: `1.5px solid ${
+            micState === 'listening'
+              ? '#C0392B'
+              : isFocused
+              ? 'var(--gold-primary, #B8860B)'
+              : 'var(--gold-border, #E5D2AD)'
+          }`,
+          borderRadius: '20px',
+          padding: '10px 14px',
+          boxShadow:
+            micState === 'listening'
+              ? '0 0 16px rgba(192, 57, 43, 0.25)'
+              : isFocused
+              ? '0 0 0 3px rgba(184, 134, 11, 0.16), 0 4px 20px rgba(88, 17, 26, 0.08)'
+              : '0 4px 20px rgba(88, 17, 26, 0.06)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '6px',
+          gap: '8px',
           transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+          colorScheme: 'light',
         }}
       >
-        {/* Multiline Textarea */}
+        {/* High-Contrast Multiline Textarea */}
         <textarea
           ref={textareaRef}
           id="chat-user-input"
@@ -184,7 +335,9 @@ export default function MessageComposer({
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={micState === 'listening' ? `Listening in ${activeLang.label}... speak now` : placeholder}
           disabled={loading}
           rows={1}
           style={{
@@ -192,102 +345,147 @@ export default function MessageComposer({
             border: 'none',
             outline: 'none',
             resize: 'none',
-            minHeight: '42px',
-            maxHeight: '120px',
+            minHeight: '44px',
+            maxHeight: '130px',
             fontFamily: 'var(--font-sans)',
-            fontSize: '0.92rem',
+            fontSize: '0.96rem',
             lineHeight: 1.5,
-            color: 'var(--text-dark, #2A2020)',
-            background: 'transparent',
-            padding: '4px 6px',
+            color: '#1A0407',
+            background: '#FFFFFF',
+            padding: '6px 8px',
+            caretColor: 'var(--burgundy, #58111A)',
+            boxSizing: 'border-box',
           }}
           aria-label="Ask Yatra AI"
         />
 
-        {/* Action Row */}
+        {/* Primary Controls Row: Language Pill + Mic Button + Send Button */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             borderTop: '1px solid var(--border-subtle, #EBE1D0)',
-            paddingTop: '6px',
+            paddingTop: '8px',
             marginTop: '2px',
+            flexWrap: 'wrap',
+            gap: '8px',
           }}
         >
-          {/* Voice Input Controls */}
+          {/* Left: Language Selection */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                color: 'var(--burgundy, #58111A)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Globe size={14} strokeWidth={2} />
+              <span className="hide-on-mobile">Voice:</span>
+            </span>
             <select
+              id="composer-lang-select"
+              data-testid="composer-lang-select"
               value={selectedLang}
               onChange={(e) => setSelectedLang(e.target.value)}
+              disabled={micState === 'listening'}
               style={{
-                fontSize: '0.72rem',
+                fontSize: '0.76rem',
                 padding: '4px 8px',
                 borderRadius: '8px',
                 border: '1px solid var(--gold-border, #E5D2AD)',
                 background: 'var(--bg-subtle, #F8F4EC)',
                 color: 'var(--burgundy, #58111A)',
-                fontWeight: 600,
+                fontWeight: 700,
                 outline: 'none',
                 cursor: 'pointer',
               }}
-              title="Select speech recognition language"
-              aria-label="Speech recognition language"
+              title="Select voice recognition language"
+              aria-label="Voice recognition language"
             >
-              <option value="en-IN">English (India)</option>
-              <option value="hi-IN">Hindi (हिंदी)</option>
-              <option value="pa-IN">Punjabi (ਪੰਜਾਬੀ)</option>
-              <option value="ur-IN">Urdu (اردو)</option>
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.label}
+                </option>
+              ))}
             </select>
+          </div>
 
+          {/* Right: Direct Microphone & Send Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Desktop keyboard hint */}
+            <span
+              className="hide-on-mobile"
+              style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6B5C5C)', marginRight: '4px' }}
+            >
+              Press Enter to send
+            </span>
+
+            {/* Recognizable Voice Input Button */}
             <button
               type="button"
+              id="composer-mic-btn"
               data-testid="composer-mic-btn"
               onClick={toggleListening}
               style={{
-                background: micState === 'listening' ? '#C0392B' : 'var(--bg-subtle, #F8F4EC)',
-                border: `1px solid ${micState === 'listening' ? '#C0392B' : 'var(--gold-border, #E5D2AD)'}`,
+                background: micState === 'listening' ? '#C0392B' : 'var(--gold-subtle, #F5ECDA)',
+                border: `1.5px solid ${micState === 'listening' ? '#962D22' : 'var(--gold-border, #E5D2AD)'}`,
                 color: micState === 'listening' ? '#FFFFFF' : 'var(--burgundy, #58111A)',
                 borderRadius: '999px',
-                padding: '4px 10px',
-                fontSize: '0.74rem',
-                fontWeight: 700,
+                padding: '6px 14px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                transition: 'all 0.15s ease',
+                gap: '6px',
+                minHeight: '36px',
+                transition: 'all 0.2s ease',
+                boxShadow: micState === 'listening' ? '0 0 10px rgba(192, 57, 43, 0.4)' : 'none',
               }}
-              title={micState === 'listening' ? 'Click to stop listening' : 'Speak your query via microphone'}
-              aria-label="Microphone speech input"
+              title={
+                !isSupported
+                  ? 'Voice recognition not supported in this browser'
+                  : micState === 'listening'
+                  ? 'Listening... Click to stop voice input'
+                  : `Voice Input: Click to speak in ${activeLang.label}`
+              }
+              aria-label={micState === 'listening' ? 'Stop voice listening' : 'Voice Input: Click to speak'}
             >
-              <span>{micState === 'listening' ? '🔴' : '🎙️'}</span>
-              <span>{micState === 'listening' ? 'Listening...' : 'Speak'}</span>
+              {micState === 'listening' ? (
+                <>
+                  <Square size={14} fill="#FFFFFF" />
+                  <span>Listening...</span>
+                </>
+              ) : (
+                <>
+                  <Mic size={15} strokeWidth={2.2} />
+                  <span>Voice Input</span>
+                </>
+              )}
             </button>
-          </div>
 
-          {/* Right: Hint + Send Button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              className="hide-on-mobile"
-              style={{ fontSize: '0.7rem', color: 'var(--text-muted, #6B5C5C)' }}
-            >
-              Press Enter ↵ to send
-            </span>
-
+            {/* Send Button */}
             <button
               type="button"
+              id="chat-send-btn"
               data-testid="chat-send-btn"
               onClick={() => handleSubmit()}
               disabled={loading || !inputValue.trim()}
               className="btn btn-primary"
               style={{
-                padding: '6px 14px',
-                fontSize: '0.8rem',
+                padding: '6px 18px',
+                fontSize: '0.84rem',
                 fontWeight: 800,
                 borderRadius: '999px',
-                minHeight: '34px',
+                minHeight: '36px',
                 gap: '6px',
+                display: 'flex',
+                alignItems: 'center',
               }}
               aria-label="Send message"
             >
@@ -295,14 +493,14 @@ export default function MessageComposer({
                 <>
                   <span
                     className="spinner"
-                    style={{ width: '12px', height: '12px', borderWidth: '2px', display: 'inline-block' }}
+                    style={{ width: '13px', height: '13px', borderWidth: '2px', display: 'inline-block' }}
                   />
                   <span>Thinking...</span>
                 </>
               ) : (
                 <>
                   <span>Send</span>
-                  <span>➔</span>
+                  <Send size={14} strokeWidth={2.2} />
                 </>
               )}
             </button>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Check, Loader2, X, AlertTriangle, Edit3, Train, Building2, Mountain, Settings, ClipboardList, Calendar, Users, Info, Coins, ShieldCheck, Lock, RefreshCw, Printer, ArrowRight } from 'lucide-react';
 import { authorizePlan, startRPAWorkflow } from '../services/api';
 import UserInterventionModal from './UserInterventionModal';
 
@@ -25,73 +26,78 @@ function getStageStatus(stageId, workflowPhase, rpaRunning, rpaResult, rpaError)
   const isExpired = workflowPhase === 'EXPIRED';
   const isFailed = workflowPhase === 'FAILED' || (!!rpaError && !isCompleted);
 
+  const checkIcon = <Check size={11} color="#FFF" />;
+  const loadingIcon = <Loader2 size={11} color="#FFF" className="animate-spin" />;
+  const failIcon = <X size={11} color="#FFF" />;
+  const alertIcon = <AlertTriangle size={11} color="#FFF" />;
+
   switch (stageId) {
     case 1: // Booking Details
-      return { status: 'Completed', tone: 'success', icon: '✓' };
+      return { status: 'Completed', tone: 'success', icon: checkIcon };
 
     case 2: // Booking Review
       if (workflowPhase === 'IDLE' && !isCompleted) {
-        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'In Progress', tone: 'info', icon: loadingIcon };
       }
-      return { status: 'Completed', tone: 'success', icon: '✓' };
+      return { status: 'Completed', tone: 'success', icon: checkIcon };
 
     case 3: // OTP Verification
       if (isCompleted || ['CAPTCHA_REQUIRED', 'PAYMENT_SIMULATING'].includes(workflowPhase)) {
-        return { status: 'Verified', tone: 'success', icon: '✓' };
+        return { status: 'Verified', tone: 'success', icon: checkIcon };
       }
       if (isExpired && workflowPhase === 'OTP_REQUIRED') {
-        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        return { status: 'Failed / Expired', tone: 'danger', icon: failIcon };
       }
       if (isFailed && workflowPhase === 'OTP_REQUIRED') {
-        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        return { status: 'Failed / Expired', tone: 'danger', icon: failIcon };
       }
       if (workflowPhase === 'OTP_REQUIRED') {
-        return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+        return { status: 'Waiting for User', tone: 'warning', icon: alertIcon };
       }
       if (workflowPhase === 'INITIATING' || (workflowPhase === 'OTP_REQUIRED' && rpaRunning)) {
-        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'In Progress', tone: 'info', icon: loadingIcon };
       }
       return { status: 'Pending', tone: 'neutral', icon: '3' };
 
     case 4: // CAPTCHA Verification
       if (isCompleted || workflowPhase === 'PAYMENT_SIMULATING') {
-        return { status: 'Verified', tone: 'success', icon: '✓' };
+        return { status: 'Verified', tone: 'success', icon: checkIcon };
       }
       if (isExpired && workflowPhase === 'CAPTCHA_REQUIRED') {
-        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        return { status: 'Failed / Expired', tone: 'danger', icon: failIcon };
       }
       if (isFailed && workflowPhase === 'CAPTCHA_REQUIRED') {
-        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        return { status: 'Failed / Expired', tone: 'danger', icon: failIcon };
       }
       if (workflowPhase === 'CAPTCHA_REQUIRED') {
-        return { status: 'Waiting for User', tone: 'warning', icon: '⚠️' };
+        return { status: 'Waiting for User', tone: 'warning', icon: alertIcon };
       }
       return { status: 'Pending', tone: 'neutral', icon: '4' };
 
     case 5: // Simulated Payment
       if (isCompleted) {
-        return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Completed', tone: 'success', icon: checkIcon };
       }
       if (workflowPhase === 'PAYMENT_SIMULATING') {
-        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'In Progress', tone: 'info', icon: loadingIcon };
       }
       if (isFailed && workflowPhase === 'PAYMENT_SIMULATING') {
-        return { status: 'Failed / Expired', tone: 'danger', icon: '✕' };
+        return { status: 'Failed / Expired', tone: 'danger', icon: failIcon };
       }
       return { status: 'Pending', tone: 'neutral', icon: '5' };
 
     case 6: // Booking Confirmation
       if (isCompleted) {
-        return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Completed', tone: 'success', icon: checkIcon };
       }
       if (workflowPhase === 'PAYMENT_SIMULATING') {
-        return { status: 'In Progress', tone: 'info', icon: '⏳' };
+        return { status: 'In Progress', tone: 'info', icon: loadingIcon };
       }
       return { status: 'Pending', tone: 'neutral', icon: '6' };
 
     case 7: // Demo Pilgrim Pass
       if (isCompleted) {
-        return { status: 'Completed', tone: 'success', icon: '✓' };
+        return { status: 'Completed', tone: 'success', icon: checkIcon };
       }
       return { status: 'Pending', tone: 'neutral', icon: '7' };
 
@@ -126,7 +132,7 @@ export default function Authorization({
     sightseeingPlaces = [],
     feasiblePlaces = [],
     infeasiblePlaces = [],
-    origin = 'Delhi',
+    origin = '',
     sessionId = null,
     planVersion = 1,
     tripRequest = {},
@@ -139,14 +145,26 @@ export default function Authorization({
   const mode = (tr.mode || 'train').toUpperCase();
   const operator = tr.operator || tr.name || (mode === 'TRAIN' ? 'Indian Railways' : 'Express Service');
   const serviceNo = tr.transport_no || (tr.id ? `Service #${tr.id}` : null);
-  const depTime = tr.departure_time || '06:00';
-  const arrTime = tr.arrival_time || '14:00';
-  const travelDate = tr.travel_date || tripRequest?.start_date || '2026-10-20';
-  const durationStr = tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null);
+  const isTrain = mode === 'TRAIN';
+  const isBus = mode === 'BUS';
+  const isFlight = mode === 'FLIGHT';
 
-  // Financial math (Decimal/Integer accuracy)
-  const farePerPerson = tr.fare_per_person || tr.price || 0;
-  const transportFareTotal = tr.total_fare || (farePerPerson * pax);
+  // Timetable truthfulness: If point timings are unverified (e.g. curated railway), suppress fabricated clock times
+  const isTrainTimetableUnverified = isTrain && (tr.timetable_verification?.status === 'unverified' || !tr.timetable_verification);
+  const depTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.departure_time || (isBus ? '05:00 - 22:00 Window' : (isFlight ? 'Check flight' : 'Check schedule')));
+  const arrTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.arrival_time || (isBus ? 'Regular departures' : (isFlight ? 'Confirm with airline' : 'Enquire at counter')));
+  const travelDate = tr.travel_date || tripRequest?.start_date || '2026-10-20';
+  const durationStr = !isFlight && !isTrainTimetableUnverified ? (tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null)) : null;
+
+  // Fares segregation: never display unavailable airfare, train fare, or counter slab as confirmed ₹0
+  const isFareUnavailable = tr.fare_classification === 'UNAVAILABLE' ||
+    tr.fare_classification === 'STATUTORY_NOTIFIED_PER_KM_SLAB' ||
+    (isFlight && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (isTrain && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (tr.fare == null && tr.price == null && tr.fare_per_person == null);
+
+  const farePerPerson = isFareUnavailable ? null : (tr.fare_per_person || tr.price || null);
+  const transportFareTotal = farePerPerson !== null ? (tr.total_fare || (farePerPerson * pax)) : null;
   const slotPricePerPerson = slot.price || 0;
   const slotTotal = slotPricePerPerson * pax;
 
@@ -360,9 +378,10 @@ export default function Authorization({
           <button
             onClick={() => setShowPreferenceOptions(!showPreferenceOptions)}
             className="btn btn-outline"
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+            style={{ fontSize: '0.78rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            ✏️ Change Selection
+            <Edit3 size={13} />
+            <span>Change Selection</span>
           </button>
         </div>
       </div>
@@ -374,20 +393,25 @@ export default function Authorization({
             Select what you would like to adjust:
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button onClick={() => handleNavigateStep(2)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
-              🚆 Change Transport
+            <button onClick={() => handleNavigateStep(2)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Train size={13} />
+              <span>Change Transport</span>
             </button>
-            <button onClick={() => handleNavigateStep(3)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
-              🏨 Change Accommodation
+            <button onClick={() => handleNavigateStep(3)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Building2 size={13} />
+              <span>Change Accommodation</span>
             </button>
-            <button onClick={() => handleNavigateStep(4)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
-              🌄 Change Sightseeing
+            <button onClick={() => handleNavigateStep(4)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Mountain size={13} />
+              <span>Change Sightseeing</span>
             </button>
-            <button onClick={() => handleNavigateStep(1)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
-              ⚙️ Change Dates, Pax or Budget
+            <button onClick={() => handleNavigateStep(1)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Settings size={13} />
+              <span>Change Dates, Pax or Budget</span>
             </button>
-            <button onClick={() => setShowPreferenceOptions(false)} className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
-              ✕ Close
+            <button onClick={() => setShowPreferenceOptions(false)} className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <X size={13} />
+              <span>Close</span>
             </button>
           </div>
         </div>
@@ -398,8 +422,9 @@ export default function Authorization({
         
         {/* Left Column: Complete Itinerary & Cost Breakdown */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-            📋 Consolidated Booking Particulars
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ClipboardList size={18} />
+            <span>Consolidated Booking Particulars</span>
           </div>
 
           {/* 1. Trip & Pilgrim Particulars */}
@@ -408,10 +433,12 @@ export default function Authorization({
               Trip Route & Pilgrims
             </div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)' }}>
-              {origin} ➔ Katra Base & Holy Bhawan
+              {origin} to Katra Base & Holy Bhawan
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              📅 Dates: {travelDate} ({durationDays} Days · {hotelNights} Nights) · 👥 {pax} {pax === 1 ? 'Pilgrim' : 'Pilgrims'}
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Calendar size={12} /> Dates: {travelDate} ({durationDays} Days · {hotelNights} Nights)</span>
+              <span>·</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Users size={12} /> {pax} {pax === 1 ? 'Pilgrim' : 'Pilgrims'}</span>
             </div>
           </div>
 
@@ -421,36 +448,40 @@ export default function Authorization({
               <div style={{ fontSize: '0.74rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Selected Transport Service
               </div>
-              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>✓ Verified Fare</span>
+              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>Verified Fare</span>
             </div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
               {operator} {serviceNo ? `· ${serviceNo}` : ''} ({mode})
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               Departs: <b>{depTime}</b> from {origin} · Arrives: <b>{arrTime}</b> at {tr.destination || 'Katra'}
-              {durationStr && <span> (⏱️ {durationStr})</span>}
+              {durationStr && <span> ({durationStr})</span>}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--burgundy)', fontWeight: 700, marginTop: '2px' }}>
-              Transport Fare: ₹{transportFareTotal.toLocaleString('en-IN')} (₹{farePerPerson}/person)
+            <div style={{ fontSize: '0.8rem', color: isFareUnavailable ? '#856404' : 'var(--burgundy)', fontWeight: 700, marginTop: '2px' }}>
+              {isFareUnavailable
+                ? `Transport Tariff: ${isFlight ? 'Payable directly on airline portal (dynamic)' : (isTrain ? 'Payable directly on IRCTC portal (dynamic)' : 'Payable directly at bus terminal counter')}`
+                : `Transport Fare: ₹${transportFareTotal.toLocaleString('en-IN')} (₹${farePerPerson}/person)`}
             </div>
           </div>
 
-          {/* 3. Darshan Slot Particulars */}
+          {/* 3. Darshan Slot Guidance Particulars */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '0.74rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
-                Holy Shrine Darshan Slot
+                Holy Shrine Darshan Guidance
               </div>
-              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>✓ Shrine Verified</span>
+              <span className="pill" style={{ background: '#F0EAE1', color: 'var(--burgundy)', fontSize: '0.68rem', fontWeight: 700 }}>
+                RFID Registration at Katra
+              </span>
             </div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
-              {slot.category || 'Normal Darshan'} ({slot.slot_time || 'Morning Slot'})
+              {slot.category || 'Normal Darshan'} (General Yatra Queue)
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Shri Mata Vaishno Devi Shrine Board, Bhawan · {slot.slot_date || travelDate}
+              Shri Mata Vaishno Devi Shrine Board · Free Public Yatra · {slot.slot_date || travelDate}
             </div>
             <div style={{ fontSize: '0.8rem', color: '#155724', fontWeight: 700, marginTop: '2px' }}>
-              Registration Fee: {slotTotal === 0 ? 'Included / Free (₹0)' : `₹${slotTotal.toLocaleString('en-IN')}`}
+              Registration Fee: Free Normal Entry (Collect mandatory RFID card at Katra counter)
             </div>
           </div>
 
@@ -460,7 +491,7 @@ export default function Authorization({
               <div style={{ fontSize: '0.74rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Katra Accommodation
               </div>
-              {hotel && <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>✓ Verified Hotel</span>}
+              {hotel && <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>Verified Hotel</span>}
             </div>
             {hotel ? (
               <>
@@ -490,14 +521,16 @@ export default function Authorization({
               <>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
                   {(feasiblePlaces.length > 0 ? feasiblePlaces : sightseeingPlaces).map((sp, idx) => (
-                    <span key={idx} className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
-                      ✓ {typeof sp === 'string' ? sp : (sp.name || sp.place)}
+                    <span key={idx} className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Check size={11} />
+                      <span>{typeof sp === 'string' ? sp : (sp.name || sp.place)}</span>
                     </span>
                   ))}
                 </div>
                 {infeasiblePlaces.length > 0 && (
-                  <div style={{ fontSize: '0.74rem', color: '#721C24', background: '#FDF2F2', borderRadius: '6px', padding: '6px 8px', marginTop: '6px' }}>
-                    ℹ️ <b>Omitted Excursions:</b> {infeasiblePlaces.map((inf) => typeof inf === 'string' ? inf : `${inf.place || inf.name} (${inf.reason || 'duration constraints'})`).join(', ')}
+                  <div style={{ fontSize: '0.74rem', color: '#721C24', background: '#FDF2F2', borderRadius: '6px', padding: '6px 8px', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Info size={12} style={{ flexShrink: 0 }} />
+                    <span><b>Omitted Excursions:</b> {infeasiblePlaces.map((inf) => typeof inf === 'string' ? inf : `${inf.place || inf.name} (${inf.reason || 'duration constraints'})`).join(', ')}</span>
                   </div>
                 )}
               </>
@@ -516,22 +549,23 @@ export default function Authorization({
             padding: '12px 16px',
             marginTop: 'auto',
           }}>
-            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--burgundy)', marginBottom: '8px' }}>
-              💰 Itemised Financial Summary
+            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--burgundy)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Coins size={16} />
+              <span>Itemised Financial Summary</span>
             </div>
 
             {/* Direct Verified Costs */}
             <div style={{ fontSize: '0.76rem', color: 'var(--text-dark)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Transport ({pax}x fare):</span>
+                <span>Verified Transport ({pax}x fare):</span>
                 <b>₹{transportFareTotal.toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Darshan Slot ({pax}x fee):</span>
+                <span>Verified Darshan Slot ({pax}x fee):</span>
                 <b>₹{slotTotal.toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Hotel ({roomsCount} rm, {hotelNights} n):</span>
+                <span>Verified Hotel ({roomsCount} rm, {hotelNights} n):</span>
                 <b>₹{hotelTotal.toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E8C874', paddingTop: '3px', marginTop: '2px' }}>
@@ -579,7 +613,7 @@ export default function Authorization({
               {targetBudget && (
                 <div style={{ textAlign: 'right' }}>
                   <span className={`pill ${withinBudget ? 'pill-success' : 'pill-gold'}`} style={{ fontSize: '0.72rem' }}>
-                    {withinBudget ? '✓ Within Budget' : '⚠️ Exceeds Target'}
+                    {withinBudget ? 'Within Budget' : 'Exceeds Target'}
                   </span>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Target: ₹{targetBudget.toLocaleString('en-IN')}
@@ -599,7 +633,7 @@ export default function Authorization({
           {/* REQUIREMENT 4: ASK THE USER WHETHER THEY WANT TO CHANGE PREFERENCES */}
           <div className="card" style={{ border: '2px solid var(--gold-primary)', background: '#FFFCF5' }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', marginBottom: '6px' }}>
-              ❓ Are you happy with these choices, or would you like to change your preferences?
+              Are you happy with these choices, or would you like to change your preferences?
             </div>
             <div style={{ fontSize: '0.84rem', color: 'var(--text-dark)', lineHeight: 1.5, marginBottom: '14px' }}>
               You can confirm this plan as is, or modify transport, accommodation, sightseeing, or travel dates.
@@ -614,15 +648,16 @@ export default function Authorization({
                 className={`btn ${reviewAccepted ? 'btn-gold' : 'btn-primary'}`}
                 style={{ flex: '1', minWidth: '180px', padding: '0.65rem 1rem', fontSize: '0.86rem' }}
               >
-                {reviewAccepted ? '✓ Choices Approved' : '👍 Everything Looks Good — Continue'}
+                {reviewAccepted ? 'Choices Approved' : 'Everything Looks Good — Continue'}
               </button>
 
               <button
                 onClick={() => setShowPreferenceOptions(!showPreferenceOptions)}
                 className="btn btn-outline"
-                style={{ flex: '1', minWidth: '180px', padding: '0.65rem 1rem', fontSize: '0.86rem' }}
+                style={{ flex: '1', minWidth: '180px', padding: '0.65rem 1rem', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
               >
-                ✏️ Change Preferences
+                <Edit3 size={13} />
+                <span>Change Preferences</span>
               </button>
             </div>
           </div>
@@ -631,7 +666,7 @@ export default function Authorization({
           <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border, #E8C874)', borderRadius: '12px', padding: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)' }}>
-                🛕 Unified Yatra Booking with Playwright RPA
+                Unified Yatra Booking with Playwright RPA
               </div>
               <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.72rem', border: '1px solid #FCD34D' }}>
                 LOCAL MOCK PORTAL DEMO
@@ -643,8 +678,11 @@ export default function Authorization({
             </div>
 
             {/* Safety & Compliance Notice */}
-            <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#475569', marginBottom: '14px', lineHeight: 1.45 }}>
-              🛡️ <b>Dual-Track Safety Architecture:</b> Automation operates strictly within our local sandbox. Real pilgrimage registrations on official Shrine Board portals (<i>maavaishnodevi.org</i>) require manual booking. Simulated payment is processed in sandbox mode (₹0 live charge).
+            <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px', fontSize: '0.78rem', color: '#475569', marginBottom: '14px', lineHeight: 1.45, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <ShieldCheck size={16} color="#475569" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <b>Dual-Track Safety Architecture:</b> Automation operates strictly within our local sandbox. Real pilgrimage registrations on official Shrine Board portals (<i>maavaishnodevi.org</i>) require manual booking. Simulated payment is processed in sandbox mode (₹0 live charge).
+              </div>
             </div>
 
             {/* Authentication Guard Status Badge */}
@@ -664,7 +702,7 @@ export default function Authorization({
                   color: '#92400E',
                 }}
               >
-                <span style={{ fontSize: '1.1rem' }}>🔒</span>
+                <Lock size={16} color="#92400E" />
                 <div>
                   <b>Authentication Required to Book:</b> Guest exploration is enabled. Clicking will prompt a quick email OTP verification before initiating RPA.
                 </div>
@@ -686,7 +724,7 @@ export default function Authorization({
                   color: '#166534',
                 }}
               >
-                <span>✓</span>
+                <Check size={14} color="#166534" />
                 <div>
                   Signed in as <b>{currentUser.email}</b>. Ready to execute Playwright RPA.
                 </div>
@@ -717,9 +755,12 @@ export default function Authorization({
                 }}
               >
                 {rpaRunning ? (
-                  <>⏳ Executing Continuous Playwright RPA...</>
+                  <>Executing Continuous Playwright RPA...</>
                 ) : (
-                  <>🛕 Start Yatra Booking with RPA ➔</>
+                  <>
+                    <span>Start Yatra Booking with RPA</span>
+                    <ArrowRight size={16} />
+                  </>
                 )}
               </button>
             )}
@@ -728,8 +769,9 @@ export default function Authorization({
             {activeWorkflow && workflowPhase !== 'COMPLETED' && !rpaResult && (
               <div style={{ marginTop: '12px', background: '#FFFBEB', border: '1.5px solid #FCD34D', borderRadius: '10px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontWeight: 800, color: '#92400E', fontSize: '0.86rem' }}>
-                    ⚠️ Paused at Security Checkpoint: {workflowPhase === 'OTP_REQUIRED' ? 'OTP Verification Required' : 'CAPTCHA Challenge Required'}
+                  <div style={{ fontWeight: 800, color: '#92400E', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={15} color="#92400E" />
+                    <span>Paused at Security Checkpoint: {workflowPhase === 'OTP_REQUIRED' ? 'OTP Verification Required' : 'CAPTCHA Challenge Required'}</span>
                   </div>
                   <div style={{ fontSize: '0.78rem', color: '#B45309', marginTop: '2px' }}>
                     Please enter your mock verification code to automatically resume the booking.
@@ -739,9 +781,10 @@ export default function Authorization({
                   type="button"
                   onClick={() => setActiveWorkflow({ ...activeWorkflow })}
                   className="btn btn-gold"
-                  style={{ fontSize: '0.8rem', padding: '6px 14px', fontWeight: 700 }}
+                  style={{ fontSize: '0.8rem', padding: '6px 14px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                 >
-                  Enter Verification Code ➔
+                  <span>Enter Verification Code</span>
+                  <ArrowRight size={12} />
                 </button>
               </div>
             )}
@@ -755,9 +798,10 @@ export default function Authorization({
                     type="button"
                     onClick={handleStartUnifiedBooking}
                     className="btn btn-outline"
-                    style={{ fontSize: '0.76rem', padding: '4px 10px', borderColor: '#FCA5A5', color: '#991B1B' }}
+                    style={{ fontSize: '0.76rem', padding: '4px 10px', borderColor: '#FCA5A5', color: '#991B1B', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    🔄 Retry Fresh Booking
+                    <RefreshCw size={12} />
+                    <span>Retry Fresh Booking</span>
                   </button>
                 </div>
               </div>
@@ -794,9 +838,10 @@ export default function Authorization({
                       onClick={() => window.print()}
                       className="btn btn-outline"
                       data-testid="print-demo-pass-btn"
-                      style={{ fontSize: '0.78rem', padding: '6px 12px', borderColor: '#86EFAC', color: '#166534', fontWeight: 700 }}
+                      style={{ fontSize: '0.78rem', padding: '6px 12px', borderColor: '#86EFAC', color: '#166534', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                     >
-                      🖨️ Print Demo Pass
+                      <Printer size={13} />
+                      <span>Print Demo Pass</span>
                     </button>
                   </div>
                 </div>
@@ -807,11 +852,11 @@ export default function Authorization({
                   <div><strong>Transport:</strong> {operator} ({mode}) from {origin}</div>
                   <div><strong>Accommodation:</strong> {hotel ? hotel.name : 'Self-arranged Katra stay'}</div>
                   <div><strong>Simulated Payment:</strong> ₹{(rpaResult.total_price || grandTotal).toLocaleString('en-IN')} <span style={{ color: '#059669', fontWeight: 700 }}>(Sandbox ₹0 Live Charge)</span></div>
-                  <div><strong>Security Status:</strong> <span style={{ color: '#166534', fontWeight: 700 }}>OTP Verified ✓ & CAPTCHA Solved ✓</span></div>
+                  <div><strong>Security Status:</strong> <span style={{ color: '#166534', fontWeight: 700 }}>Human Authorized · Sandbox Simulated Pass</span></div>
                 </div>
 
                 <div style={{ fontSize: '0.82rem', color: '#047857', marginTop: '12px', fontStyle: 'italic', textAlign: 'center', background: '#DCFCE7', padding: '8px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
-                  🙏 Jai Mata Di! May Maa Vaishno Devi bless you and your family with peace and happiness.
+                  Jai Mata Di! May Maa Vaishno Devi bless you and your family with peace and happiness.
                 </div>
 
                 <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
@@ -820,18 +865,20 @@ export default function Authorization({
                     onClick={handleStartUnifiedBooking}
                     className="btn btn-outline"
                     data-testid="start-fresh-booking-btn"
-                    style={{ fontSize: '0.82rem', padding: '6px 14px', fontWeight: 700 }}
+                    style={{ fontSize: '0.82rem', padding: '6px 14px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    🔄 Start Fresh Booking with RPA
+                    <RefreshCw size={13} />
+                    <span>Start Fresh Booking with RPA</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => onNavigateToConfirmation && onNavigateToConfirmation(rpaResult)}
                     className="btn btn-primary"
                     data-testid="continue-to-confirmation-card-btn"
-                    style={{ fontSize: '0.85rem', padding: '6px 16px', fontWeight: 800 }}
+                    style={{ fontSize: '0.85rem', padding: '6px 16px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    Continue to Confirmation ➔
+                    <span>Continue to Confirmation</span>
+                    <ArrowRight size={14} />
                   </button>
                 </div>
               </div>
@@ -861,9 +908,10 @@ export default function Authorization({
                 type="button"
                 onClick={() => window.print()}
                 className="btn btn-outline"
-                style={{ padding: '0.75rem 1.4rem', fontSize: '0.9rem' }}
+                style={{ padding: '0.75rem 1.4rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                🖨️ Print Demo Pass
+                <Printer size={15} />
+                <span>Print Demo Pass</span>
               </button>
               <button
                 type="button"
@@ -876,9 +924,13 @@ export default function Authorization({
                   fontWeight: 800,
                   backgroundColor: 'var(--burgundy, #58111A)',
                   borderColor: 'var(--gold-primary, #C5A059)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
-                Continue to Confirmation ➔
+                <span>Continue to Confirmation</span>
+                <ArrowRight size={15} />
               </button>
             </div>
           ) : (
@@ -888,9 +940,19 @@ export default function Authorization({
               onClick={handleStartUnifiedBooking}
               disabled={rpaRunning}
               className="btn btn-primary"
-              style={{ padding: '0.75rem 1.8rem', fontSize: '0.9rem' }}
+              style={{ padding: '0.75rem 1.8rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              {rpaRunning ? '⏳ Booking in Progress...' : '🛕 Start Yatra Booking with RPA ➔'}
+              {rpaRunning ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>Booking in Progress...</span>
+                </>
+              ) : (
+                <>
+                  <span>Start Yatra Booking with RPA</span>
+                  <ArrowRight size={15} />
+                </>
+              )}
             </button>
           )}
         </div>

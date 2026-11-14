@@ -22,7 +22,12 @@ import tempfile
 import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Callable
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
+try:
+    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
+except ImportError:
+    sync_playwright = None
+    class PlaywrightTimeoutError(Exception): pass
+    class PlaywrightError(Exception): pass
 from agents import session_store
 from utils.logger import log_event
 from utils.masking import mask_name, mask_otp, mask_sensitive_data, sanitize_log_message

@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 
 /**
  * Sightseeing Advisory warning card for time/distance/feasibility constraints.
@@ -22,7 +23,7 @@ export default function SightseeingAdvisoryCard({ infeasiblePlaces }) {
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span>⚠️</span> Sightseeing Advisory & Route Feasibility:
+        <AlertCircle size={14} color="#C0392B" /> Sightseeing Advisory & Route Feasibility:
       </div>
       <div>
         {infeasiblePlaces.map((inf, idx) => {

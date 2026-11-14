@@ -1,4 +1,5 @@
 import React from 'react';
+import { Compass, User, ArrowRight } from 'lucide-react';
 
 export default function Navbar({
   activeTab,
@@ -48,7 +49,7 @@ export default function Navbar({
           fontSize: '1.15rem',
           boxShadow: '0 2px 6px rgba(88,17,26,0.2)',
         }}>
-          🔱
+          <Compass size={18} color="#E5D2AD" />
         </div>
         <div>
           <div style={{
@@ -124,7 +125,7 @@ export default function Navbar({
           style={{ padding: '0.45rem 1.1rem', fontSize: '0.82rem' }}
         >
           <span>Plan Yatra</span>
-          <span>➔</span>
+          <ArrowRight size={13} style={{ marginLeft: 4 }} />
         </button>
 
         {/* Optional Account Entry Point */}
@@ -156,7 +157,7 @@ export default function Navbar({
               e.currentTarget.style.background = '#FFFDF9';
             }}
           >
-            <span>👤</span>
+            <User size={13} />
             <span>Sign In</span>
           </button>
         ) : (
@@ -179,7 +180,7 @@ export default function Navbar({
                 gap: '5px',
               }}
             >
-              <span>👤</span>
+              <User size={13} />
               <span>My Account</span>
             </button>
             <button

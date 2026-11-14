@@ -1,15 +1,285 @@
 import axios from 'axios';
 
-// Base URL: Fallback to proxy or direct local FastAPI server
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+// Resolve, normalize, and validate API_BASE_URL
+export const normalizeApiUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  return url.trim().replace(/\/+$/, '');
+};
+
+/**
+ * Validates whether a hostname satisfies the host security policy:
+ * - Development: allows localhost, 127.0.0.1, [::1], and approved tunnels.
+ * - Production: allows configured production host, or verified *.trycloudflare.com tunnels.
+ * - Strictly rejects arbitrary domains (e.g. attacker.example, arbitrary CDNs, spoofed domains).
+ */
+export const isApprovedHost = (hostname, { isDev = false, _isProd = false, allowedHosts = [] } = {}) => {
+  if (!hostname || typeof hostname !== 'string') return false;
+  const lower = hostname.toLowerCase();
+
+  // Development mode allows local loopback addresses
+  if (isDev) {
+    if (lower === 'localhost' || lower === '127.0.0.1' || lower === '::1' || lower === '[::1]') {
+      return true;
+    }
+  }
+
+  // Check explicit allowed hosts list (e.g. build-time VITE_API_URL host)
+  for (const host of allowedHosts) {
+    if (host && lower === host.toLowerCase()) return true;
+  }
+
+  // Cloudflare Quick Tunnel official pattern:
+  // Must be a valid subdomain ending strictly in .trycloudflare.com
+  // Rejects: trycloudflare.com (no subdomain), trycloudflare.com.attacker.com, attacker-trycloudflare.com
+  const quickTunnelRegex = /^[a-z0-9][a-z0-9-]{1,62}\.trycloudflare\.com$/;
+  if (quickTunnelRegex.test(lower)) {
+    return true;
+  }
+
+  // Approved Cloud PaaS patterns (Render & Hugging Face Spaces):
+  const renderRegex = /^[a-z0-9][a-z0-9-]{1,62}\.onrender\.com$/;
+  if (renderRegex.test(lower)) {
+    return true;
+  }
+
+  const hfSpacesRegex = /^[a-z0-9][a-z0-9-]{1,62}\.hf\.space$/;
+  if (hfSpacesRegex.test(lower)) {
+    return true;
+  }
+
+  return false;
+};
+
+export const resolveApiConfig = (rawUrl, { isDev = false, isProd = false, allowedHosts = [] } = {}) => {
+  const normalized = normalizeApiUrl(rawUrl);
+
+  // 1. Explicit URL supplied
+  if (normalized) {
+    let parsed;
+    try {
+      parsed = new URL(normalized);
+    } catch {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Malformed API URL: "${rawUrl}". Please provide a valid absolute URL (e.g. https://api.yatra.com).`,
+      };
+    }
+
+    if (!parsed.protocol || !parsed.host) {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Malformed API URL: "${rawUrl}". Missing protocol or host.`,
+      };
+    }
+
+    // Reject credentials in URL (e.g. https://user:pass@host)
+    if (parsed.username || parsed.password) {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Credential-bearing API URLs are rejected for security: "${rawUrl}".`,
+      };
+    }
+
+    // In production, reject insecure HTTP URLs
+    if (isProd && parsed.protocol !== 'https:') {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Insecure backend URL rejected in production: "${rawUrl}". Production builds require a secure HTTPS URL.`,
+      };
+    }
+
+    // Reject arbitrary untrusted external hosts
+    if (isProd && !isApprovedHost(parsed.hostname, { isDev, isProd, allowedHosts })) {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Untrusted backend origin rejected: "${parsed.hostname}". Allowed origins are configured production hosts or verified *.trycloudflare.com tunnels.`,
+      };
+    }
+
+    if (isDev && !isApprovedHost(parsed.hostname, { isDev, isProd, allowedHosts })) {
+      return {
+        baseUrl: '',
+        isMisconfigured: true,
+        errorMessage: `Untrusted development backend origin: "${parsed.hostname}". Allowed origins are localhost, 127.0.0.1, or verified *.trycloudflare.com tunnels.`,
+      };
+    }
+
+    // Normalize to origin + port (strip path/query/hash to avoid route pollution)
+    const cleanOrigin = `${parsed.protocol}//${parsed.host}`;
+
+    return {
+      baseUrl: cleanOrigin,
+      isMisconfigured: false,
+      errorMessage: '',
+    };
+  }
+
+  // 2. Development default fallback
+  if (isDev) {
+    return {
+      baseUrl: 'http://127.0.0.1:8000',
+      isMisconfigured: false,
+      errorMessage: '',
+    };
+  }
+
+  // 3. Production missing explicit URL
+  return {
+    baseUrl: '',
+    isMisconfigured: true,
+    errorMessage: 'Production API URL is not configured. Please build with VITE_API_URL pointing to your backend (e.g. https://api.yatra.com).',
+  };
+};
+
+/**
+ * Inspects URL query parameter (?backend=... or ?api=...) safely.
+ * Returns the validated candidate URL IF approved, or null.
+ * NEVER activates or persists candidate automatically.
+ * Automatically cleans untrusted/malicious params from the URL bar to prevent phishing.
+ */
+export const getPendingProposedUrl = () => {
+  if (typeof window === 'undefined' || !window.location || !window.location.search) {
+    return null;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const candidate = params.get('backend') || params.get('api');
+    if (!candidate) return null;
+
+    const config = resolveApiConfig(candidate, {
+      isDev: isDevelopment,
+      isProd: isProduction,
+    });
+
+    if (config.isMisconfigured) {
+      console.warn(`[Security] Untrusted backend URL parameter rejected: "${candidate}"`);
+      dismissPendingProposedUrl();
+      return null;
+    }
+
+    return config.baseUrl;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Removes ?backend= or ?api= from the current window location without triggering a page reload.
+ */
+export const dismissPendingProposedUrl = () => {
+  if (typeof window === 'undefined' || !window.location) return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('backend');
+    url.searchParams.delete('api');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {
+    // ignore
+  }
+};
+
+/**
+ * User explicitly confirms connection to proposed URL.
+ */
+export const confirmProposedUrl = (url) => {
+  dismissPendingProposedUrl();
+  setRuntimeApiUrl(url);
+};
+
+export const getRuntimeApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    // 1. Check window global override (e.g. config.js or injected script)
+    if (window.__YATRA_API_URL__) {
+      return window.__YATRA_API_URL__;
+    }
+
+    // 2. Check explicitly confirmed sessionStorage
+    try {
+      const stored = sessionStorage.getItem('yatra_runtime_api_url');
+      if (stored) return stored;
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Fall back to Vite build-time environment variable
+  return typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : '';
+};
+
+export const setRuntimeApiUrl = (url) => {
+  if (typeof window !== 'undefined') {
+    // Switching or resetting backends MUST clear any active authentication tokens
+    // to strictly prevent cross-origin token leakage across distinct backends
+    setAuthToken(null);
+
+    if (url) {
+      const config = resolveApiConfig(url, { isDev: isDevelopment, isProd: isProduction });
+      if (config.isMisconfigured) {
+        console.error(`[Security] Cannot activate invalid or unapproved backend URL: ${config.errorMessage}`);
+        return false;
+      }
+      sessionStorage.setItem('yatra_runtime_api_url', config.baseUrl);
+    } else {
+      sessionStorage.removeItem('yatra_runtime_api_url');
+    }
+    window.location.reload();
+    return true;
+  }
+  return false;
+};
+
+const rawApiUrl = getRuntimeApiUrl();
+export const isDevelopment = Boolean(typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.DEV || import.meta.env.MODE === 'development'));
+export const isProduction = Boolean(typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD);
+
+const { baseUrl: resolvedBaseUrl, isMisconfigured: isApiMisconfigured, errorMessage: configErrorMessage } = resolveApiConfig(rawApiUrl, {
+  isDev: isDevelopment,
+  isProd: isProduction,
+});
+
+if (isApiMisconfigured) {
+  console.error(`[Yatra AI Configuration Error] ${configErrorMessage}`);
+}
+
+export const getApiBaseUrl = () => resolvedBaseUrl;
+export const getApiConfigError = () => configErrorMessage;
+export const isApiConfigured = () => !isApiMisconfigured;
 
 const client = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: resolvedBaseUrl || undefined,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true,
   timeout: 45000, // 45s for LLM / tool chains
+});
+
+// Guard against unconfigured production API calls and foreign origin credential dispatch
+client.interceptors.request.use((config) => {
+  if (isApiMisconfigured) {
+    return Promise.reject(new Error(configErrorMessage));
+  }
+
+  // Verify request origin matches approved baseUrl before sending credentials
+  if (currentToken && config.headers && resolvedBaseUrl) {
+    try {
+      const targetUrl = new URL(config.url || '', resolvedBaseUrl);
+      const baseOrigin = new URL(resolvedBaseUrl).origin;
+      if (targetUrl.origin !== baseOrigin) {
+        // Drop Authorization header if request targets a different origin
+        delete config.headers['Authorization'];
+      }
+    } catch {
+      delete config.headers['Authorization'];
+    }
+  }
+
+  return config;
 });
 
 // Manage session token for cross-origin and cookie-partitioned requests
@@ -33,6 +303,75 @@ export const setAuthToken = (token) => {
 export const getAuthToken = () => currentToken;
 
 // Centralized API Functions
+export const streamChat = async (messageData, { onStart, onToken, onDone, onError, signal } = {}) => {
+  const payload = typeof messageData === 'string'
+    ? { message: messageData }
+    : {
+        message: messageData.message,
+        session_id: messageData.session_id || null,
+        current_request: messageData.current_request || null,
+        current_itinerary: messageData.current_itinerary || null,
+        last_tourism_place: messageData.last_tourism_place || null,
+        last_itinerary_context: messageData.last_itinerary_context || null,
+        pending_options: messageData.pending_options || null,
+      };
+
+  const baseUrl = getRuntimeApiUrl();
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${baseUrl}/api/chat/stream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Streaming failed: HTTP ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let finalResponse = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) continue;
+      const jsonStr = trimmed.slice(5).trim();
+      try {
+        const event = JSON.parse(jsonStr);
+        if (event.type === 'start') {
+          if (onStart) onStart(event);
+        } else if (event.type === 'token') {
+          if (onToken) onToken(event.content);
+        } else if (event.type === 'done') {
+          finalResponse = event.response;
+          if (onDone) onDone(event.response);
+        }
+      } catch (err) {
+        // Ignore partial chunks
+      }
+    }
+  }
+
+  return finalResponse;
+};
+
 export const sendChat = async (messageData) => {
   const payload = typeof messageData === 'string'
     ? { message: messageData }
@@ -327,6 +666,7 @@ export const getUserProfile = async () => {
 
 export default {
   sendChat,
+  streamChat,
   searchYatra,
   getAccommodation,
   getSightseeing,

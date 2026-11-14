@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Edit3, Info, X, Train, Plane, Bus, CheckCircle2, Building2, Mountain, Coins, Calendar, Compass, MapPin, Clock, ArrowRight, Check } from 'lucide-react';
 import ItineraryTimeline from './ItineraryTimeline';
 
 /**
@@ -37,7 +38,7 @@ export default function RecommendedYatra({
   const budgetEval = planData?.budget_evaluation || {};
 
   const req = tripRequest || planData?.request || {};
-  const origin = req.origin || tr.origin || 'Delhi';
+  const origin = req.origin || tr.origin || '';
   const pax = req.pax || req.pilgrims || 1;
   const durationDays = req.duration_days || req.duration || req.days || (itinerary.length > 0 ? itinerary.length : 4);
   const travelDate = req.start_date || tr.travel_date || '2026-10-20';
@@ -48,15 +49,29 @@ export default function RecommendedYatra({
   const mode = (tr.mode || 'train').toUpperCase();
   const operator = tr.operator || (mode === 'TRAIN' ? 'Indian Railways' : 'Express Service');
   const serviceNo = tr.transport_no || (tr.id ? `ID #${tr.id}` : 'Direct Service');
-  const depTime = tr.departure_time || '06:00';
-  const arrTime = tr.arrival_time || '14:00';
-  const durationStr = tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null);
-  const farePerPerson = tr.fare_per_person || tr.price || 0;
-  const transportFareTotal = tr.total_fare || (farePerPerson * pax);
+
+  const isTrain = mode === 'TRAIN';
+  const isBus = mode === 'BUS';
+  const isFlight = mode === 'FLIGHT';
+
+  // Timetable truthfulness: If point timings are unverified (e.g. curated railway), suppress fabricated clock times
+  const isTrainTimetableUnverified = isTrain && (tr.timetable_verification?.status === 'unverified' || !tr.timetable_verification);
+  const depTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.departure_time || (isBus ? '05:00 - 22:00 Window' : (isFlight ? 'Check flight' : 'Check schedule')));
+  const arrTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.arrival_time || (isBus ? 'Regular departures' : (isFlight ? 'Confirm with airline' : 'Enquire at counter')));
+  const durationStr = !isFlight && !isTrainTimetableUnverified ? (tr.duration_str || (tr.duration_mins ? `${Math.floor(tr.duration_mins / 60)}h ${tr.duration_mins % 60}m` : null)) : null;
+
+  // Fares segregation: never display unavailable airfare, train fare, or counter slab as confirmed ₹0
+  const isFareUnavailable = tr.fare_classification === 'UNAVAILABLE' ||
+    tr.fare_classification === 'STATUTORY_NOTIFIED_PER_KM_SLAB' ||
+    (isFlight && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (isTrain && tr.fare == null && tr.price == null && tr.indicative_fare_min == null) ||
+    (tr.fare == null && tr.price == null && tr.fare_per_person == null);
+
+  const farePerPerson = isFareUnavailable ? null : (tr.fare_per_person || tr.price || null);
+  const transportFareTotal = farePerPerson !== null ? (tr.total_fare || (farePerPerson * pax)) : null;
 
   // Darshan details
   const slotCategory = slot.category || req.category || 'Normal Darshan';
-  const slotTime = slot.slot_time || '06:00';
   const slotPricePerPerson = slot.price || 0;
   const darshanTotal = slotPricePerPerson * pax;
 
@@ -65,15 +80,17 @@ export default function RecommendedYatra({
   const hotelTotal = hotelPricePerNight * roomsCount * hotelNights;
 
   // Financial Summary from budgetEval or deterministic formula
-  const verifiedDirectTotal = transportFareTotal + darshanTotal + hotelTotal;
+  const verifiedDirectTotal = (transportFareTotal || 0) + darshanTotal + hotelTotal;
   const roadTransferEst = budgetEval?.estimated_costs?.items?.local_road_transfer || (mode === 'FLIGHT' ? 1500 * pax : 350 * pax);
   const mealsEst = budgetEval?.estimated_costs?.items?.meals_and_refreshments || (350 * pax * durationDays);
   const totalEstimated = roadTransferEst + mealsEst;
-  const grandTotal = planVersion > 1 ? (verifiedDirectTotal + totalEstimated) : (budgetEval.grand_total || (verifiedDirectTotal + totalEstimated));
-  const costPerPerson = pax > 0 ? Math.round(grandTotal / pax) : grandTotal;
+
+  const isBudgetIncomplete = isFareUnavailable || budgetEval.grand_total == null || budgetEval.is_complete === false;
+  const grandTotal = isBudgetIncomplete ? null : (budgetEval.grand_total || (verifiedDirectTotal + totalEstimated));
+  const costPerPerson = grandTotal !== null && pax > 0 ? Math.round(grandTotal / pax) : null;
   const targetBudget = req.total_budget ? Number(req.total_budget) : (budgetEval.total_budget ? Number(budgetEval.total_budget) : null);
-  const remainingBudget = targetBudget !== null ? targetBudget - grandTotal : null;
-  const isWithinBudget = planVersion > 1 ? (targetBudget !== null ? grandTotal <= targetBudget : null) : (budgetEval.within_budget !== undefined ? budgetEval.within_budget : (targetBudget !== null ? grandTotal <= targetBudget : null));
+  const remainingBudget = (targetBudget !== null && grandTotal !== null) ? targetBudget - grandTotal : null;
+  const isWithinBudget = grandTotal !== null && targetBudget !== null ? grandTotal <= targetBudget : null;
 
   return (
     <div data-testid="recommended-yatra-page" style={{ width: '100%' }}>
@@ -101,9 +118,9 @@ export default function RecommendedYatra({
           data-testid="toggle-change-selections-btn"
           onClick={() => setShowCategorySelector(!showCategorySelector)}
           className="btn btn-outline"
-          style={{ fontSize: '0.84rem', padding: '7px 16px', borderColor: 'var(--gold-primary)', color: 'var(--burgundy)' }}
+          style={{ fontSize: '0.84rem', padding: '7px 16px', borderColor: 'var(--gold-primary)', color: 'var(--burgundy)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          ✏️ Change My Selections
+          <Edit3 size={14} /> Change My Selections
         </button>
       </div>
 
@@ -121,7 +138,7 @@ export default function RecommendedYatra({
           alignItems: 'center',
           gap: '8px',
         }}>
-          <span>ℹ️</span> {planRevisionNotice}
+          <Info size={16} /> {planRevisionNotice}
         </div>
       )}
 
@@ -134,9 +151,9 @@ export default function RecommendedYatra({
             </div>
             <button
               onClick={() => setShowCategorySelector(false)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.9rem' }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
-              ✕ Close
+              <X size={14} /> Close
             </button>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -145,63 +162,63 @@ export default function RecommendedYatra({
               data-testid="edit-cat-transport"
               onClick={() => onEditCategory('transport')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              🚆 Transport
+              <Train size={14} /> Transport
             </button>
             <button
               type="button"
               data-testid="edit-cat-darshan"
               onClick={() => onEditCategory('darshan')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              🙏 Darshan Slot
+              <CheckCircle2 size={14} /> Darshan Slot
             </button>
             <button
               type="button"
               data-testid="edit-cat-accommodation"
               onClick={() => onEditCategory('accommodation')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              🏨 Accommodation
+              <Building2 size={14} /> Accommodation
             </button>
             <button
               type="button"
               data-testid="edit-cat-sightseeing"
               onClick={() => onEditCategory('sightseeing')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              🌄 Sightseeing
+              <Mountain size={14} /> Sightseeing
             </button>
             <button
               type="button"
               data-testid="edit-cat-budget"
               onClick={() => onEditCategory('budget')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              💰 Budget
+              <Coins size={14} /> Budget
             </button>
             <button
               type="button"
               data-testid="edit-cat-dates"
               onClick={() => onEditCategory('dates')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              📅 Dates & Duration
+              <Calendar size={14} /> Dates & Duration
             </button>
             <button
               type="button"
               data-testid="edit-cat-style"
               onClick={() => onEditCategory('style')}
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              🧭 Style & Pacing
+              <Compass size={14} /> Style & Pacing
             </button>
           </div>
         </div>
@@ -216,8 +233,8 @@ export default function RecommendedYatra({
           {/* 1. Trip Overview Card */}
           <div className="card" style={{ background: '#FFFFFF' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)' }}>
-                📍 Pilgrimage Overview
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin size={16} /> Pilgrimage Overview
               </div>
               <span className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
                 {durationDays} Days / {hotelNights} Nights
@@ -248,15 +265,15 @@ export default function RecommendedYatra({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
-                    {mode === 'FLIGHT' ? '✈️ FLIGHT' : (mode === 'BUS' ? '🚌 BUS' : '🚆 TRAIN')}
+                  <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {mode === 'FLIGHT' ? <><Plane size={12} /> FLIGHT</> : (mode === 'BUS' ? <><Bus size={12} /> BUS</> : <><Train size={12} /> TRAIN</>)}
                   </span>
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
                     {operator} {serviceNo && `· ${serviceNo}`}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Departure: <b>{origin}</b> ➔ Arrival: <b>{tr.destination || 'Katra'}</b>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Departure: <b>{origin}</b> <ArrowRight size={12} /> Arrival: <b>{tr.destination || 'Katra'}</b>
                 </div>
               </div>
               <button
@@ -275,10 +292,12 @@ export default function RecommendedYatra({
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{origin}</div>
               </div>
               <div style={{ textAlign: 'center', padding: '0 8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                  {durationStr ? `⏱️ ${durationStr}` : 'Scheduled'}
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                  {durationStr ? <><Clock size={11} /> {durationStr}</> : 'Scheduled'}
                 </div>
-                <div style={{ color: 'var(--gold-primary)', fontSize: '0.8rem' }}>────── ➔</div>
+                <div style={{ color: 'var(--gold-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ArrowRight size={14} />
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>{arrTime}</div>
@@ -287,43 +306,59 @@ export default function RecommendedYatra({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Transport Fare ({pax}x ₹{farePerPerson}):</span>
-              <b style={{ color: 'var(--burgundy)', fontSize: '0.95rem' }}>₹{transportFareTotal.toLocaleString('en-IN')}</b>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {isFareUnavailable ? 'Transport Tariff:' : `Transport Fare (${pax}x ₹${farePerPerson}):`}
+              </span>
+              <b style={{ color: 'var(--burgundy)', fontSize: '0.92rem' }}>
+                {isFareUnavailable
+                  ? (isFlight
+                      ? 'Airfare on airline portal (dynamic pricing)'
+                      : (isTrain
+                          ? 'Fare on IRCTC portal (dynamic pricing)'
+                          : (tr.indicative_fare_min
+                              ? `Statutory slab approx ₹${tr.indicative_fare_min}–₹${tr.indicative_fare_max || 110} (Counter)`
+                              : 'Tariff payable at counter')))
+                  : `₹${transportFareTotal.toLocaleString('en-IN')}`}
+              </b>
             </div>
           </div>
 
-          {/* 3. Selected Darshan Slot Card */}
+          {/* 3. Selected Darshan Slot Guidance Card */}
           <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
-                    🙏 DARSHAN
+                  <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={12} /> DARSHAN GUIDANCE
                   </span>
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
                     {slotCategory}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Shri Mata Vaishno Devi Shrine Board, Bhawan
+                  Shri Mata Vaishno Devi Shrine Board · Free Public Yatra
                 </div>
               </div>
-              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>
-                ✓ Shrine Verified
+              <span className="pill" style={{ background: '#F0EAE1', color: 'var(--burgundy)', fontSize: '0.68rem', fontWeight: 700 }}>
+                RFID Registration at Katra
               </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginTop: '6px' }}>
               <div>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.74rem' }}>Scheduled Time & Date</span>
-                <b>{slotTime} · {slot.slot_date || travelDate}</b>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.74rem' }}>Targeted Darshan Date</span>
+                <b>{slot.slot_date || travelDate}</b>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.74rem' }}>Shrine Fee</span>
-                <b style={{ color: darshanTotal === 0 ? '#155724' : 'var(--burgundy)' }}>
-                  {darshanTotal === 0 ? 'Free / Included' : `₹${darshanTotal.toLocaleString('en-IN')}`}
+                <b style={{ color: '#155724' }}>
+                  {darshanTotal === 0 ? '₹0 (Free Entry · RFID Card Required)' : `₹${darshanTotal.toLocaleString('en-IN')}`}
                 </b>
               </div>
+            </div>
+
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px dashed #DDD', paddingTop: '6px', marginTop: '6px' }}>
+              <strong>Shrine Board Procedure:</strong> Normal Darshan has no pre-booked Shrine Board time slots. Pilgrims collect a free RFID Yatra Access Card at Katra counters on arrival before beginning the trek.
             </div>
           </div>
 
@@ -332,8 +367,8 @@ export default function RecommendedYatra({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
-                    🏨 HOTEL
+                  <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Building2 size={12} /> HOTEL
                   </span>
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
                     {hotel?.name || 'Katra Stay Reserved'}
@@ -393,8 +428,8 @@ export default function RecommendedYatra({
           {/* 6. Itemised Budget Summary */}
           <div className="card" style={{ background: 'var(--gold-subtle)', border: '1.5px solid var(--gold-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)' }}>
-                💰 Itemised Budget Breakdown
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Coins size={16} /> Itemised Budget Breakdown
               </div>
               <button
                 type="button"
@@ -409,15 +444,19 @@ export default function RecommendedYatra({
             {/* Verified Direct Costs */}
             <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Transport ({pax}x fare):</span>
-                <b>₹{transportFareTotal.toLocaleString('en-IN')}</b>
+                <span>{isFareUnavailable ? 'Transport Tariff:' : `Verified Transport (${pax}x fare):`}</span>
+                <b style={{ color: isFareUnavailable ? '#856404' : 'inherit' }}>
+                  {isFareUnavailable ? 'Payable to carrier (excluded from total)' : `₹${transportFareTotal.toLocaleString('en-IN')}`}
+                </b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Darshan Slot ({pax}x fee):</span>
-                <b>₹{darshanTotal.toLocaleString('en-IN')}</b>
+                <span>Darshan Entry ({pax}x pilgrim):</span>
+                <b style={{ color: '#155724' }}>
+                  {darshanTotal === 0 ? '₹0 (Free Normal Darshan)' : `₹${darshanTotal.toLocaleString('en-IN')}`}
+                </b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>✓ Verified Hotel ({roomsCount} rm, {hotelNights} n):</span>
+                <span>Verified Hotel ({roomsCount} rm, {hotelNights} n):</span>
                 <b>₹{hotelTotal.toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5D2AD', paddingTop: '4px', marginTop: '2px', fontWeight: 700 }}>
@@ -447,15 +486,19 @@ export default function RecommendedYatra({
             <div style={{ background: '#FFFFFF', borderRadius: '10px', padding: '10px 14px', border: '1.5px solid var(--gold-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Grand Group Total</div>
-                  <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--burgundy)' }}>
-                    ₹{grandTotal.toLocaleString('en-IN')}
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    {isBudgetIncomplete ? 'Group Total (Excl. Dynamic Fare)' : 'Grand Group Total'}
+                  </div>
+                  <div style={{ fontSize: isBudgetIncomplete ? '1.18rem' : '1.45rem', fontWeight: 800, color: isBudgetIncomplete ? '#856404' : 'var(--burgundy)' }}>
+                    {isBudgetIncomplete
+                      ? `₹${(verifiedDirectTotal + totalEstimated).toLocaleString('en-IN')} + Transport`
+                      : `₹${grandTotal.toLocaleString('en-IN')}`}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Cost Per Pilgrim</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--burgundy-dark)' }}>
-                    ₹{costPerPerson.toLocaleString('en-IN')}
+                    {costPerPerson !== null ? `₹${costPerPerson.toLocaleString('en-IN')}` : 'Pending Fare'}
                   </div>
                 </div>
               </div>
@@ -466,11 +509,11 @@ export default function RecommendedYatra({
                   <span>Target Budget: <b>₹{targetBudget.toLocaleString('en-IN')}</b></span>
                   {isWithinBudget ? (
                     <span className="pill pill-success" style={{ fontSize: '0.7rem' }}>
-                      ✓ Within Budget (Surplus ₹{remainingBudget?.toLocaleString('en-IN')})
+                      Within Budget (Surplus ₹{remainingBudget?.toLocaleString('en-IN')})
                     </span>
                   ) : (
                     <span className="pill" style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.7rem' }}>
-                      ⚠️ Exceeded by ₹{Math.abs(remainingBudget || 0).toLocaleString('en-IN')}
+                      Exceeded by ₹{Math.abs(remainingBudget || 0).toLocaleString('en-IN')}
                     </span>
                   )}
                 </div>
@@ -479,7 +522,7 @@ export default function RecommendedYatra({
 
             {/* Excluded Expenses Notice */}
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '6px' }}>
-              ℹ️ Excludes voluntary trek pony/palki charges, personal pooja offerings, and Katra market shopping.
+              Excludes voluntary trek pony/palki charges, personal pooja offerings, and Katra market shopping.
             </div>
           </div>
         </div>
@@ -519,9 +562,12 @@ export default function RecommendedYatra({
                 fontSize: '0.96rem',
                 fontWeight: 800,
                 boxShadow: '0 4px 14px rgba(88, 17, 26, 0.25)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
             >
-              ✓ Confirm Selections & Continue ➔
+              <Check size={16} /> Confirm Selections & Continue <ArrowRight size={16} />
             </button>
 
             <button
@@ -533,9 +579,12 @@ export default function RecommendedYatra({
                 padding: '0.8rem 1.6rem',
                 fontSize: '0.96rem',
                 fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
-              Proceed to Review ➔
+              Proceed to Review <ArrowRight size={16} />
             </button>
 
             {/* Path B */}
@@ -550,9 +599,12 @@ export default function RecommendedYatra({
                 fontWeight: 700,
                 borderColor: 'var(--gold-primary)',
                 color: 'var(--burgundy)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
-              ✏️ Change My Selections
+              <Edit3 size={16} /> Change My Selections
             </button>
           </div>
         </div>

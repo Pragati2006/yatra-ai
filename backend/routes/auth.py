@@ -93,7 +93,16 @@ def verify_csrf_protection(request: Request):
                 "localhost:5173", "127.0.0.1:5173",
                 "localhost:8000", "127.0.0.1:8000",
                 "localhost:3000", "127.0.0.1:3000",
+                "yatra-ai.pages.dev",
             }
+            try:
+                from backend.main import resolve_cors_origins
+                for co in resolve_cors_origins():
+                    p = urlparse(co)
+                    if p.netloc:
+                        allowed_hosts.add(p.netloc.lower())
+            except Exception:
+                pass
             if netloc in allowed_hosts or netloc.startswith("localhost:") or netloc.startswith("127.0.0.1:"):
                 return
             log_event(
@@ -211,8 +220,10 @@ def request_otp_endpoint(payload: RequestOTPRequest):
             detail=res,
         )
     if res.get("status") == "error":
+        err_code = res.get("error_code")
+        status_code = 503 if err_code == "EMAIL_SERVICE_UNAVAILABLE" else 400
         raise HTTPException(
-            status_code=400,
+            status_code=status_code,
             detail=res,
         )
     return res
@@ -248,13 +259,14 @@ def verify_otp_endpoint(payload: VerifyOTPRequest, request: Request, response: R
     # Set secure HttpOnly cookie
     token = res.get("session_token")
     if token:
+        is_sec = is_cookie_secure(request)
         response.set_cookie(
             key=AUTH_COOKIE_NAME,
             value=token,
             max_age=7 * 24 * 3600,
             httponly=True,
-            samesite="lax",
-            secure=is_cookie_secure(request),
+            samesite="none" if is_sec else "lax",
+            secure=is_sec,
         )
     return res
 
@@ -314,11 +326,12 @@ def logout_endpoint(
     if token:
         auth_service.logout_session(token)
 
+    is_sec = is_cookie_secure(request)
     response.delete_cookie(
         key=AUTH_COOKIE_NAME,
         httponly=True,
-        samesite="lax",
-        secure=is_cookie_secure(request),
+        samesite="none" if is_sec else "lax",
+        secure=is_sec,
     )
     return {
         "status": "success",

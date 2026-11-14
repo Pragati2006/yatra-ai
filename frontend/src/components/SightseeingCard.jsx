@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Landmark, Check, Plus, MapPin, Clock, Ticket, BookOpen, Car, Navigation, Globe, MessageSquare } from 'lucide-react';
 
 const TRAVEL_NOTES = {
   'On the trek route': 'Trek on foot; battery car, pony & ropeway available along the route.',
@@ -63,10 +64,9 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
             alignItems: 'center',
             justifyContent: 'center',
             color: '#E5D2AD',
-            fontSize: '2.4rem',
           }}
         >
-          🔱
+          <Landmark size={36} color="#E5D2AD" />
         </div>
 
         {/* Selection Toggle Button */}
@@ -93,7 +93,15 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
             transition: 'all 0.15s ease',
           }}
         >
-          {isSelected ? '✓ Selected' : '+ Add Place'}
+          {isSelected ? (
+            <>
+              <Check size={12} /> Selected
+            </>
+          ) : (
+            <>
+              <Plus size={12} /> Add Place
+            </>
+          )}
         </button>
 
         {/* Category Pill */}
@@ -115,8 +123,8 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
           {place.category}
         </span>
 
-        {/* Region Tag if available */}
-        {place.region && (
+        {/* Region & District Tag if available */}
+        {(place.region || place.district) && (
           <span
             style={{
               position: 'absolute',
@@ -131,7 +139,9 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
               borderRadius: '6px',
             }}
           >
-            📍 {place.region}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <MapPin size={11} /> {place.district && place.region ? `${place.district}, ${place.region}` : (place.district || place.region)}
+            </span>
           </span>
         )}
       </div>
@@ -173,14 +183,16 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
 
         {/* Distance & Timings */}
         <div style={{ fontSize: '0.78rem', color: 'var(--gold-primary)', fontWeight: 600, margin: '2px 0 6px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <span>⏱️ {place.distance || 'Katra Region'}</span>
-          {place.timings && <span>• 🕐 {place.timings}</span>}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={12} /> {place.distance || 'Katra Region'}
+          </span>
+          {place.timings && <span>• {place.timings}</span>}
         </div>
 
         {/* Entry Fee (if available & not strictly free) */}
         {place.entry_fee && place.entry_fee !== 'Free' && (
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            🎟️ <b>Fee:</b> {place.entry_fee}
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Ticket size={12} /> <b>Fee:</b> {place.entry_fee}
           </div>
         )}
 
@@ -209,7 +221,9 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                 color: 'var(--text-dark)',
                 lineHeight: 1.45,
               }}>
-                <b style={{ color: 'var(--burgundy)' }}>📜 Heritage Context:</b> {place.historical_background}
+                <b style={{ color: 'var(--burgundy)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+                  <BookOpen size={12} /> Heritage Context:
+                </b> {place.historical_background}
               </div>
             )}
 
@@ -223,7 +237,9 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                 color: '#1E3A8A',
                 lineHeight: 1.4,
               }}>
-                <b>🚗 Travel & Access:</b> {travelRequirement}
+                <b style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+                  <Car size={12} /> Travel & Access:
+                </b> {travelRequirement}
               </div>
             )}
 
@@ -237,7 +253,26 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                 color: 'var(--text-muted)',
                 lineHeight: 1.4,
               }}>
-                <b>📍 Route Guide:</b> {place.location_route}
+                <b style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+                  <Navigation size={12} /> Route Guide:
+                </b> {place.location_route}
+              </div>
+            )}
+
+            {place.latitude && place.longitude && (
+              <div style={{
+                fontSize: '0.71rem',
+                color: '#6B7280',
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '6px',
+                padding: '2px 4px',
+              }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <Globe size={11} /> <b>GPS:</b> {place.latitude.toFixed(4)}°N, {place.longitude.toFixed(4)}°E
+                </span>
+                {place.district && <span>• <b>District:</b> {place.district}</span>}
               </div>
             )}
           </div>
@@ -283,9 +318,12 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                 fontWeight: 600,
                 cursor: 'pointer',
                 padding: '2px 4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              💬 Ask AI
+              <MessageSquare size={12} /> Ask AI
             </button>
           )}
           {place.video_search && (

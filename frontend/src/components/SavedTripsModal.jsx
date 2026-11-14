@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Ticket, Briefcase, MessageSquare, User, X, AlertCircle, Calendar, CheckCircle2, Clock, MapPin, Train, Building2, Search, Download, Printer, ArrowRight, Map } from 'lucide-react';
 import {
   getSavedItineraries,
   deleteSavedItinerary,
@@ -117,11 +118,11 @@ export default function SavedTripsModal({
     setTransferMsg('Transferring current chat session to your account...');
     try {
       await transferConversation(guestSessionId);
-      setTransferMsg('✅ Active chat successfully linked to your account!');
+      setTransferMsg('Active chat successfully linked to your account!');
       await refreshAllData(true);
       setTimeout(() => setTransferMsg(''), 4000);
     } catch (err) {
-      setTransferMsg(`⚠️ Transfer notice: ${err.message || 'No active guest chat found to transfer.'}`);
+      setTransferMsg(`Transfer notice: ${err.message || 'No active guest chat found to transfer.'}`);
       setTimeout(() => setTransferMsg(''), 4000);
     }
   };
@@ -131,11 +132,11 @@ export default function SavedTripsModal({
     setTransferMsg('Transferring current plan to your account...');
     try {
       await transferTrip(guestSessionId);
-      setTransferMsg('✅ Current trip plan successfully saved to your account!');
+      setTransferMsg('Current trip plan successfully saved to your account!');
       await refreshAllData(true);
       setTimeout(() => setTransferMsg(''), 4000);
     } catch (err) {
-      setTransferMsg(`⚠️ Transfer notice: ${err.message || 'No active trip plan found in session to transfer.'}`);
+      setTransferMsg(`Transfer notice: ${err.message || 'No active trip plan found in session to transfer.'}`);
       setTimeout(() => setTransferMsg(''), 4000);
     }
   };
@@ -188,7 +189,7 @@ export default function SavedTripsModal({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.4rem' }}>👤</span>
+            <User size={22} color="#E5D2AD" />
             <div>
               <div style={{ fontFamily: 'var(--font-serif, serif)', fontWeight: 700, fontSize: '1.15rem' }}>
                 My Account & Saved History
@@ -211,9 +212,11 @@ export default function SavedTripsModal({
               cursor: 'pointer',
               lineHeight: 1,
               padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
@@ -227,10 +230,10 @@ export default function SavedTripsModal({
           }}
         >
           {[
-            { id: 'bookings', label: `🎫 My Bookings (${bookings.length})` },
-            { id: 'itineraries', label: `🧳 My Trips (${itineraries.length})` },
-            { id: 'conversations', label: `💬 My Conversations (${conversations.length})` },
-            { id: 'profile', label: '👤 My Profile' },
+            { id: 'bookings', label: `My Bookings (${bookings.length})`, icon: <Ticket size={14} /> },
+            { id: 'itineraries', label: `My Trips (${itineraries.length})`, icon: <Briefcase size={14} /> },
+            { id: 'conversations', label: `My Conversations (${conversations.length})`, icon: <MessageSquare size={14} /> },
+            { id: 'profile', label: 'My Profile', icon: <User size={14} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -250,8 +253,13 @@ export default function SavedTripsModal({
                 cursor: 'pointer',
                 textAlign: 'center',
                 whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
               }}
             >
+              {tab.icon}
               {tab.label}
             </button>
           ))}
@@ -266,8 +274,8 @@ export default function SavedTripsModal({
           )}
 
           {errorMsg && (
-            <div style={{ background: '#FFF5F5', color: '#C53030', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-              ⚠️ {errorMsg}
+            <div style={{ background: '#FFF5F5', color: '#C53030', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertCircle size={15} /> {errorMsg}
             </div>
           )}
 
@@ -296,7 +304,9 @@ export default function SavedTripsModal({
 
               {bookings.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#7D6A5D', background: '#FAF7F2', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎫</div>
+                  <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                    <Ticket size={32} color="#58111A" />
+                  </div>
                   <div style={{ fontWeight: 700, color: '#58111A' }}>No simulated bookings yet</div>
                   <div style={{ fontSize: '0.82rem', marginTop: '4px' }}>
                     Complete a realistic mock booking in Darshan Bookings while signed in, and your confirmed demo pass will appear here.
@@ -307,11 +317,11 @@ export default function SavedTripsModal({
                   {bookings.map((b) => {
                     const d = new Date(b.created_at);
                     const dateFormatted = isNaN(d) ? b.created_at : d.toLocaleString();
-                    const originRoute = b.receipt?.origin || 'Delhi';
-                    const routeText = `${originRoute} ➔ Katra (Shri Mata Vaishno Devi Shrine)`;
+                    const originRoute = b.receipt?.origin || 'Not specified';
+                    const routeText = `${originRoute} -> Katra (Shri Mata Vaishno Devi Shrine)`;
                     const emailAccount = user?.email || b.receipt?.email || b.user_id || 'Registered Pilgrim';
                     const transportDesc = b.transport_info || b.transport_mode || 'Train (Vande Bharat Express)';
-                    const hotelDesc = b.hotel_name || 'Devi Darshan Hotel (Katra)';
+                    const hotelDesc = b.hotel_name || 'Accommodation not selected';
                     const paymentLabel = `${b.payment_status || 'COMPLETED_SANDBOX'} (Sandbox Paid — ₹0 Live Charge)`;
                     const slotTimeDesc = b.slot_time || 'Morning Slot (06:00)';
 
@@ -366,7 +376,7 @@ export default function SavedTripsModal({
                             letterSpacing: '0.03em',
                           }}
                         >
-                          <span>⚠️ LOCAL MOCK PORTAL / DEMO</span>
+                          <span>LOCAL MOCK PORTAL / DEMO</span>
                           <span>NOT AN OFFICIAL SHRINE BOARD BOOKING</span>
                         </div>
 
@@ -411,12 +421,12 @@ export default function SavedTripsModal({
                           fontSize: '0.8rem',
                           color: '#3D2F27',
                         }}>
-                          <div>📅 <strong>Yatra Date:</strong> {b.slot_date}</div>
-                          <div>🛕 <strong>Darshan Category:</strong> {b.category}</div>
-                          <div>⏰ <strong>Darshan Slot:</strong> {slotTimeDesc}</div>
-                          <div>🗺️ <strong>Route:</strong> {routeText}</div>
-                          <div>🚆 <strong>Transport:</strong> {transportDesc}</div>
-                          <div>🏨 <strong>Stay:</strong> {hotelDesc}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={13} color="#58111A" /> <span><strong>Yatra Date:</strong> {b.slot_date}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={13} color="#58111A" /> <span><strong>Darshan Category:</strong> {b.category}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={13} color="#58111A" /> <span><strong>Darshan Slot:</strong> {slotTimeDesc}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><MapPin size={13} color="#58111A" /> <span><strong>Route:</strong> {routeText}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Train size={13} color="#58111A" /> <span><strong>Transport:</strong> {transportDesc}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#58111A" /> <span><strong>Stay:</strong> {hotelDesc}</span></div>
                         </div>
 
                         {/* Actions Row */}
@@ -439,7 +449,7 @@ export default function SavedTripsModal({
                               gap: '5px',
                             }}
                           >
-                            <span>🔍</span>
+                            <Search size={14} />
                             <span>View Details</span>
                           </button>
 
@@ -461,7 +471,7 @@ export default function SavedTripsModal({
                               gap: '5px',
                             }}
                           >
-                            <span>📥</span>
+                            <Download size={14} />
                             <span>Download Pass (PDF)</span>
                           </button>
 
@@ -483,7 +493,7 @@ export default function SavedTripsModal({
                               gap: '5px',
                             }}
                           >
-                            <span>🖨️</span>
+                            <Printer size={14} />
                             <span>Print Pass</span>
                           </button>
                         </div>
@@ -521,16 +531,21 @@ export default function SavedTripsModal({
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
-                    📥 Save Current Session Plan
+                    <Download size={13} /> Save Current Session Plan
                   </button>
                 )}
               </div>
 
               {itineraries.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#7D6A5D', background: '#FAF7F2', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🗺️</div>
+                  <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                    <Map size={32} color="#58111A" />
+                  </div>
                   <div style={{ fontWeight: 700, color: '#58111A' }}>No saved itineraries yet</div>
                   <div style={{ fontSize: '0.82rem', marginTop: '4px' }}>
                     Generate an itinerary in Darshan Bookings and click "Save Trip" to store it here.
@@ -634,16 +649,21 @@ export default function SavedTripsModal({
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
-                    📥 Save Current Session Chat
+                    <Download size={13} /> Save Current Session Chat
                   </button>
                 )}
               </div>
 
               {conversations.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#7D6A5D', background: '#FAF7F2', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💬</div>
+                  <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                    <MessageSquare size={32} color="#58111A" />
+                  </div>
                   <div style={{ fontWeight: 700, color: '#58111A' }}>No saved conversations yet</div>
                   <div style={{ fontSize: '0.82rem', marginTop: '4px' }}>
                     Conversations you save in AI Companion will be archived here for reference.
@@ -692,7 +712,7 @@ export default function SavedTripsModal({
                       >
                         <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '1.1rem' }}>💬</span>
+                            <MessageSquare size={16} color="#58111A" />
                             <div style={{ fontWeight: 700, color: '#58111A', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {conv.title}
                             </div>
@@ -723,11 +743,11 @@ export default function SavedTripsModal({
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
+                              gap: '6px',
                             }}
                           >
                             <span>Open Conversation</span>
-                            <span>➔</span>
+                            <ArrowRight size={14} />
                           </button>
                           <button
                             type="button"
@@ -795,17 +815,23 @@ export default function SavedTripsModal({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '0.85rem', textAlign: 'center', border: '1px solid #E5D2AD' }}>
-                  <div style={{ fontSize: '1.4rem' }}>🎫</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+                    <Ticket size={24} color="#58111A" />
+                  </div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#58111A' }}>{bookings.length}</div>
                   <div style={{ fontSize: '0.74rem', color: '#7D6A5D' }}>Simulated Bookings</div>
                 </div>
                 <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '0.85rem', textAlign: 'center', border: '1px solid #E5D2AD' }}>
-                  <div style={{ fontSize: '1.4rem' }}>🧳</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+                    <Briefcase size={24} color="#58111A" />
+                  </div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#58111A' }}>{itineraries.length}</div>
                   <div style={{ fontSize: '0.74rem', color: '#7D6A5D' }}>Saved Itineraries</div>
                 </div>
                 <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '0.85rem', textAlign: 'center', border: '1px solid #E5D2AD' }}>
-                  <div style={{ fontSize: '1.4rem' }}>💬</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+                    <MessageSquare size={24} color="#58111A" />
+                  </div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#58111A' }}>{conversations.length}</div>
                   <div style={{ fontSize: '0.74rem', color: '#7D6A5D' }}>Saved Conversations</div>
                 </div>
@@ -849,8 +875,9 @@ export default function SavedTripsModal({
               <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: '#E5D2AD', fontWeight: 800, textTransform: 'uppercase' }}>
                 LOCAL MOCK PORTAL / DEMO • NOT AN OFFICIAL SHRINE BOARD BOOKING
               </div>
-              <div style={{ fontFamily: 'var(--font-serif, serif)', fontSize: '1.25rem', fontWeight: 800, marginTop: '4px' }}>
-                ✅ Simulated Yatra Booking Confirmation
+              <div style={{ fontFamily: 'var(--font-serif, serif)', fontSize: '1.25rem', fontWeight: 800, marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <CheckCircle2 size={18} color="#E5D2AD" />
+                Simulated Yatra Booking Confirmation
               </div>
               <div style={{ fontSize: '0.76rem', color: '#D6C8B2', marginTop: '2px' }}>
                 Demo Pilgrim Pass — Generated via Local Browser Automation
@@ -876,9 +903,9 @@ export default function SavedTripsModal({
                 <div><strong>Darshan Date:</strong> {selectedPass.slot_date}</div>
                 <div><strong>Darshan Category:</strong> {selectedPass.category}</div>
                 <div><strong>Slot Time:</strong> {selectedPass.slot_time || 'Morning Slot (06:00)'}</div>
-                <div><strong>Route / Origin:</strong> {selectedPass.receipt?.origin || 'Delhi'} ➔ Katra</div>
+                <div><strong>Route / Origin:</strong> {selectedPass.receipt?.origin || 'Not specified'} &rarr; Katra</div>
                 <div><strong>Transport:</strong> {selectedPass.transport_info || selectedPass.transport_mode || 'Train (Vande Bharat Express)'}</div>
-                <div><strong>Accommodation:</strong> {selectedPass.hotel_name || 'Devi Darshan Hotel (Katra)'}</div>
+                <div><strong>Accommodation:</strong> {selectedPass.hotel_name || 'Accommodation not selected'}</div>
                 <div><strong>Simulated Total:</strong> ₹{Number(selectedPass.total_price || 0).toLocaleString('en-IN')}</div>
                 <div style={{ gridColumn: 'span 2' }}><strong>Created Timestamp:</strong> {new Date(selectedPass.created_at).toLocaleString()}</div>
               </div>
@@ -912,7 +939,7 @@ export default function SavedTripsModal({
                     },
                     hotel: selectedPass.hotel_name ? { name: selectedPass.hotel_name } : null,
                     pax: selectedPass.pax_count,
-                    origin: selectedPass.receipt?.origin || 'Delhi',
+                    origin: selectedPass.receipt?.origin || 'Not specified',
                     total_price: selectedPass.total_price,
                   })}
                   style={{
@@ -929,7 +956,7 @@ export default function SavedTripsModal({
                     gap: '5px',
                   }}
                 >
-                  <span>📥</span>
+                  <Download size={14} />
                   <span>Download Pass (PDF)</span>
                 </button>
                 <button
@@ -950,7 +977,7 @@ export default function SavedTripsModal({
                     gap: '5px',
                   }}
                 >
-                  <span>🖨️</span>
+                  <Printer size={14} />
                   <span>Print Demo Pass</span>
                 </button>
               </div>

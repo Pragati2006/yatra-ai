@@ -18,22 +18,25 @@ env/
 ENV/
 
 # SQLite Databases & Mutable Live Datasets (Preserves schema & static templates only)
-*.db
-*.sqlite3
-data/*.db
+*.db*
+*.sqlite*
+data/*.db*
 data/*_live.csv
 data/bookings.csv
 
 # Secrets, Credentials & Local Environment Overrides (NEVER COMMIT REAL SECRETS)
-.env
-.env.local
-.env.*.local
-*.env
+.env*
+!.env.example
+!.env.production.example
 *.pem
 *.key
 *.cert
 credentials.json
 secrets.toml
+
+# Local Development Tools & Binaries
+tools/
+*.exe
 
 # Node.js & Frontend Build Outputs
 node_modules/
@@ -52,7 +55,10 @@ android/app/build/
 android/.gradle/
 android/build/
 android/captures/
+android/.expo/
+android/dist/
 .gradle/
+.expo/
 
 # Scratch & Temporary Testing Artifacts
 scratch/

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Clock, X, Plus, ScrollText, MessageSquare, Trash2 } from 'lucide-react';
 import { getSavedConversations, deleteSavedConversation, getSavedConversation } from '../../services/api';
 
 /**
@@ -121,7 +122,7 @@ export default function HistoryDrawer({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.15rem' }}>⏱️</span>
+            <Clock size={18} color="#E5D2AD" />
             <div>
               <div style={{ fontFamily: 'var(--font-serif, Cinzel, serif)', fontWeight: 800, fontSize: '0.96rem' }}>
                 Saved Journeys
@@ -135,6 +136,7 @@ export default function HistoryDrawer({
             type="button"
             data-testid="history-drawer-close-btn"
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: 'rgba(255, 255, 255, 0.15)',
               border: 'none',
@@ -143,13 +145,12 @@ export default function HistoryDrawer({
               height: '28px',
               color: '#FFFFFF',
               cursor: 'pointer',
-              fontSize: '1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -170,7 +171,7 @@ export default function HistoryDrawer({
               gap: '6px',
             }}
           >
-            <span>➕</span>
+            <Plus size={15} />
             <span>Start Fresh Conversation</span>
           </button>
         </div>
@@ -208,7 +209,9 @@ export default function HistoryDrawer({
                 fontSize: '0.84rem',
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📜</div>
+              <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+                <ScrollText size={36} color="var(--text-muted)" />
+              </div>
               <div style={{ fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
                 No Saved Conversations Yet
               </div>
@@ -271,23 +274,30 @@ export default function HistoryDrawer({
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         maxWidth: '220px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                       }}
                     >
-                      💬 {title}
+                      <MessageSquare size={13} style={{ flexShrink: 0 }} />
+                      <span>{title}</span>
                     </span>
                     <button
                       type="button"
                       data-testid={`delete-history-${c.conversation_id}`}
                       onClick={(e) => handleDelete(e, c.conversation_id, title)}
                       title="Delete saved conversation"
+                      aria-label="Delete saved conversation"
                       style={{
                         background: 'none',
                         border: 'none',
                         color: 'var(--text-muted)',
                         cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        padding: '2px 4px',
+                        padding: '4px',
                         borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.color = '#C0392B';
@@ -296,7 +306,7 @@ export default function HistoryDrawer({
                         e.currentTarget.style.color = 'var(--text-muted)';
                       }}
                     >
-                      🗑️
+                      <Trash2 size={13} />
                     </button>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
