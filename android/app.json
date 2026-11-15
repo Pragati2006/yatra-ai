@@ -26,6 +26,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
+      "apiUrl": "https://yatra-ai-smap.onrender.com",
       "eas": {
         "projectId": "0642e0c7-ec1a-4c32-851e-00ec5ef72684"
       }

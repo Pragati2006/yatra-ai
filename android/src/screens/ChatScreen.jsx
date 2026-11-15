@@ -96,12 +96,19 @@ export default function ChatScreen({ navigation, route }) {
     if (u) setUser(u);
   };
 
-  const checkHealth = async () => {
+  const checkHealth = async (retryCount = 0) => {
     const url = await getRuntimeApiUrl();
     setBackendUrl(url);
     const health = await checkBackendHealth(url);
     setIsConnected(health.ok);
     setLatency(health.latencyMs);
+
+    // If initial check fails (e.g. Render cold start), auto-retry in background to catch server wake-up
+    if (!health.ok && retryCount < 2) {
+      setTimeout(() => {
+        checkHealth(retryCount + 1);
+      }, retryCount === 0 ? 3500 : 8000);
+    }
   };
 
   const handleSend = async (text) => {
@@ -159,14 +166,27 @@ export default function ChatScreen({ navigation, route }) {
         throw new Error('Empty response received from assistant');
       }
     } catch (err) {
+      const isNetworkIssue =
+        err.name === 'AbortError' ||
+        (err.message && (
+          err.message.includes('Network') ||
+          err.message.includes('timed out') ||
+          err.message.includes('Failed to fetch') ||
+          err.message.includes('Network request failed')
+        ));
+
       const errorMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Connection Notice: Unable to reach Yatra AI server at \`${backendUrl}\`.\n\n*Error: ${err.message}*\n\nPlease check that your FastAPI backend is running on your machine or configure a Cloudflare Quick Tunnel in Connection Settings.`,
+        content: isNetworkIssue
+          ? `Connection Notice: Unable to reach Yatra AI server at \`${backendUrl}\`.\n\n*Error: ${err.message}*\n\nPlease check backend connectivity or configure the server URL in Settings.`
+          : `🙏 **Jai Mata Di!**\n\nI encountered a temporary processing issue while retrieving that information (*${err.message}*). Please try again or ask about Katra weather, darshan registration, or train schedules.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMessage]);
-      setIsConnected(false);
+      if (isNetworkIssue) {
+        setIsConnected(false);
+      }
     } finally {
       setLoading(false);
     }

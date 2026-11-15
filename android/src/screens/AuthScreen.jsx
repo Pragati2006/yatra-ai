@@ -30,17 +30,29 @@ import {
   clearLocalChatMessages,
 } from '../utils/storage';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function AuthScreen({ navigation }) {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'authenticated'
+  const [step, setStep] = useState('email'); // 'email' | 'otp' | 'authenticated'
   const [loading, setLoading] = useState(false);
-  const [devOtpNotice, setDevOtpNotice] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     checkCurrentAuth();
   }, []);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const checkCurrentAuth = async () => {
     const token = await getStoredAuthToken();
@@ -51,57 +63,62 @@ export default function AuthScreen({ navigation }) {
     }
   };
 
-  const handleSendOtp = async () => {
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10-digit Indian mobile number.');
+  const handleSendOtp = async (isResend = false) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@') || !EMAIL_REGEX.test(cleanEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address (e.g., devotee@example.com).');
+      return;
+    }
+
+    if (isResend && cooldown > 0) {
+      Alert.alert('Please Wait', `You can request another verification code in ${cooldown} seconds.`);
       return;
     }
 
     setLoading(true);
-    setDevOtpNotice(null);
     try {
-      const formattedPhone = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
-      const res = await requestOtp(formattedPhone);
-
-      if (res?.otp) {
-        setDevOtpNotice(res.otp);
-      }
+      const res = await requestOtp(cleanEmail);
       setStep('otp');
-      Alert.alert('OTP Sent', `Verification code sent to ${formattedPhone}`);
-    } catch (err) {
-      // In offline/mock mode, provide development bypass
+      setCooldown(res?.cooldown_seconds || 60);
       Alert.alert(
-        'Dev Mode Notice',
-        'Backend unreachable or in test mode. Generated Dev OTP: 123456',
-        [{ text: 'Use Test OTP', onPress: () => { setDevOtpNotice('123456'); setStep('otp'); } }]
+        'Verification Code Sent',
+        `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your inbox and spam folder.`
       );
+    } catch (err) {
+      const errMsg =
+        err?.data?.detail?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Unable to send verification code. Please verify your email address and check backend connectivity.';
+      Alert.alert('Request Failed', errMsg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.trim().length < 4) {
-      Alert.alert('Invalid OTP', 'Please enter the verification code.');
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+
+    if (!cleanOtp || cleanOtp.length !== 6 || !/^\d+$/.test(cleanOtp)) {
+      Alert.alert('Invalid Code', 'Please enter the 6-digit numeric verification code.');
       return;
     }
 
     setLoading(true);
     try {
-      const cleanPhone = phone.trim().replace(/\D/g, '');
-      const formattedPhone = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
-      const res = await verifyOtp(formattedPhone, otp.trim());
+      const res = await verifyOtp(cleanEmail, cleanOtp);
 
       const userProfile = {
-        phone: formattedPhone,
+        email: res?.user?.email || cleanEmail,
+        user_id: res?.user?.user_id,
+        role: 'Devotee Pilgrim (Verified)',
         authenticatedAt: new Date().toISOString(),
-        role: 'Devotee Pilgrim',
       };
       await setStoredUser(userProfile);
       setCurrentUser(userProfile);
 
-      // Migrate guest conversation to MongoDB Atlas
+      // Non-blocking guest conversation migration to MongoDB Atlas / Cloud
       try {
         const localMsgs = await getLocalChatMessages();
         if (localMsgs && localMsgs.length > 1) {
@@ -115,29 +132,21 @@ export default function AuthScreen({ navigation }) {
       }
 
       setStep('authenticated');
-      Alert.alert('Welcome Devotee', 'You are now signed in to Yatra AI.');
+      Alert.alert('Welcome Devotee', 'You are now verified and signed in to Yatra AI.');
     } catch (err) {
-      if (otp.trim() === '123456' || otp.trim() === devOtpNotice) {
-        // Fallback for mock environments
-        const mockUser = {
-          phone: `+91${phone.trim() || '9876543210'}`,
-          authenticatedAt: new Date().toISOString(),
-          role: 'Devotee Pilgrim (Verified)',
-        };
-        await setStoredUser(mockUser);
-        setCurrentUser(mockUser);
-        setStep('authenticated');
-        Alert.alert('Sign-In Verified', 'Devotee profile established.');
-      } else {
-        Alert.alert('Verification Failed', err.message || 'Incorrect OTP code.');
-      }
+      const errMsg =
+        err?.data?.detail?.message ||
+        err?.data?.message ||
+        err?.message ||
+        'Incorrect or expired verification code. Please check the code and try again.';
+      Alert.alert('Verification Failed', errMsg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert('Confirm Logout', 'Are you sure you want to sign out?', [
+    Alert.alert('Confirm Sign Out', 'Are you sure you want to sign out from your Yatra AI session?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -146,10 +155,10 @@ export default function AuthScreen({ navigation }) {
           await logoutUser();
           await removeStoredUser();
           setCurrentUser(null);
-          setStep('phone');
-          setPhone('');
+          setStep('email');
+          setEmail('');
           setOtp('');
-          setDevOtpNotice(null);
+          setCooldown(0);
         },
       },
     ]);
@@ -159,6 +168,11 @@ export default function AuthScreen({ navigation }) {
     navigation.replace('MainTabs');
   };
 
+  const handleChangeEmail = () => {
+    setStep('email');
+    setOtp('');
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -166,7 +180,7 @@ export default function AuthScreen({ navigation }) {
     >
       <Header
         title="Devotee Authentication"
-        subtitle="Secure Yatra Profile"
+        subtitle="Passwordless Email Verification"
         showBack={true}
         onBackPress={() => navigation.goBack()}
       />
@@ -183,7 +197,7 @@ export default function AuthScreen({ navigation }) {
         {step === 'authenticated' ? (
           <View style={styles.profileCard}>
             <Text style={styles.profileBadge}>Verified Devotee</Text>
-            <Text style={styles.profilePhone}>{currentUser?.phone || '+91 98765 43210'}</Text>
+            <Text style={styles.profileEmail}>{currentUser?.email || 'devotee@example.com'}</Text>
             <Text style={styles.profileRole}>{currentUser?.role || 'Pilgrim Devotee'}</Text>
             <Text style={styles.profileDate}>
               Signed in: {new Date(currentUser?.authenticatedAt || Date.now()).toLocaleDateString()}
@@ -206,51 +220,45 @@ export default function AuthScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.formCard}>
-            {step === 'phone' ? (
+            {step === 'email' ? (
               <>
-                <Text style={styles.formTitle}>Enter Mobile Number</Text>
+                <Text style={styles.formTitle}>Devotee Email Login</Text>
                 <Text style={styles.formSubtitle}>
-                  We will send an OTP to verify your devotee booking profile.
+                  Enter your email address to receive a secure 6-digit verification code. No password or phone number required.
                 </Text>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.countryCode}>+91</Text>
                   <TextInput
-                    style={styles.phoneInput}
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="98765 43210"
+                    style={styles.emailInput}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="devotee@example.com"
                     placeholderTextColor={colors.textLight}
-                    keyboardType="phone-pad"
-                    maxLength={10}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
                   />
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.btnDisabled]}
-                  onPress={handleSendOtp}
-                  disabled={loading}
+                  style={[styles.submitBtn, (loading || !email.trim()) && styles.btnDisabled]}
+                  onPress={() => handleSendOtp(false)}
+                  disabled={loading || !email.trim()}
                 >
                   {loading ? (
                     <ActivityIndicator size="small" color={colors.surface} />
                   ) : (
-                    <Text style={styles.submitBtnText}>Get Verification Code →</Text>
+                    <Text style={styles.submitBtnText}>Send Verification Code →</Text>
                   )}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text style={styles.formTitle}>Enter 6-Digit OTP</Text>
+                <Text style={styles.formTitle}>Enter Verification Code</Text>
                 <Text style={styles.formSubtitle}>
-                  Enter the verification code sent to +91 {phone}
+                  Enter the 6-digit verification code sent to {email.trim().toLowerCase()}
                 </Text>
-
-                {devOtpNotice && (
-                  <View style={styles.devOtpCard}>
-                    <Text style={styles.devOtpLabel}>DEV / LOCAL OTP CODE:</Text>
-                    <Text style={styles.devOtpValue}>{devOtpNotice}</Text>
-                  </View>
-                )}
 
                 <TextInput
                   style={styles.otpInput}
@@ -261,25 +269,37 @@ export default function AuthScreen({ navigation }) {
                   keyboardType="number-pad"
                   maxLength={6}
                   textAlign="center"
+                  editable={!loading}
                 />
 
                 <TouchableOpacity
-                  style={[styles.submitBtn, loading && styles.btnDisabled]}
+                  style={[styles.submitBtn, (loading || otp.trim().length !== 6) && styles.btnDisabled]}
                   onPress={handleVerifyOtp}
-                  disabled={loading}
+                  disabled={loading || otp.trim().length !== 6}
                 >
                   {loading ? (
                     <ActivityIndicator size="small" color={colors.surface} />
                   ) : (
-                    <Text style={styles.submitBtnText}>Verify & Continue</Text>
+                    <Text style={styles.submitBtnText}>Verify & Enter Yatra AI →</Text>
                   )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.backToPhoneBtn}
-                  onPress={() => setStep('phone')}
+                  style={styles.resendBtn}
+                  onPress={() => handleSendOtp(true)}
+                  disabled={loading || cooldown > 0}
                 >
-                  <Text style={styles.backToPhoneText}>← Change Mobile Number</Text>
+                  <Text style={[styles.resendBtnText, cooldown > 0 && styles.resendBtnDisabled]}>
+                    {cooldown > 0 ? `Resend Code (${cooldown}s)` : 'Resend Verification Code'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.backToEmailBtn}
+                  onPress={handleChangeEmail}
+                  disabled={loading}
+                >
+                  <Text style={styles.backToEmailText}>← Change Email Address</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -301,7 +321,7 @@ export default function AuthScreen({ navigation }) {
 
         <View style={styles.securityFooter}>
           <Text style={styles.securityText}>
-            Auth tokens are encrypted using device-level secure keystore (Expo.SecureStore).
+            Authentication tokens are encrypted using device-level hardware keystore (Expo.SecureStore).
           </Text>
         </View>
       </ScrollView>
@@ -364,18 +384,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     backgroundColor: colors.surfaceSecondary,
   },
-  countryCode: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  phoneInput: {
+  emailInput: {
     flex: 1,
     height: 48,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
-    fontFamily: 'monospace',
   },
   otpInput: {
     height: 52,
@@ -404,36 +417,28 @@ const styles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.6,
   },
-  backToPhoneBtn: {
+  resendBtn: {
     marginTop: spacing.sm,
     alignItems: 'center',
     paddingVertical: spacing.xs,
   },
-  backToPhoneText: {
-    fontSize: 12,
+  resendBtnText: {
+    fontSize: 13,
     color: colors.primary,
     fontWeight: '600',
   },
-  devOtpCard: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: spacing.radiusSm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
+  resendBtnDisabled: {
+    color: colors.textLight,
+  },
+  backToEmailBtn: {
+    marginTop: spacing.xs,
     alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
-  devOtpLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  devOtpValue: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#B45309',
-    letterSpacing: 4,
-    marginTop: 2,
+  backToEmailText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   divider: {
     flexDirection: 'row',
@@ -482,8 +487,8 @@ const styles = StyleSheet.create({
     borderRadius: spacing.radiusSm,
     marginBottom: spacing.sm,
   },
-  profilePhone: {
-    fontSize: 20,
+  profileEmail: {
+    fontSize: 18,
     fontWeight: '800',
     color: colors.primary,
     marginBottom: 4,

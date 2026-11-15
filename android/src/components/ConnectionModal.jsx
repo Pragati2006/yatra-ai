@@ -96,9 +96,16 @@ export default function ConnectionModal({ visible, onClose, onConnected }) {
       return;
     }
 
-    // Require explicit acknowledgement for remote custom/tunnel URLs
+    // Require explicit acknowledgement for remote custom/tunnel URLs (exempts official production Render backend)
     const isLocal = isPrivateEndpoint(url);
-    if (!isLocal && !acknowledged) {
+    let isOfficialProd = false;
+    try {
+      const parsedHost = new URL(url).hostname;
+      isOfficialProd = (parsedHost || '').toLowerCase() === 'yatra-ai-smap.onrender.com';
+    } catch {
+      isOfficialProd = false;
+    }
+    if (!isLocal && !isOfficialProd && !acknowledged) {
       Alert.alert(
         'Security Notice',
         'You are connecting to a remote endpoint. Session tokens will be cleared upon switching backends. Please check the security confirmation checkbox before saving.'

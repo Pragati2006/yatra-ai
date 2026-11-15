@@ -168,7 +168,7 @@ export default function SettingsScreen({ navigation }) {
               onPress={() => navigation.navigate('Auth')}
               activeOpacity={0.8}
             >
-              <Text style={styles.authActionBtnText}>Sign In with Mobile OTP</Text>
+              <Text style={styles.authActionBtnText}>Sign In with Email OTP</Text>
             </TouchableOpacity>
           )}
         </View>

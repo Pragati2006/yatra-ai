@@ -255,15 +255,27 @@ def health_ready():
 @app.post("/api/chat")
 def chat(request: ChatRequest, response: Response = None, http_request: Request = None):
 
-    result = coordinator.route_message(
-        user_text=request.message,
-        session_id=request.session_id,
-        current_request=request.current_request,
-        current_itinerary=request.current_itinerary,
-        last_tourism_place=request.last_tourism_place,
-        last_itinerary_context=request.last_itinerary_context,
-        pending_options=request.pending_options,
-    )
+    try:
+        result = coordinator.route_message(
+            user_text=request.message,
+            session_id=request.session_id,
+            current_request=request.current_request,
+            current_itinerary=request.current_itinerary,
+            last_tourism_place=request.last_tourism_place,
+            last_itinerary_context=request.last_itinerary_context,
+            pending_options=request.pending_options,
+        )
+    except Exception as exc:
+        logger.error(
+            "Unhandled exception in chat processing for session '%s': %s",
+            request.session_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while processing the chat message.",
+        )
 
     # Link session to authenticated user if signed in
     if http_request is not None:
@@ -294,47 +306,58 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
     from fastapi.responses import StreamingResponse
     import json
 
-    # Link session to authenticated user if signed in
+    # Link session to authenticated user if signed in before stream begins
+    stream_user = None
     if http_request is not None:
         try:
             from backend.routes.auth import extract_session_token
             from agents.auth_service import auth_service
             token = extract_session_token(http_request)
             if token:
-                user = auth_service.get_user_by_session_token(token)
+                stream_user = auth_service.get_user_by_session_token(token)
                 sid = request.session_id
-                if user and sid:
-                    session_store.update_session_user(sid, user["user_id"])
-                    auth_service.sync_saved_conversation_messages(user["user_id"], sid)
+                if stream_user and sid:
+                    session_store.update_session_user(sid, stream_user["user_id"])
+                    auth_service.sync_saved_conversation_messages(stream_user["user_id"], sid)
         except Exception as exc:
             logger.debug("Silently ignored stream session user update error: %s", exc)
 
     def event_stream():
-        stream_gen = coordinator.route_message_stream(
-            user_text=request.message,
-            session_id=request.session_id,
-            current_request=request.current_request,
-            current_itinerary=request.current_itinerary,
-            last_tourism_place=request.last_tourism_place,
-            last_itinerary_context=request.last_itinerary_context,
-            pending_options=request.pending_options,
-        )
-        for event in stream_gen:
-            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        stream_has_error = False
+        try:
+            stream_gen = coordinator.route_message_stream(
+                user_text=request.message,
+                session_id=request.session_id,
+                current_request=request.current_request,
+                current_itinerary=request.current_itinerary,
+                last_tourism_place=request.last_tourism_place,
+                last_itinerary_context=request.last_itinerary_context,
+                pending_options=request.pending_options,
+            )
+            for event in stream_gen:
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            stream_has_error = True
+            logger.error(
+                "Unhandled exception in chat stream for session '%s': %s",
+                request.session_id,
+                exc,
+                exc_info=True,
+            )
+            error_payload = {
+                "type": "error",
+                "error": "An error occurred while streaming the response.",
+                "status": "ERROR",
+            }
+            yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
 
-        # Sync messages after stream finishes
-        if http_request is not None:
+        # Sync messages after stream finishes ONLY if no error occurred
+        if not stream_has_error and stream_user and request.session_id:
             try:
-                from backend.routes.auth import extract_session_token
                 from agents.auth_service import auth_service
-                token = extract_session_token(http_request)
-                if token:
-                    user = auth_service.get_user_by_session_token(token)
-                    sid = request.session_id
-                    if user and sid:
-                        auth_service.sync_saved_conversation_messages(user["user_id"], sid)
-            except Exception:
-                pass
+                auth_service.sync_saved_conversation_messages(stream_user["user_id"], request.session_id)
+            except Exception as exc:
+                logger.debug("Silently ignored post-stream message sync error: %s", exc)
 
     return StreamingResponse(
         event_stream(),

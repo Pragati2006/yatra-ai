@@ -109,9 +109,9 @@ export const normalizeUrl = (url) => {
 export const sanitizeBackendUrl = normalizeUrl;
 
 export const getPresetUrls = () => [
+  { label: 'Render Cloud Backend (Production)', url: 'https://yatra-ai-smap.onrender.com' },
   { label: 'Host Wi-Fi LAN (192.168.29.176:8000)', url: 'http://192.168.29.176:8000' },
   { label: 'Cloudflare Quick Tunnel', url: 'https://' },
-  { label: 'Render Cloud Backend', url: 'https://' },
   { label: 'Hugging Face Space', url: 'https://' },
   { label: 'Android Emulator (10.0.2.2:8000)', url: 'http://10.0.2.2:8000' },
   { label: 'Local LAN IP (192.168.x.x:8000)', url: 'http://192.168.1.100:8000' },

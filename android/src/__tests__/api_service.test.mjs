@@ -214,7 +214,27 @@ test('Authorization Header Isolation: Attaches to private LAN & approved tunnels
   const tunnelHeaders = prepareHeaders('https://valid-tunnel.trycloudflare.com/api/chat');
   assert.equal(tunnelHeaders['Authorization'], 'Bearer devotee-secret-token');
 
-  // 3. Rogue unapproved public host - STRICTLY BLOCKED
+  // 3. Approved Render Production Backend - Allowed
+  const renderHeaders = prepareHeaders('https://yatra-ai-smap.onrender.com/api/chat');
+  assert.equal(renderHeaders['Authorization'], 'Bearer devotee-secret-token');
+
+  // 4. Rogue unapproved public host - STRICTLY BLOCKED
   const rogueHeaders = prepareHeaders('https://attacker.example.com/api/chat');
   assert.equal(rogueHeaders['Authorization'], undefined, 'Rogue origin must not receive Authorization header');
+});
+
+test('Production Render Backend: Validates and accepts live Render URL', () => {
+  const prodUrl = 'https://yatra-ai-smap.onrender.com';
+  const result = validateBackendUrl(prodUrl);
+  assert.equal(result.isValid, true);
+  assert.equal(result.sanitizedUrl, prodUrl);
+  assert.equal(isApprovedHost('yatra-ai-smap.onrender.com'), true);
+  assert.equal(validateBackendUrl('http://yatra-ai-smap.onrender.com').isValid, false, 'Insecure HTTP to public Render must be rejected');
+});
+
+test('Production Preset: Includes live Render production backend in presets', () => {
+  const presets = getPresetUrls();
+  const renderPreset = presets.find((p) => p.url === 'https://yatra-ai-smap.onrender.com');
+  assert.ok(renderPreset, 'Render production URL must be present in preset list');
+  assert.match(renderPreset.label, /Render/i);
 });

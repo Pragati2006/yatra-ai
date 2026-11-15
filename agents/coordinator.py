@@ -21,6 +21,7 @@ This module doesn't touch Streamlit at all - app.py calls into it and
 handles all rendering, so the agent logic stays testable on its own.
 """
 import logging
+import os
 import re
 from typing import Optional, Dict, Any, List
 import agent as legacy_agent
@@ -212,13 +213,13 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
     mongodb_result = {}
     mongodb_error = None
 
-    import mongo_db
-    if mongo_db.is_available() and os.environ.get("GROQ_API_KEY"):
-        try:
+    try:
+        import mongo_db
+        if mongo_db.is_available() and os.environ.get("GROQ_API_KEY"):
             import mongodb_agent
             mongodb_result = mongodb_agent.answer_mongodb_query(user_text)
-        except Exception as exc:
-            mongodb_error = str(exc)
+    except Exception as exc:
+        mongodb_error = str(exc)
 
     # Condition A: MongoDB retrieval and LLM response succeeded
     if (

@@ -4,7 +4,8 @@
  * Integrates SecureStore token persistence and strict host policy.
  */
 
-import { validateBackendUrl } from '../utils/urlValidator';
+import Constants from 'expo-constants';
+import { validateBackendUrl } from '../utils/urlValidator.js';
 import {
   getAuthToken,
   saveAuthToken,
@@ -13,11 +14,31 @@ import {
   setStoredBackendUrl,
 } from '../utils/storage';
 
+// Production Render Cloud Backend
+export const DEFAULT_PRODUCTION_BACKEND = 'https://yatra-ai-smap.onrender.com';
 // Default development endpoint for Android Emulator
 export const DEFAULT_EMULATOR_BACKEND = 'http://10.0.2.2:8000';
 export const DEFAULT_LOCALHOST_BACKEND = 'http://127.0.0.1:8000';
 
-let activeBaseUrl = DEFAULT_EMULATOR_BACKEND;
+export const getInitialDefaultBackend = () => {
+  // 1. Check EXPO_PUBLIC_API_URL from environment (Expo build-time or runtime)
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+  }
+  // 2. Check app.json / eas.json extra config
+  const extraApiUrl = Constants?.expoConfig?.extra?.apiUrl;
+  if (extraApiUrl && typeof extraApiUrl === 'string') {
+    return extraApiUrl.trim().replace(/\/+$/, '');
+  }
+  // 3. In production mode (standalone APK / release bundle), default to live Render backend
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return DEFAULT_PRODUCTION_BACKEND;
+  }
+  // 4. Default for local emulator development
+  return DEFAULT_EMULATOR_BACKEND;
+};
+
+let activeBaseUrl = getInitialDefaultBackend();
 let isConfiguredState = false;
 let configErrorState = '';
 
@@ -36,12 +57,14 @@ export const initApiConfig = async () => {
         return { ok: true, baseUrl: activeBaseUrl };
       }
     }
-    activeBaseUrl = DEFAULT_EMULATOR_BACKEND;
+    const defaultUrl = getInitialDefaultBackend();
+    activeBaseUrl = defaultUrl;
     isConfiguredState = true;
     configErrorState = '';
     return { ok: true, baseUrl: activeBaseUrl };
   } catch (err) {
-    activeBaseUrl = DEFAULT_EMULATOR_BACKEND;
+    const defaultUrl = getInitialDefaultBackend();
+    activeBaseUrl = defaultUrl;
     isConfiguredState = false;
     configErrorState = err.message;
     return { ok: false, error: err.message };
@@ -98,8 +121,11 @@ async function request(endpoint, options = {}) {
     overrideBaseUrl = null,
   } = options;
 
-  const baseUrl = overrideBaseUrl || activeBaseUrl;
-  const url = `${baseUrl}${endpoint}`;
+  let cleanBase = (overrideBaseUrl || activeBaseUrl || getInitialDefaultBackend()).trim().replace(/\/+$/, '');
+  if (cleanBase.endsWith('/api') && endpoint.startsWith('/api/')) {
+    cleanBase = cleanBase.slice(0, -4);
+  }
+  const url = `${cleanBase}${endpoint}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -166,24 +192,31 @@ async function request(endpoint, options = {}) {
 // ==============================================================================
 
 export const checkHealth = async (overrideUrl = null) => {
-  return request('/api/health', { timeoutMs: 4000, overrideBaseUrl: overrideUrl });
+  return request('/api/health', { timeoutMs: 12000, overrideBaseUrl: overrideUrl });
 };
 
 export const checkReadiness = async (overrideUrl = null) => {
-  return request('/api/health/ready', { timeoutMs: 5000, overrideBaseUrl: overrideUrl });
+  return request('/api/health/ready', { timeoutMs: 15000, overrideBaseUrl: overrideUrl });
 };
 
 export const checkBackendHealth = async (urlToTest = null) => {
   const start = Date.now();
+  const targetUrl = urlToTest || activeBaseUrl;
+  const cleanTarget = targetUrl.trim().replace(/\/+$/, '');
   try {
-    const targetUrl = urlToTest || activeBaseUrl;
-    const cleanTarget = targetUrl.trim().replace(/\/+$/, '');
     const data = await checkHealth(cleanTarget);
     const latencyMs = Date.now() - start;
     return { ok: true, data, latencyMs };
   } catch (err) {
-    const latencyMs = Date.now() - start;
-    return { ok: false, error: err.message, latencyMs };
+    // If /api/health timed out or failed on a waking Render server, attempt readiness probe
+    try {
+      const readyData = await checkReadiness(cleanTarget);
+      const latencyMs = Date.now() - start;
+      return { ok: true, data: readyData, latencyMs };
+    } catch {
+      const latencyMs = Date.now() - start;
+      return { ok: false, error: err.message, latencyMs };
+    }
   }
 };
 
@@ -422,17 +455,17 @@ export const triggerRpaBooking = runRPA;
 // 8. AUTHENTICATION & USER DATA
 // ==============================================================================
 
-export const requestOtp = async (phoneOrEmail) => {
+export const requestOtp = async (email) => {
   return request('/api/auth/request-otp', {
     method: 'POST',
-    body: { email: phoneOrEmail, phone: phoneOrEmail },
+    body: { email },
   });
 };
 
-export const verifyOtp = async (phoneOrEmail, otpCode) => {
+export const verifyOtp = async (email, otpCode) => {
   const res = await request('/api/auth/verify-otp', {
     method: 'POST',
-    body: { email: phoneOrEmail, phone: phoneOrEmail, otp_code: otpCode },
+    body: { email, otp_code: otpCode },
   });
 
   if (res && res.session_token) {
