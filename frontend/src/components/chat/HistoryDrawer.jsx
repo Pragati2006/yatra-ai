@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, X, Plus, ScrollText, MessageSquare, Trash2 } from 'lucide-react';
-import { getSavedConversations, deleteSavedConversation, getSavedConversation } from '../../services/api';
+import {
+  getSavedConversations,
+  deleteSavedConversation,
+  getSavedConversation,
+  getLocalGuestConversations,
+  deleteLocalGuestConversation,
+} from '../../services/api';
 
 /**
  * Collapsible History Drawer / Slide-Over Panel for Yatra AI.
@@ -24,10 +30,19 @@ export default function HistoryDrawer({
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await getSavedConversations();
-      setConversations(res?.conversations || []);
+      if (user) {
+        const res = await getSavedConversations();
+        setConversations(res?.conversations || []);
+      } else {
+        const local = getLocalGuestConversations();
+        setConversations(local || []);
+      }
     } catch {
-      setErrorMsg('Could not load history. Sign in or check network.');
+      if (!user) {
+        setConversations(getLocalGuestConversations() || []);
+      } else {
+        setErrorMsg('Could not load history. Check network or sign in again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -54,7 +69,7 @@ export default function HistoryDrawer({
   const handleResume = async (conv) => {
     try {
       let fullConv = conv;
-      if (conv.conversation_id) {
+      if (user && conv.conversation_id) {
         try {
           const detail = await getSavedConversation(conv.conversation_id);
           if (detail?.conversation) {
@@ -75,7 +90,11 @@ export default function HistoryDrawer({
     e.stopPropagation();
     if (!window.confirm(`Delete conversation "${title || 'Saved Journey'}"?`)) return;
     try {
-      await deleteSavedConversation(convId);
+      if (user) {
+        await deleteSavedConversation(convId);
+      } else {
+        deleteLocalGuestConversation(convId);
+      }
       setConversations((prev) => prev.filter((c) => c.conversation_id !== convId));
     } catch {
       alert('Could not delete conversation.');
@@ -128,7 +147,7 @@ export default function HistoryDrawer({
                 Saved Journeys
               </div>
               <div style={{ fontSize: '0.7rem', color: '#E5D2AD' }}>
-                Conversation History & Trips
+                {user ? 'Account Synced • MongoDB' : 'Browser Session (Guest Mode)'}
               </div>
             </div>
           </div>
@@ -237,7 +256,8 @@ export default function HistoryDrawer({
           {!loading &&
             conversations.map((c) => {
               const isActive = activeSessionId && c.conversation_id === activeSessionId;
-              const dateStr = c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent';
+              const dateVal = c.updated_at || c.created_at;
+              const dateStr = dateVal ? new Date(dateVal).toLocaleDateString() : 'Recent';
               const title = c.title || 'Pilgrimage Planning Session';
               const msgCount = c.message_count || (Array.isArray(c.messages) ? c.messages.length : 0);
 

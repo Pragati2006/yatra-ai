@@ -318,23 +318,41 @@ def delete_saved_itinerary(user_id: str, itinerary_id: str) -> bool:
 # 4. User Saved Conversations
 # =============================================================================
 
-def save_conversation(conversation_id: str, user_id: str, title: str, now_iso: str, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+def save_conversation(
+    conversation_id: str,
+    user_id: str,
+    title: str,
+    now_iso: str,
+    messages: List[Dict[str, Any]],
+    trip_request: Optional[Dict[str, Any]] = None,
+    itinerary: Optional[Any] = None,
+) -> Dict[str, Any]:
     coll = _get_coll("auth_saved_conversations")
     existing = coll.find_one({"conversation_id": conversation_id, "user_id": user_id})
     created_at = existing.get("created_at") if existing else now_iso
 
+    set_doc = {
+        "_id": conversation_id,
+        "conversation_id": conversation_id,
+        "user_id": user_id,
+        "title": title,
+        "created_at": created_at,
+        "updated_at": now_iso,
+        "messages": messages,
+    }
+    if trip_request is not None:
+        set_doc["trip_request"] = trip_request
+    elif existing and existing.get("trip_request"):
+        set_doc["trip_request"] = existing.get("trip_request")
+
+    if itinerary is not None:
+        set_doc["itinerary"] = itinerary
+    elif existing and existing.get("itinerary"):
+        set_doc["itinerary"] = existing.get("itinerary")
+
     coll.update_one(
         {"conversation_id": conversation_id, "user_id": user_id},
-        {
-            "$set": {
-                "_id": conversation_id,
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "title": title,
-                "created_at": created_at,
-                "messages": messages,
-            }
-        },
+        {"$set": set_doc},
         upsert=True,
     )
     return {
@@ -342,20 +360,26 @@ def save_conversation(conversation_id: str, user_id: str, title: str, now_iso: s
         "user_id": user_id,
         "title": title,
         "created_at": created_at,
+        "updated_at": now_iso,
         "messages": messages,
+        "trip_request": set_doc.get("trip_request"),
+        "itinerary": set_doc.get("itinerary"),
     }
 
 
 def get_saved_conversations(user_id: str) -> List[Dict[str, Any]]:
     coll = _get_coll("auth_saved_conversations")
-    docs = coll.find({"user_id": user_id}).sort("created_at", -1)
+    docs = coll.find({"user_id": user_id}).sort([("updated_at", -1), ("created_at", -1)])
     results = []
     for d in docs:
         results.append({
             "conversation_id": d.get("conversation_id") or str(d.get("_id")),
             "title": d.get("title"),
             "created_at": d.get("created_at"),
+            "updated_at": d.get("updated_at") or d.get("created_at"),
             "messages": d.get("messages") or [],
+            "trip_request": d.get("trip_request"),
+            "itinerary": d.get("itinerary"),
         })
     return results
 
@@ -369,15 +393,19 @@ def get_saved_conversation(user_id: str, conversation_id: str) -> Optional[Dict[
         "conversation_id": doc.get("conversation_id") or str(doc.get("_id")),
         "title": doc.get("title"),
         "created_at": doc.get("created_at"),
+        "updated_at": doc.get("updated_at") or doc.get("created_at"),
         "messages": doc.get("messages") or [],
+        "trip_request": doc.get("trip_request"),
+        "itinerary": doc.get("itinerary"),
     }
 
 
 def sync_saved_conversation_messages(user_id: str, conversation_id: str, messages: List[Dict[str, Any]]) -> bool:
     coll = _get_coll("auth_saved_conversations")
+    now_iso = datetime.now(timezone.utc).isoformat()
     res = coll.update_one(
         {"user_id": user_id, "$or": [{"conversation_id": conversation_id}, {"_id": conversation_id}]},
-        {"$set": {"messages": messages}},
+        {"$set": {"messages": messages, "updated_at": now_iso}},
     )
     return res.matched_count > 0
 

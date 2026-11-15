@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, AlertTriangle, Sparkles } from 'lucide-react';
-import { sendChat, streamChat, getChatHistory } from '../services/api';
+import { sendChat, streamChat, getChatHistory, saveConversation, saveLocalGuestConversation } from '../services/api';
 import WelcomeScreen from './chat/WelcomeScreen';
 import MessageItem from './chat/MessageItem';
 import MessageComposer from './chat/MessageComposer';
@@ -16,6 +16,7 @@ const createLocalMessageId = () => `local-${Date.now()}-${Math.random().toString
 const getNowIsoString = () => new Date().toISOString();
 
 export default function AIChat({
+  user = null,
   onNavigateToBooking,
   initialMessage = null,
   onExplorePlace = null,
@@ -295,13 +296,15 @@ export default function AIChat({
 
     const latestPlanMsg = [...rawMsgs].reverse().find((m) => m.metadata && (m.metadata.plan || m.metadata.itinerary || m.metadata.request));
     const lMeta = latestPlanMsg?.metadata || {};
+    const tripReq = loadedConversation.trip_request || lMeta.request || null;
+    const itin = loadedConversation.itinerary || lMeta.itinerary || lMeta.plan?.itinerary || null;
 
     setChatState((prev) => ({
       ...prev,
       session_id: cid,
       plan_version: lMeta.plan_version || prev.plan_version || 1,
-      current_request: lMeta.request || prev.current_request,
-      current_itinerary: lMeta.itinerary || lMeta.plan?.itinerary || prev.current_itinerary,
+      current_request: tripReq || prev.current_request,
+      current_itinerary: itin || prev.current_itinerary,
       feasible_places: lMeta.feasible_places || prev.feasible_places,
       infeasible_places: lMeta.infeasible_places || prev.infeasible_places,
       pending_options: lMeta.plan?.options || prev.pending_options,
@@ -617,6 +620,45 @@ export default function AIChat({
       }
     } catch {}
   }, [messages, sharedSessionId, chatState.session_id]);
+
+  // ChatGPT-style auto-save on message updates: saves to MongoDB if authenticated, or localStorage if guest
+  useEffect(() => {
+    const nonGreetingMsgs = messages.filter((m) => m && m.id !== 'default-greeting');
+    if (nonGreetingMsgs.length === 0) return;
+
+    const activeSid = sharedSessionId || chatState.session_id;
+    if (!activeSid) return;
+
+    // Derive title from first user message
+    const firstUserMsg = nonGreetingMsgs.find((m) => m.role === 'user');
+    const firstLine = firstUserMsg?.content ? firstUserMsg.content.split('\n')[0].trim() : '';
+    const derivedTitle = firstLine ? (firstLine.length > 45 ? `${firstLine.slice(0, 45)}...` : firstLine) : 'Pilgrimage Consultation';
+
+    const saveObj = {
+      conversation_id: activeSid,
+      title: loadedConversation?.title || derivedTitle,
+      created_at: loadedConversation?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      messages: messages,
+      trip_request: chatState.current_request || null,
+      itinerary: chatState.current_itinerary || null,
+      message_count: messages.length,
+    };
+
+    if (user) {
+      saveConversation(
+        saveObj.title,
+        messages,
+        activeSid,
+        saveObj.trip_request,
+        saveObj.itinerary
+      ).catch((err) => {
+        console.debug('Background server auto-save notice:', err);
+      });
+    } else {
+      saveLocalGuestConversation(saveObj);
+    }
+  }, [messages, user, chatState.session_id, sharedSessionId, chatState.current_request, chatState.current_itinerary]);
 
   useEffect(() => {
     try {

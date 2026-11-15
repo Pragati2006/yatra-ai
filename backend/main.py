@@ -294,6 +294,21 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
     from fastapi.responses import StreamingResponse
     import json
 
+    # Link session to authenticated user if signed in
+    if http_request is not None:
+        try:
+            from backend.routes.auth import extract_session_token
+            from agents.auth_service import auth_service
+            token = extract_session_token(http_request)
+            if token:
+                user = auth_service.get_user_by_session_token(token)
+                sid = request.session_id
+                if user and sid:
+                    session_store.update_session_user(sid, user["user_id"])
+                    auth_service.sync_saved_conversation_messages(user["user_id"], sid)
+        except Exception as exc:
+            logger.debug("Silently ignored stream session user update error: %s", exc)
+
     def event_stream():
         stream_gen = coordinator.route_message_stream(
             user_text=request.message,
@@ -307,6 +322,20 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
         for event in stream_gen:
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
+        # Sync messages after stream finishes
+        if http_request is not None:
+            try:
+                from backend.routes.auth import extract_session_token
+                from agents.auth_service import auth_service
+                token = extract_session_token(http_request)
+                if token:
+                    user = auth_service.get_user_by_session_token(token)
+                    sid = request.session_id
+                    if user and sid:
+                        auth_service.sync_saved_conversation_messages(user["user_id"], sid)
+            except Exception:
+                pass
+
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
@@ -319,16 +348,50 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
 
 
 @app.get("/api/chat/history/{session_id}")
-def get_chat_history(session_id: str):
+def get_chat_history(session_id: str, http_request: Request = None):
     """
     Returns persistent chat history for a session in chronological order.
     Returns an empty message list for unknown or new sessions without creating a session record.
+    Enforces per-user data isolation: rejects unauthorized access if session is owned by a user.
     Raises HTTPException 500 on database retrieval errors.
     """
     try:
+        from agents.auth_service import auth_service
+        # Verify ownership if session is bound to an authenticated user
+        session_obj = session_store.get_session(session_id)
+        owner_user_id = session_obj.get("user_id") if session_obj else None
+
+        doc_owner_id = None
+        if not owner_user_id:
+            if auth_service.is_mongodb():
+                try:
+                    from agents import mongo_store
+                    conv_coll = mongo_store._get_coll("auth_saved_conversations")
+                    d = conv_coll.find_one({"$or": [{"conversation_id": session_id}, {"_id": session_id}]})
+                    if d:
+                        doc_owner_id = d.get("user_id")
+                except Exception:
+                    pass
+            else:
+                import sqlite3
+                try:
+                    with sqlite3.connect(auth_service.db_path, timeout=5.0) as conn:
+                        row = conn.cursor().execute("SELECT user_id FROM saved_conversations WHERE conversation_id = ?", (session_id,)).fetchone()
+                        if row:
+                            doc_owner_id = row[0]
+                except Exception:
+                    pass
+
+        target_owner_id = owner_user_id or doc_owner_id
+        if target_owner_id and http_request is not None:
+            from backend.routes.auth import extract_session_token
+            token = extract_session_token(http_request)
+            current_user = auth_service.get_user_by_session_token(token) if token else None
+            if not current_user or current_user.get("user_id") != target_owner_id:
+                raise HTTPException(status_code=403, detail="Access denied to private conversation history.")
+
         messages = session_store.get_messages(session_id)
         if not messages:
-            from agents.auth_service import auth_service
             if auth_service.is_mongodb():
                 try:
                     from agents import mongo_store
@@ -354,6 +417,8 @@ def get_chat_history(session_id: str):
             "session_id": session_id,
             "messages": messages,
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Failed to retrieve chat history for session %s: %s", session_id, type(exc).__name__)
         raise HTTPException(

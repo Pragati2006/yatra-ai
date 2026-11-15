@@ -254,8 +254,10 @@ def get_email_provider() -> BaseEmailProvider:
     if _email_provider is not None:
         return _email_provider
     if is_production_mode():
-        return SMTPEmailProvider()
-    return MockEmailProvider()
+        _email_provider = SMTPEmailProvider()
+    else:
+        _email_provider = MockEmailProvider()
+    return _email_provider
 
 
 def set_email_provider(provider: Optional[BaseEmailProvider]):
@@ -353,6 +355,14 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
             ON saved_conversations (user_id);
             """
         )
+        try:
+            cursor.execute("ALTER TABLE saved_conversations ADD COLUMN updated_at TEXT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE saved_conversations ADD COLUMN metadata_json TEXT")
+        except Exception:
+            pass
         # 6. User Bookings Table (Persistent simulated booking records associated with user_id)
         cursor.execute(
             """
@@ -395,6 +405,21 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
 # -----------------------------------------------------------------------------
 # 4. Authentication Service Implementation
 # -----------------------------------------------------------------------------
+
+def derive_conversation_title(messages: List[Dict[str, Any]], fallback: str = "Yatra Consultation Chat") -> str:
+    """Derives a concise, meaningful title from the first user prompt or intent."""
+    if not messages:
+        return fallback
+    for m in messages:
+        if m.get("role") == "user" and m.get("content"):
+            content = str(m.get("content", "")).strip()
+            first_line = content.split("\n")[0].strip()
+            if first_line:
+                if len(first_line) > 50:
+                    return first_line[:47].rstrip() + "..."
+                return first_line
+    return fallback
+
 
 class AuthService:
     """Core service managing passwordless email OTP authentication and user data."""
@@ -1018,26 +1043,39 @@ class AuthService:
     def save_conversation(
         self,
         user_id: str,
-        title: str,
-        messages: List[Dict[str, Any]],
+        title: Optional[str] = None,
+        messages: Optional[List[Dict[str, Any]]] = None,
         conversation_id: Optional[str] = None,
+        trip_request: Optional[Dict[str, Any]] = None,
+        itinerary: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Saves or updates a conversational chat thread for authenticated user."""
         conv_id = (conversation_id.strip() if conversation_id and conversation_id.strip() else f"conv_{uuid.uuid4().hex[:12]}")
         now_iso = datetime.now(timezone.utc).isoformat()
-        t_clean = (title or "Yatra Consultation Chat").strip()
+        msgs = messages or []
+        t_clean = (title or "").strip()
+        if not t_clean or t_clean in ("Yatra Consultation Chat", "New Chat", "Pilgrimage Consultation"):
+            t_clean = derive_conversation_title(msgs, fallback=t_clean or "Yatra Consultation Chat")
 
         if self.is_mongodb():
             from agents import mongo_store
-            res = mongo_store.save_conversation(conv_id, user_id, t_clean, now_iso, messages)
+            res = mongo_store.save_conversation(
+                conversation_id=conv_id,
+                user_id=user_id,
+                title=t_clean,
+                now_iso=now_iso,
+                messages=msgs,
+                trip_request=trip_request,
+                itinerary=itinerary,
+            )
             try:
                 from agents import session_store
                 session_rec = session_store.get_session(conv_id)
                 if not session_rec:
                     session_store.create_session(session_id=conv_id, user_id=user_id)
                 existing_msgs = session_store.get_messages(conv_id)
-                if not existing_msgs and messages:
-                    for m in messages:
+                if not existing_msgs and msgs:
+                    for m in msgs:
                         session_store.add_message(
                             session_id=conv_id,
                             role=m.get("role", "user"),
@@ -1053,32 +1091,41 @@ class AuthService:
                 logger.debug("Silently ignored session_store sync in save_conversation: %s", exc)
             return res
 
+        meta_dict = {}
+        if trip_request:
+            meta_dict["trip_request"] = trip_request
+        if itinerary:
+            meta_dict["itinerary"] = itinerary
+        meta_json = json.dumps(meta_dict) if meta_dict else None
+
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
-            # Check if this conversation already exists for this user
             cursor.execute(
-                "SELECT created_at FROM saved_conversations WHERE conversation_id = ? AND user_id = ?",
+                "SELECT created_at, metadata_json FROM saved_conversations WHERE conversation_id = ? AND user_id = ?",
                 (conv_id, user_id),
             )
             existing_row = cursor.fetchone()
             if existing_row:
                 created_at = existing_row[0]
+                existing_meta_str = existing_row[1]
+                if not meta_json and existing_meta_str:
+                    meta_json = existing_meta_str
                 cursor.execute(
                     """
                     UPDATE saved_conversations
-                    SET title = ?, messages_json = ?
+                    SET title = ?, messages_json = ?, updated_at = ?, metadata_json = ?
                     WHERE conversation_id = ? AND user_id = ?
                     """,
-                    (t_clean, json.dumps(messages), conv_id, user_id),
+                    (t_clean, json.dumps(msgs), now_iso, meta_json, conv_id, user_id),
                 )
             else:
                 created_at = now_iso
                 cursor.execute(
                     """
-                    INSERT INTO saved_conversations (conversation_id, user_id, title, created_at, messages_json)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO saved_conversations (conversation_id, user_id, title, created_at, updated_at, messages_json, metadata_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (conv_id, user_id, t_clean, created_at, json.dumps(messages)),
+                    (conv_id, user_id, t_clean, created_at, now_iso, json.dumps(msgs), meta_json),
                 )
             conn.commit()
 
@@ -1088,10 +1135,9 @@ class AuthService:
             session_rec = session_store.get_session(conv_id)
             if not session_rec:
                 session_store.create_session(session_id=conv_id, user_id=user_id)
-            # Ensure historical messages exist in session_store messages table
             existing_msgs = session_store.get_messages(conv_id)
-            if not existing_msgs and messages:
-                for m in messages:
+            if not existing_msgs and msgs:
+                for m in msgs:
                     session_store.add_message(
                         session_id=conv_id,
                         role=m.get("role", "user"),
@@ -1111,7 +1157,10 @@ class AuthService:
             "user_id": user_id,
             "title": t_clean,
             "created_at": created_at,
-            "messages": messages,
+            "updated_at": now_iso,
+            "messages": msgs,
+            "trip_request": trip_request,
+            "itinerary": itinerary,
         }
 
     def get_saved_conversations(self, user_id: str) -> List[Dict[str, Any]]:
@@ -1124,23 +1173,32 @@ class AuthService:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT conversation_id, title, created_at, messages_json
+                SELECT conversation_id, title, created_at, updated_at, messages_json, metadata_json
                 FROM saved_conversations
                 WHERE user_id = ?
-                ORDER BY created_at DESC
+                ORDER BY COALESCE(updated_at, created_at) DESC
                 """,
                 (user_id,),
             )
             rows = cursor.fetchall()
-            return [
-                {
+            results = []
+            for r in rows:
+                meta = {}
+                if len(r) > 5 and r[5]:
+                    try:
+                        meta = json.loads(r[5])
+                    except Exception:
+                        meta = {}
+                results.append({
                     "conversation_id": r[0],
                     "title": r[1],
                     "created_at": r[2],
-                    "messages": json.loads(r[3]),
-                }
-                for r in rows
-            ]
+                    "updated_at": r[3] or r[2],
+                    "messages": json.loads(r[4]) if r[4] else [],
+                    "trip_request": meta.get("trip_request"),
+                    "itinerary": meta.get("itinerary"),
+                })
+            return results
 
     def get_saved_conversation(self, user_id: str, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves a single saved conversation strictly verifying user ownership."""
@@ -1154,7 +1212,7 @@ class AuthService:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT conversation_id, title, created_at, messages_json
+                SELECT conversation_id, title, created_at, updated_at, messages_json, metadata_json
                 FROM saved_conversations
                 WHERE conversation_id = ? AND user_id = ?
                 """,
@@ -1164,11 +1222,18 @@ class AuthService:
             if not row:
                 return None
 
-            cid, title, created_at, msgs_raw = row
+            cid, title, created_at, updated_at, msgs_raw, meta_raw = row
             try:
                 parsed_msgs = json.loads(msgs_raw)
             except Exception:
                 parsed_msgs = []
+
+            meta = {}
+            if meta_raw:
+                try:
+                    meta = json.loads(meta_raw)
+                except Exception:
+                    meta = {}
 
         # Ensure session_store has this session record and messages synchronized for continuation
         try:
@@ -1198,33 +1263,57 @@ class AuthService:
             "user_id": user_id,
             "title": title,
             "created_at": created_at,
+            "updated_at": updated_at or created_at,
             "messages": parsed_msgs,
+            "trip_request": meta.get("trip_request"),
+            "itinerary": meta.get("itinerary"),
         }
 
     def sync_saved_conversation_messages(self, user_id: str, conversation_id: str) -> bool:
-        """Syncs newly added messages from session_store back into saved_conversations."""
+        """Syncs newly added messages from session_store back into saved_conversations, auto-saving if not existing."""
         if not user_id or not conversation_id:
             return False
+        from agents import session_store
+        latest_msgs = session_store.get_messages(conversation_id.strip())
+        if not latest_msgs:
+            return False
+
+        cleaned = [
+            {
+                "id": m.get("id"),
+                "role": m.get("role"),
+                "content": m.get("content"),
+                "created_at": m.get("created_at"),
+                "metadata": m.get("metadata"),
+            }
+            for m in latest_msgs
+        ]
+
+        trip_req = None
+        itin = None
+        for m in reversed(cleaned):
+            meta = m.get("metadata") or {}
+            if not trip_req and meta.get("request"):
+                trip_req = meta.get("request")
+            if not itin and (meta.get("itinerary") or meta.get("plan")):
+                itin = meta.get("itinerary") or meta.get("plan")
+
         if self.is_mongodb():
             from agents import mongo_store
-            from agents import session_store
             conv = mongo_store.get_saved_conversation(user_id, conversation_id)
             if not conv:
-                return False
-            latest_msgs = session_store.get_messages(conversation_id.strip())
-            if latest_msgs:
-                cleaned = [
-                    {
-                        "id": m.get("id"),
-                        "role": m.get("role"),
-                        "content": m.get("content"),
-                        "created_at": m.get("created_at"),
-                        "metadata": m.get("metadata"),
-                    }
-                    for m in latest_msgs
-                ]
-                return mongo_store.sync_saved_conversation_messages(user_id, conversation_id, cleaned)
-            return True
+                auto_title = derive_conversation_title(cleaned)
+                mongo_store.save_conversation(
+                    conversation_id=conversation_id.strip(),
+                    user_id=user_id.strip(),
+                    title=auto_title,
+                    now_iso=datetime.now(timezone.utc).isoformat(),
+                    messages=cleaned,
+                    trip_request=trip_req,
+                    itinerary=itin,
+                )
+                return True
+            return mongo_store.sync_saved_conversation_messages(user_id, conversation_id, cleaned)
 
         with sqlite3.connect(self.db_path, timeout=10.0) as conn:
             cursor = conn.cursor()
@@ -1232,34 +1321,25 @@ class AuthService:
                 "SELECT 1 FROM saved_conversations WHERE conversation_id = ? AND user_id = ?",
                 (conversation_id.strip(), user_id.strip()),
             )
-            if not cursor.fetchone():
-                return False
-
-        try:
-            from agents import session_store
-            latest_msgs = session_store.get_messages(conversation_id.strip())
-            if latest_msgs:
-                cleaned = [
-                    {
-                        "id": m.get("id"),
-                        "role": m.get("role"),
-                        "content": m.get("content"),
-                        "created_at": m.get("created_at"),
-                        "metadata": m.get("metadata"),
-                    }
-                    for m in latest_msgs
-                ]
-                with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "UPDATE saved_conversations SET messages_json = ? WHERE conversation_id = ? AND user_id = ?",
-                        (json.dumps(cleaned), conversation_id.strip(), user_id.strip()),
-                    )
-                    conn.commit()
-                return True
-        except Exception as exc:
-            logger.debug("Silently ignored sync_saved_conversation_messages: %s", exc)
-        return False
+            exists = cursor.fetchone()
+            now_iso = datetime.now(timezone.utc).isoformat()
+            if not exists:
+                auto_title = derive_conversation_title(cleaned)
+                meta_json = json.dumps({"trip_request": trip_req, "itinerary": itin}) if (trip_req or itin) else None
+                cursor.execute(
+                    """
+                    INSERT INTO saved_conversations (conversation_id, user_id, title, created_at, updated_at, messages_json, metadata_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (conversation_id.strip(), user_id.strip(), auto_title, now_iso, now_iso, json.dumps(cleaned), meta_json),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE saved_conversations SET messages_json = ?, updated_at = ? WHERE conversation_id = ? AND user_id = ?",
+                    (json.dumps(cleaned), now_iso, conversation_id.strip(), user_id.strip()),
+                )
+            conn.commit()
+            return True
 
     def delete_saved_conversation(self, user_id: str, conversation_id: str) -> bool:
         """Deletes a saved conversation strictly verifying user ownership."""
@@ -1497,7 +1577,6 @@ class AuthService:
         if not messages:
             return None
 
-        t_clean = (title or f"Yatra Consultation ({session_id[:8]})").strip()
         cleaned_msgs = [
             {
                 "id": m.get("id"),
@@ -1508,7 +1587,28 @@ class AuthService:
             }
             for m in messages
         ]
-        saved = self.save_conversation(user_id=user_id, title=t_clean, messages=cleaned_msgs, conversation_id=session_id)
+
+        t_clean = (title or "").strip()
+        if not t_clean or t_clean.startswith("Yatra Consultation ("):
+            t_clean = derive_conversation_title(cleaned_msgs, fallback=f"Yatra Consultation ({session_id[:8]})")
+
+        trip_req = None
+        itin = None
+        for m in reversed(cleaned_msgs):
+            meta = m.get("metadata") or {}
+            if not trip_req and meta.get("request"):
+                trip_req = meta.get("request")
+            if not itin and (meta.get("itinerary") or meta.get("plan")):
+                itin = meta.get("itinerary") or meta.get("plan")
+
+        saved = self.save_conversation(
+            user_id=user_id,
+            title=t_clean,
+            messages=cleaned_msgs,
+            conversation_id=session_id,
+            trip_request=trip_req,
+            itinerary=itin,
+        )
         # Tag session with user_id in sessions.db
         session_store.update_session_user(session_id, user_id, db_path=sessions_db_path)
         return saved

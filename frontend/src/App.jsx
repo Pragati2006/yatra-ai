@@ -22,6 +22,9 @@ import {
   resolveApiConfig,
   isDevelopment,
   isProduction,
+  saveConversation,
+  getLocalGuestConversations,
+  clearLocalGuestConversations,
 } from './services/api';
 import './App.css';
 
@@ -376,6 +379,7 @@ export default function App() {
         {/* 1. Primary AI Assistant View (Full-Screen Conversational Experience) */}
         {hasStartedJourney && (activeTab === 'assistant' || activeTab === 'home') && (
           <AIChat
+            user={currentUser}
             initialMessage={assistantInitialQuery}
             loadedConversation={activeConversation}
             onClearLoadedConversation={() => setActiveConversation(null)}
@@ -484,9 +488,28 @@ export default function App() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={(user, token) => {
+        onAuthSuccess={async (user, token) => {
           setCurrentUser(user);
           if (token) setAuthToken(token);
+          try {
+            const guestConvs = getLocalGuestConversations();
+            if (guestConvs && guestConvs.length > 0) {
+              for (const gc of guestConvs) {
+                if (gc.messages && gc.messages.length > 0) {
+                  await saveConversation(
+                    gc.title || 'Saved Journey',
+                    gc.messages,
+                    gc.conversation_id,
+                    gc.trip_request,
+                    gc.itinerary
+                  );
+                }
+              }
+              clearLocalGuestConversations();
+            }
+          } catch (err) {
+            console.debug('Silent error migrating guest conversations on login:', err);
+          }
         }}
       />
 

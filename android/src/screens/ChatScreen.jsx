@@ -1,0 +1,267 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import Header from '../components/Header';
+import StatusBanner from '../components/StatusBanner';
+import ChatBubble from '../components/ChatBubble';
+import MessageComposer from '../components/MessageComposer';
+import ConnectionModal from '../components/ConnectionModal';
+import * as Speech from 'expo-speech';
+import { sendChatMessage, checkBackendHealth, getRuntimeApiUrl, saveConversation } from '../services/api';
+import { getStoredUser, getLocalChatMessages, saveLocalChatMessages } from '../utils/storage';
+
+const QUICK_SUGGESTIONS = [
+  'Weather at Bhawan',
+  'Helicopter from Katra to Sanjichhat',
+  'Vande Bharat Express train schedule',
+  'Ardhkuwari cave darshan wait time',
+  'How to book Yatra Parchi?',
+];
+
+const INITIAL_WELCOME_MESSAGE = {
+  id: 'welcome-1',
+  role: 'assistant',
+  content:
+    'Jai Mata Di! Welcome to Yatra AI — your intelligent pilgrimage guide for Shri Mata Vaishno Devi Ji.\n\nI can assist you with:\n- **Darshan & Aarti Timings**\n- **Live Elevation-Aware Weather**\n- **Train, Bus & Helicopter Schedules**\n- **Verified Accommodation & Shrine Board Bhawans**\n- **Guided Booking Simulation**\n\nHow may I assist your holy pilgrimage today?',
+  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+};
+
+export default function ChatScreen({ navigation, route }) {
+  const [messages, setMessages] = useState([INITIAL_WELCOME_MESSAGE]);
+  const [loading, setLoading] = useState(false);
+  const [backendUrl, setBackendUrl] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [latency, setLatency] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [user, setUser] = useState(null);
+  const [sessionId, setSessionId] = useState(
+    () => route?.params?.sessionId || `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  );
+  const [activeTripRequest, setActiveTripRequest] = useState(null);
+  const flatListRef = useRef(null);
+
+  useEffect(() => {
+    checkHealth();
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (route?.params?.sessionId) {
+      setSessionId(route.params.sessionId);
+      if (route?.params?.messages && Array.isArray(route.params.messages) && route.params.messages.length > 0) {
+        setMessages(route.params.messages);
+      }
+      if (route?.params?.tripRequest) {
+        setActiveTripRequest(route.params.tripRequest);
+      }
+    } else {
+      // Fresh app launch starts with a clean new conversation session
+      const freshSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setSessionId(freshSid);
+      setMessages([INITIAL_WELCOME_MESSAGE]);
+      setActiveTripRequest(null);
+    }
+  }, [route?.params?.sessionId, route?.params?.loadedAt]);
+
+  const handleStartNewChat = () => {
+    const freshSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setSessionId(freshSid);
+    setMessages([INITIAL_WELCOME_MESSAGE]);
+    setActiveTripRequest(null);
+  };
+
+  useEffect(() => {
+    if (messages.length > 1 && sessionId) {
+      saveLocalChatMessages(messages);
+      const firstUserMsg = messages.find((m) => m.role === 'user');
+      const title = firstUserMsg?.content
+        ? (firstUserMsg.content.slice(0, 45) + (firstUserMsg.content.length > 45 ? '...' : ''))
+        : 'Pilgrimage Consultation';
+      saveConversation(title, messages, sessionId, activeTripRequest, null).catch(() => {});
+    }
+  }, [messages, sessionId]);
+
+  const loadUser = async () => {
+    const u = await getStoredUser();
+    if (u) setUser(u);
+  };
+
+  const checkHealth = async () => {
+    const url = await getRuntimeApiUrl();
+    setBackendUrl(url);
+    const health = await checkBackendHealth(url);
+    setIsConnected(health.ok);
+    setLatency(health.latencyMs);
+  };
+
+  const handleSend = async (text) => {
+    if (!text || !text.trim()) return;
+
+    // Immediately stop ongoing Text-to-Speech audio if active
+    try {
+      Speech.stop();
+    } catch {
+      // ignore
+    }
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
+
+    try {
+      const response = await sendChatMessage(text.trim(), sessionId);
+      if (response && response.response) {
+        if (response.session_id) {
+          setSessionId(response.session_id);
+        }
+        if (response.request) {
+          setActiveTripRequest(response.request);
+        }
+        // Detect if booking intent is present
+        const hasBooking =
+          text.toLowerCase().includes('book') ||
+          text.toLowerCase().includes('parchi') ||
+          text.toLowerCase().includes('ticket') ||
+          text.toLowerCase().includes('helicopter') ||
+          response.response.toLowerCase().includes('booking handoff') ||
+          response.response.toLowerCase().includes('parchi');
+
+        const aiMessage = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          bookingHandoff: hasBooking
+            ? {
+                title: 'Ready to proceed with Parchi / Service Booking?',
+                service: 'Vaishno Devi Yatra Registration',
+              }
+            : null,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error('Empty response received from assistant');
+      }
+    } catch (err) {
+      const errorMessage = {
+        id: `err-${Date.now()}`,
+        role: 'assistant',
+        content: `Connection Notice: Unable to reach Yatra AI server at \`${backendUrl}\`.\n\n*Error: ${err.message}*\n\nPlease check that your FastAPI backend is running on your machine or configure a Cloudflare Quick Tunnel in Connection Settings.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      setIsConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookingHandoff = (bookingData) => {
+    navigation.navigate('Booking', { initialService: bookingData?.service || 'Yatra Parchi' });
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <Header
+        title="Yatra AI Assistant"
+        subtitle="Maa Vaishno Devi Guide"
+        isConnected={isConnected}
+        user={user}
+        onNewChatPress={handleStartNewChat}
+        onSettingsPress={() => setModalVisible(true)}
+        onOpenHistory={() => navigation.navigate('History')}
+        onOpenAuth={() => navigation.navigate('Auth')}
+      />
+
+      <StatusBanner
+        backendUrl={backendUrl}
+        isConnected={isConnected}
+        latency={latency}
+        onPress={() => setModalVisible(true)}
+      />
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <ChatBubble
+            message={item}
+            onActionPress={handleBookingHandoff}
+            onNavigateToBooking={handleBookingHandoff}
+          />
+        )}
+        contentContainerStyle={styles.messageList}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        ListFooterComponent={
+          loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.loadingText}>Mata Rani Sahayata... consulting Yatra AI</Text>
+            </View>
+          ) : null
+        }
+      />
+
+      <MessageComposer
+        onSend={handleSend}
+        disabled={loading}
+        isLoading={loading}
+        suggestions={messages.length <= 3 ? QUICK_SUGGESTIONS : []}
+      />
+
+      <ConnectionModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onConnected={(newUrl) => {
+          setBackendUrl(newUrl);
+          checkHealth();
+        }}
+      />
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  messageList: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontStyle: 'italic',
+  },
+});

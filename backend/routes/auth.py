@@ -129,15 +129,15 @@ def extract_session_token(
     Prioritizes explicit Authorization header before ambient cookie.
     """
     # 1. Check explicit parameter or header
-    if authorization and authorization.lower().startswith("bearer "):
+    if authorization and isinstance(authorization, str) and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
-    auth_hdr = request.headers.get("Authorization")
-    if auth_hdr and auth_hdr.lower().startswith("bearer "):
+    auth_hdr = request.headers.get("Authorization") if request and hasattr(request, "headers") else None
+    if auth_hdr and isinstance(auth_hdr, str) and auth_hdr.lower().startswith("bearer "):
         return auth_hdr[7:].strip()
     # 2. Check explicit cookie param or request cookies
-    if cookie_token:
+    if cookie_token and isinstance(cookie_token, str):
         return cookie_token
-    if AUTH_COOKIE_NAME in request.cookies:
+    if request and hasattr(request, "cookies") and AUTH_COOKIE_NAME in request.cookies:
         return request.cookies[AUTH_COOKIE_NAME]
     return None
 
@@ -161,9 +161,11 @@ class SaveItineraryRequest(BaseModel):
 
 
 class SaveConversationRequest(BaseModel):
-    title: str = Field(default="Yatra Consultation Chat", description="Title of chat thread")
+    title: Optional[str] = Field(default=None, description="Title of chat thread")
     messages: List[Dict[str, Any]] = Field(..., description="List of chat messages")
     conversation_id: Optional[str] = Field(default=None, description="Optional conversation ID to update")
+    trip_request: Optional[Dict[str, Any]] = Field(default=None, description="Optional trip request context")
+    itinerary: Optional[Any] = Field(default=None, description="Optional itinerary context")
 
 
 class SaveBookingRequest(BaseModel):
@@ -419,6 +421,8 @@ def save_conversation_endpoint(payload: SaveConversationRequest, request: Reques
         title=payload.title,
         messages=payload.messages,
         conversation_id=payload.conversation_id,
+        trip_request=payload.trip_request,
+        itinerary=payload.itinerary,
     )
     return {
         "status": "success",

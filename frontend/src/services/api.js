@@ -609,8 +609,59 @@ export const deleteSavedItinerary = async (itineraryId) => {
   return response.data;
 };
 
-export const saveConversation = async (title, messages) => {
-  const response = await client.post('/api/auth/save-conversation', { title, messages });
+export const getLocalGuestConversations = () => {
+  try {
+    const raw = localStorage.getItem('yatra_guest_conversations');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveLocalGuestConversation = (conv) => {
+  try {
+    if (!conv || !conv.conversation_id) return null;
+    const list = getLocalGuestConversations();
+    const idx = list.findIndex((c) => c.conversation_id === conv.conversation_id);
+    const updated = {
+      ...conv,
+      updated_at: new Date().toISOString(),
+      created_at: conv.created_at || (idx >= 0 ? list[idx].created_at : new Date().toISOString()),
+    };
+    if (idx >= 0) {
+      list[idx] = updated;
+    } else {
+      list.unshift(updated);
+    }
+    localStorage.setItem('yatra_guest_conversations', JSON.stringify(list));
+    return updated;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteLocalGuestConversation = (convId) => {
+  try {
+    const list = getLocalGuestConversations().filter((c) => c.conversation_id !== convId);
+    localStorage.setItem('yatra_guest_conversations', JSON.stringify(list));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const clearLocalGuestConversations = () => {
+  try {
+    localStorage.removeItem('yatra_guest_conversations');
+  } catch {}
+};
+
+export const saveConversation = async (title, messages, conversationId = null, tripRequest = null, itinerary = null) => {
+  const payload = { title, messages };
+  if (conversationId) payload.conversation_id = conversationId;
+  if (tripRequest) payload.trip_request = tripRequest;
+  if (itinerary) payload.itinerary = itinerary;
+  const response = await client.post('/api/auth/save-conversation', payload);
   return response.data;
 };
 
@@ -693,6 +744,10 @@ export default {
   getSavedConversations,
   getSavedConversation,
   deleteSavedConversation,
+  getLocalGuestConversations,
+  saveLocalGuestConversation,
+  deleteLocalGuestConversation,
+  clearLocalGuestConversations,
   getSavedBookings,
   getSavedBooking,
   saveBooking,
