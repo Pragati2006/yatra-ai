@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
@@ -17,6 +18,7 @@ import { fetchChatHistory } from '../services/api';
 import { getLocalChatMessages } from '../utils/storage';
 
 export default function HistoryScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +174,10 @@ export default function HistoryScreen({ navigation }) {
           data={history}
           keyExtractor={(item, idx) => item.session_id || String(idx)}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom, spacing.md) },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

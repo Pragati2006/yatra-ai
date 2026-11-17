@@ -207,11 +207,11 @@ const styles = StyleSheet.create({
   durationText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.gold,
+    color: colors.goldDark,
   },
   arrowLine: {
     fontSize: 10,
-    color: colors.goldBorder,
+    color: colors.goldDark,
     marginTop: 1,
   },
   bottomRow: {

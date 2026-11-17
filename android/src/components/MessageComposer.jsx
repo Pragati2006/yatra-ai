@@ -200,6 +200,7 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsContainer}
+        keyboardShouldPersistTaps="handled"
       >
         {chipList.map((p, idx) => (
           <TouchableOpacity
@@ -298,7 +299,7 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           placeholder={
             micState === 'listening' ? 'Listening... Speak now' : "Ask Yatra AI (e.g. 'How to reach Bhawan?')"
           }
-          placeholderTextColor="#7E6E6E"
+          placeholderTextColor={colors.textPlaceholder}
           value={text}
           onChangeText={setText}
           onFocus={() => setIsFocused(true)}
@@ -306,8 +307,8 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           multiline
           maxLength={1000}
           editable={!isBusy}
-          cursorColor="#58111A"
-          selectionColor="#E5D2AD"
+          cursorColor={colors.burgundy}
+          selectionColor={colors.goldBorder}
           accessibilityLabel="Message input field"
         />
 
@@ -365,9 +366,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   chipText: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: colors.burgundy,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   statusBanner: {
     backgroundColor: '#FFF9F0',
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-    color: '#1A0407',
+    color: colors.text,
     minHeight: 40,
     maxHeight: 110,
     paddingTop: 8,

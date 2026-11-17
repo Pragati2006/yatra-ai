@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   tariffVal: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.gold,
+    color: colors.goldDark,
     marginTop: 1,
   },
   selectBtn: {

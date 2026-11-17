@@ -1,52 +1,69 @@
 /**
  * Yatra AI Design System — Color Palette
- * Matches official Yatra AI Web Identity:
- * Primary: Deep Sacred Burgundy
- * Background: Warm Ivory & Light Cream
- * Accents: Muted Temple Gold & Saffron Ochre
+ * Matches official Yatra AI Web Identity & Accessible Mobile UI:
+ * Primary: Deep Sacred Burgundy (#71152C)
+ * Background: Warm Ivory (#FAF7F0)
+ * Surface / Cards: Crisp White (#FFFFFF)
+ * Accents: Muted Temple Gold (#C18A00) & Deep Dark Gold Text (#805900)
+ * Typography: High contrast charcoal brown (#302329) & warm slate (#65575B)
+ * Fully compliant with WCAG AA (4.5:1 for normal text, 3:1 for large text/components).
  */
 
 export const colors = {
   // Brand Primary (Sacred Burgundy)
-  burgundy: '#58111A',
-  burgundyDark: '#3E0A12',
-  burgundyLight: '#7A1C27',
+  primary: '#71152C',
+  primaryDark: '#4E0B1B',
+  primaryLight: '#8F1D38',
+  primarySubtle: '#F6EBEB',
+  burgundy: '#71152C',
+  burgundyDark: '#4E0B1B',
+  burgundyLight: '#8F1D38',
   burgundySubtle: '#F6EBEB',
 
   // Temple Gold & Accents
-  gold: '#B8860B',
+  gold: '#C18A00',
   goldLight: '#D4AF37',
-  goldBorder: '#E5D2AD',
-  goldSubtle: '#F9F4EB',
+  goldDark: '#805900',
+  goldText: '#805900',
+  goldBorder: '#D8C7A0',
+  goldSubtle: '#F5EFE6',
   ochre: '#C97A1E',
   saffron: '#FF9933',
 
   // Backgrounds & Surfaces
-  bgMain: '#FDFBF7',
+  background: '#FAF7F0',
+  bgMain: '#FAF7F0',
+  surface: '#FFFFFF',
   bgCard: '#FFFFFF',
-  bgSubtle: '#F8F4EC',
+  surfaceSecondary: '#F3ECE0',
+  bgSubtle: '#F3ECE0',
   bgDark: '#1A0407',
 
-  // Text & Typography
-  textPrimary: '#2A2020',
-  textSecondary: '#5A4A4A',
-  textMuted: '#7E6E6E',
-  textLight: '#F5ECDA',
+  // Text & Typography (WCAG AA Compliant)
+  text: '#302329',
+  textPrimary: '#302329',
+  textSecondary: '#65575B',
+  textMuted: '#7A6C70',
+  textLight: '#7A6C70',
+  textPlaceholder: '#7A6C70',
   textWhite: '#FFFFFF',
+  textOnBurgundy: '#FFFFFF',
+  textOnGold: '#302329',
 
   // Status & Feedback
-  success: '#10B981',
+  success: '#0F766E',
   successSubtle: '#ECFDF5',
-  warning: '#F59E0B',
+  warning: '#B45309',
   warningSubtle: '#FEF3C7',
-  danger: '#EF4444',
+  danger: '#B91C1C',
   dangerSubtle: '#FEF2F2',
-  info: '#3B82F6',
+  error: '#B91C1C',
+  info: '#1D4ED8',
   infoSubtle: '#EFF6FF',
 
   // Borders & Dividers
-  border: '#E8DEC9',
-  borderLight: '#F0EAE1',
+  border: '#D8C7A0',
+  borderLight: '#E8DFC8',
 };
 
 export default colors;

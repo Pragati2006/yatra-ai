@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   altitudeTag: {
     fontSize: 11,
-    color: colors.gold,
+    color: colors.goldDark,
     fontWeight: '700',
   },
   tempDropTag: {

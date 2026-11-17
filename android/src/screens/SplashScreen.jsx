@@ -7,15 +7,27 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import YatraLogo from '../components/YatraLogo';
 
 export default function SplashScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primaryDark} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, spacing.lg),
+            paddingBottom: Math.max(insets.bottom, spacing.lg),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Brand Hero Header */}
         <View style={styles.heroSection}>
           <View style={styles.logoWrapper}>
@@ -72,13 +84,11 @@ export default function SplashScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl * 1.5,
-    paddingBottom: spacing.xl,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -94,15 +104,15 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 34,
     fontWeight: '800',
-    color: colors.goldLight,
+    color: colors.burgundy,
     marginTop: spacing.sm,
     letterSpacing: 2,
     textAlign: 'center',
   },
   appTagline: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.surface,
+    fontSize: 15.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
     marginTop: 6,
     textAlign: 'center',
     letterSpacing: 0.3,
@@ -113,20 +123,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
     borderRadius: spacing.radiusFull,
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    backgroundColor: colors.goldSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: colors.goldBorder,
   },
   shrineName: {
     fontSize: 11,
-    color: colors.goldLight,
+    color: colors.goldDark,
     letterSpacing: 1.8,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
   },
   introText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 14.5,
+    color: colors.textPrimary,
     textAlign: 'center',
     lineHeight: 22,
     marginTop: spacing.sm,
@@ -140,19 +150,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   primaryBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.burgundy,
     paddingVertical: 15,
     borderRadius: spacing.radiusFull,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.gold,
+    shadowColor: colors.burgundy,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 4,
   },
   primaryBtnText: {
-    color: colors.primaryDark,
+    color: colors.textWhite,
     fontSize: 15.5,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -162,12 +172,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: spacing.radiusFull,
     borderWidth: 1.5,
-    borderColor: colors.gold,
+    borderColor: colors.burgundy,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryBtnText: {
-    color: colors.goldLight,
+    color: colors.burgundy,
     fontSize: 14.5,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -178,9 +188,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   disclaimerText: {
-    fontSize: 10.5,
-    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: 11,
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
 });

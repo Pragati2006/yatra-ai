@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import YatraLogo from './YatraLogo';
 import { ClockIcon, SettingsIcon } from './Icons';
@@ -17,11 +18,13 @@ export default function Header({
   onBackPress,
   user = null,
 }) {
+  const insets = useSafeAreaInsets();
   const handleSettings = onOpenSettings || onSettingsPress;
+  const topPadding = Math.max(insets.top, 8) + 4;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.burgundyDark} />
+    <View style={[styles.container, { paddingTop: topPadding }]}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <View style={styles.topRow}>
         {showBack && onBackPress && (
           <TouchableOpacity
@@ -96,7 +99,6 @@ export default function Header({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.burgundy,
-    paddingTop: 8,
     paddingBottom: 10,
     paddingHorizontal: 14,
     borderBottomWidth: 1.5,
@@ -114,10 +116,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.burgundyDark,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(216, 199, 160, 0.4)',
   },
   backButtonText: {
-    color: colors.goldLight,
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 20,
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: colors.goldLight,
+    color: '#FFFFFF',
     fontSize: 15.5,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -148,9 +150,9 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   subtitle: {
-    color: colors.goldSubtle,
+    color: '#F5EFE6',
     fontSize: 10.5,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   actionsRow: {
@@ -163,7 +165,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.burgundyDark,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(216, 199, 160, 0.4)',
   },
   iconText: {
     fontSize: 14,
@@ -171,13 +173,13 @@ const styles = StyleSheet.create({
   newChatButton: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    backgroundColor: 'rgba(229, 210, 173, 0.2)',
+    backgroundColor: 'rgba(216, 199, 160, 0.22)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.goldLight,
+    borderColor: colors.goldBorder,
   },
   newChatText: {
-    color: colors.goldLight,
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },

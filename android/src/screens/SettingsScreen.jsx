@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
@@ -33,6 +34,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredUser, clearAllStorage } from '../utils/storage';
 
 export default function SettingsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [backendUrl, setBackendUrl] = useState('');
   const [healthStatus, setHealthStatus] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -133,7 +135,13 @@ export default function SettingsScreen({ navigation }) {
         subtitle="Account, Preferences & Security"
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, spacing.xxl) + 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* A & B: ACCOUNT & AUTHENTICATION */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>

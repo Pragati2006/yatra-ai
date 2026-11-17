@@ -199,7 +199,7 @@ export default function ChatScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Header
@@ -234,6 +234,8 @@ export default function ChatScreen({ navigation, route }) {
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         ListFooterComponent={
           loading ? (
             <View style={styles.loadingContainer}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -42,11 +43,22 @@ function TabIcon({ focused, IconComponent, label }) {
 }
 
 function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
+  const tabBarHeight = 56 + bottomInset;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: tabBarHeight,
+            paddingBottom: bottomInset > 0 ? bottomInset : 4,
+            paddingTop: 6,
+          },
+        ],
         tabBarShowLabel: false,
       }}
     >
@@ -158,10 +170,7 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    height: 60,
-    paddingBottom: 4,
-    paddingTop: 4,
+    borderTopColor: colors.goldBorder,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -174,20 +183,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabIconWrapper: {
-    marginBottom: 3,
-    opacity: 0.75,
+    marginBottom: 2,
+    opacity: 0.85,
   },
   tabIconFocused: {
     opacity: 1,
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.05 }],
   },
   tabLabelText: {
-    fontSize: 9,
-    fontWeight: '500',
+    fontSize: 9.5,
+    fontWeight: '600',
     color: colors.textSecondary,
+    letterSpacing: 0.2,
   },
   tabLabelFocused: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
@@ -33,6 +34,7 @@ import {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState('email'); // 'email' | 'otp' | 'authenticated'
@@ -176,7 +178,7 @@ export default function AuthScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <Header
         title="Devotee Authentication"
@@ -185,7 +187,14 @@ export default function AuthScreen({ navigation }) {
         onBackPress={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, spacing.xl) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.brandingSection}>
           <YatraLogo size={64} />
           <Text style={styles.brandingTitle}>Shri Mata Vaishno Devi</Text>
@@ -369,10 +378,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   formSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
     marginBottom: spacing.md,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -428,7 +437,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resendBtnDisabled: {
-    color: colors.textLight,
+    color: colors.textMuted,
   },
   backToEmailBtn: {
     marginTop: spacing.xs,
@@ -453,21 +462,21 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: spacing.sm,
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.textSecondary,
     fontWeight: '700',
   },
   guestBtn: {
-    borderWidth: 1,
-    borderColor: colors.gold,
-    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1.5,
+    borderColor: colors.goldBorder,
+    backgroundColor: colors.goldSubtle,
     paddingVertical: 12,
     borderRadius: spacing.radiusMd,
     alignItems: 'center',
   },
   guestBtnText: {
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   profileCard: {
     backgroundColor: colors.surface,
@@ -500,7 +509,7 @@ const styles = StyleSheet.create({
   },
   profileDate: {
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.textSecondary,
     marginBottom: spacing.lg,
   },
   profileActions: {
@@ -535,9 +544,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   securityText: {
-    fontSize: 11,
-    color: colors.textLight,
+    fontSize: 11.5,
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
 });

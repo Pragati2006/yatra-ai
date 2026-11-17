@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     fontSize: 11,
-    color: colors.gold,
+    color: colors.goldDark,
     fontWeight: '700',
     marginTop: 2,
   },
