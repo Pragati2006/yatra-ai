@@ -5820,14 +5820,7 @@ def lookup_verified_contacts(
 
 
 def evaluate_yatra_plan(
-
-
-
-
-
-
-
-    origin: str,
+    origin: Optional[str] = None,
 
 
 
@@ -6370,7 +6363,7 @@ def modify_itinerary(
 
 
 
-        dummy_req = {"duration_days": 4, "origin": "Delhi", "pax": 2}
+        dummy_req = {"duration_days": 4, "origin": "your departure point (suggested assumption: New Delhi)", "pax": 2}
 
 
 
@@ -6656,6 +6649,59 @@ def modify_itinerary(
 
 
 
+
+
+
+@tool
+def generate_itinerary_plan(
+    duration_days: int = 3,
+    destinations: Optional[List[str]] = None,
+    pace: Optional[str] = "balanced",
+    origin: Optional[str] = None,
+    mode: Optional[str] = "train",
+) -> dict:
+    """Generates a structured day-by-day pilgrimage and sightseeing itinerary for Shri Mata Vaishno Devi Ji
+    and Jammu & Kashmir destinations (Patnitop, Shiv Khori, Sanasar, Bhairavnath, Baba Dhansar, etc.).
+
+    Args:
+        duration_days: Number of days for the trip (e.g. 1, 2, 3, 4, 5).
+        destinations: List of places or attractions to include (e.g. ['Bhairavnath', 'Patnitop', 'Shiv Khori']).
+        pace: Pace preference: 'relaxed', 'balanced', or 'fast'.
+        origin: Departure location (defaults to Katra or devotee origin).
+        mode: Preferred transport mode ('train', 'flight', 'bus').
+    """
+    import agents.itinerary_agent as itinerary_agent
+    origin_assumed = False
+    origin_label = origin
+    if not origin_label or not str(origin_label).strip():
+        origin_label = "your departure point"
+        origin_assumed = True
+    req = {
+        "duration_days": max(1, int(duration_days or 3)),
+        "origin": origin_label,
+        "mode": mode or "train",
+        "travel_style": pace or "balanced",
+        "sightseeing_places": destinations or [],
+    }
+    days = itinerary_agent.generate_default_itinerary(req)
+    infeasible = getattr(days, "infeasible_places", [])
+    feasible = getattr(days, "feasible_places", [])
+    disclosure = (
+        "Note: Departure city was not specified; itinerary is framed from your arrival point at Katra. "
+        "Please let us know your departure city (e.g. Delhi, Mumbai, Jammu) to include specific train/flight schedules."
+        if origin_assumed else None
+    )
+    return {
+        "status": "ITINERARY_GENERATED",
+        "duration_days": len(days),
+        "itinerary": list(days),
+        "origin": origin_label,
+        "origin_assumed": origin_assumed,
+        "origin_disclosure": disclosure,
+        "feasible_destinations": feasible,
+        "infeasible_destinations": infeasible,
+        "formatted_plan": itinerary_agent.format_itinerary_text(days),
+    }
 
 
 @tool
@@ -7483,6 +7529,7 @@ CENTRAL_TOOLS = [
 
 
     modify_itinerary,
+    generate_itinerary_plan,
 
 
 
@@ -8256,10 +8303,11 @@ def is_accommodation_info_query(text: str) -> bool:
     if not text:
         return False
     tl = text.lower()
-    has_stay_word = any(w in tl for w in ["stay", "bhavan", "bhawan", "hotel", "room", "accommodation", "dharamshala", "rest house", "dormitory", "guest house"])
+    has_stay_word = any(w in tl for w in ["stay", "hotel", "room", "accommodation", "dharamshala", "rest house", "dormitory", "guest house", "bhavan", "bhavans", "shrine board room"]) or ("bhawan" in tl and any(sw in tl for sw in ["stay", "room", "booking", "accommodation", "dormitory", "rest", "night", "lodge"]))
     is_planning = any(w in tl for w in ["i am travelling", "from delhi", "plan a trip", "pax", "adults", "budget"])
     is_booking = any(w in tl for w in ["book", "reserve", "payment", "execute", "rpa"])
-    return has_stay_word and not is_planning and not is_booking
+    is_weather_or_route = any(w in tl for w in ["weather", "temperature", "forecast", "rain", "snow", "cold", "climate", "mausam", "how to reach", "how far", "distance", "trek", "ropeway", "parchi", "registration", "aarti"])
+    return has_stay_word and not is_planning and not is_booking and not is_weather_or_route
 
 
 def _handle_deterministic_accommodation_turn(
@@ -10993,22 +11041,21 @@ def _synthesize_partial_fallback(
 
 
                 b_eval = res.get("budget_evaluation") or {}
-
-
-
-
-
-
-
-                tot = b_eval.get("grand_total") or res.get("total_cost", 0)
-
-
-
-
-
-
-
-                parts.append(f"\n📋 **Pilgrimage Itinerary Plan:** Generated comprehensive plan evaluated at ₹{tot:,.2f}.")
+                tot = b_eval.get("grand_total")
+                if tot is None:
+                    tot = res.get("total_cost")
+                try:
+                    tot_num = float(tot) if tot is not None else 0.0
+                except (ValueError, TypeError):
+                    tot_num = 0.0
+                if tot_num > 0:
+                    parts.append(f"\n📋 **Pilgrimage Itinerary Plan:** Generated comprehensive plan evaluated at ₹{tot_num:,.2f}.")
+                else:
+                    parts.append("\n📋 **Pilgrimage Itinerary Plan:** Generated customized itinerary plan.")
+            elif t_name == "generate_itinerary_plan" and isinstance(res, dict):
+                parts.append(f"\n🗺️ **Customized Pilgrimage Itinerary ({res.get('duration_days', 3)} Days):**\n" + (res.get("formatted_plan") or ""))
+                if res.get("origin_disclosure"):
+                    parts.append(f"\n💡 *{res['origin_disclosure']}*")
 
 
 
@@ -13217,13 +13264,7 @@ def process_conversational_turn(
 
 
     llm: Optional[Any] = None,
-
-
-
-
-
-
-
+    user_id: Optional[str] = None,
 ) -> Dict[str, Any]:
 
 
@@ -13604,42 +13645,108 @@ def process_conversational_turn(
 
 
     # Step 0: Hydrate session and update structured conversation state (for planning/multi-turn stateful interactions)
-
     session = None
-
     if session_id:
-
         try:
-
             session = session_store.get_session(session_id)
-
+            # Ownership check: If active in-memory session is owned by another user, reject access
+            if session and session.get("user_id"):
+                sess_owner = session.get("user_id")
+                if not user_id or user_id.strip() != sess_owner.strip():
+                    logger.warning(
+                        "Security: In-memory session %s owned by %s; rejected access by %s",
+                        session_id,
+                        sess_owner,
+                        user_id or "anonymous",
+                    )
+                    session = None
+                    session_id = None
         except Exception:
-
             session = None
 
-
-
     if not session or session.get("_corrupted"):
-
         initial_st = {}
-
         if current_request:
-
             initial_st["requirements"] = current_request
-
         if current_itinerary:
-
             initial_st["itinerary"] = current_itinerary
-
         if last_tourism_place:
-
             initial_st["last_tourism_place"] = last_tourism_place
-
         if last_itinerary_context:
-
             initial_st["last_itinerary_context"] = last_itinerary_context
 
-        session = session_store.create_session(session_id=session_id, initial_state=initial_st)
+        # Resurrect from saved_conversations if session_id is a saved conversation (enforcing user ownership)
+        if session_id:
+            try:
+                from agents.auth_service import auth_service
+                if auth_service.is_mongodb():
+                    from agents import mongo_store
+                    conv_coll = mongo_store._get_coll("auth_saved_conversations")
+                    d = conv_coll.find_one({"$or": [{"conversation_id": session_id.strip()}, {"_id": session_id.strip()}]})
+                    if d:
+                        doc_owner = d.get("user_id")
+                        if doc_owner and (not user_id or user_id.strip() != doc_owner.strip()):
+                            logger.warning(
+                                "Security: Refused session resurrection for session %s owned by %s (caller was %s)",
+                                session_id,
+                                doc_owner,
+                                user_id or "anonymous",
+                            )
+                            d = None
+                    if d:
+                        session = session_store.create_session(
+                            session_id=session_id.strip(),
+                            user_id=d.get("user_id"),
+                            initial_state=initial_st,
+                        )
+                        if not session_store.get_messages(session_id.strip()):
+                            for m in (d.get("messages") or []):
+                                session_store.add_message(
+                                    session_id=session_id.strip(),
+                                    role=m.get("role", "user"),
+                                    content=m.get("content", ""),
+                                    metadata=m.get("metadata") or {
+                                        "request": d.get("trip_request"),
+                                        "itinerary": d.get("itinerary"),
+                                    },
+                                )
+                else:
+                    import sqlite3
+                    with sqlite3.connect(auth_service.db_path, timeout=5.0) as conn:
+                        row = conn.cursor().execute(
+                            "SELECT messages_json, user_id, metadata_json FROM saved_conversations WHERE conversation_id = ?",
+                            (session_id.strip(),),
+                        ).fetchone()
+                        if row:
+                            doc_owner = row[1]
+                            if doc_owner and (not user_id or user_id.strip() != doc_owner.strip()):
+                                logger.warning(
+                                    "Security: Refused session resurrection for session %s owned by %s (caller was %s)",
+                                    session_id,
+                                    doc_owner,
+                                    user_id or "anonymous",
+                                )
+                                row = None
+                        if row:
+                            session = session_store.create_session(
+                                session_id=session_id.strip(),
+                                user_id=row[1],
+                                initial_state=initial_st,
+                            )
+                            if not session_store.get_messages(session_id.strip()):
+                                conv_msgs = json.loads(row[0]) if row[0] else []
+                                for m in conv_msgs:
+                                    session_store.add_message(
+                                        session_id=session_id.strip(),
+                                        role=m.get("role", "user"),
+                                        content=m.get("content", ""),
+                                        metadata=m.get("metadata"),
+                                    )
+            except Exception as exc:
+                logger.debug("Silently ignored error checking saved conversation in central_agent: %s", exc)
+
+        if not session or session.get("_corrupted"):
+            session = session_store.create_session(session_id=session_id, user_id=user_id, initial_state=initial_st)
 
 
 
@@ -13978,6 +14085,14 @@ def process_conversational_turn(
 
         res["timing"] = timing
 
+        try:
+            _lm = session_store.get_messages(sid)
+            if not _lm or _lm[-1].get("role") != "user" or _lm[-1].get("content") != user_text:
+                session_store.add_message(session_id=sid, role="user", content=user_text, metadata={"intent": "GREETING"})
+            session_store.add_message(session_id=sid, role="assistant", content=res["reply"])
+        except Exception:
+            pass
+
         from utils.provenance import attach_provenance_to_response
 
         return attach_provenance_to_response(res)
@@ -14044,6 +14159,14 @@ def process_conversational_turn(
         timing["total_ms"] = round((time.perf_counter() - t_start) * 1000.0, 2)
 
         res["timing"] = timing
+
+        try:
+            _lm = session_store.get_messages(sid)
+            if not _lm or _lm[-1].get("role") != "user" or _lm[-1].get("content") != user_text:
+                session_store.add_message(session_id=sid, role="user", content=user_text, metadata={"intent": "GREETING"})
+            session_store.add_message(session_id=sid, role="assistant", content=res["reply"])
+        except Exception:
+            pass
 
         from utils.provenance import attach_provenance_to_response
 
@@ -14119,6 +14242,14 @@ def process_conversational_turn(
         timing["total_ms"] = round((time.perf_counter() - t_start) * 1000.0, 2)
 
         res["timing"] = timing
+
+        try:
+            _lm = session_store.get_messages(sid)
+            if not _lm or _lm[-1].get("role") != "user" or _lm[-1].get("content") != user_text:
+                session_store.add_message(session_id=sid, role="user", content=user_text, metadata={"intent": "GREETING"})
+            session_store.add_message(session_id=sid, role="assistant", content=res["reply"])
+        except Exception:
+            pass
 
         from utils.provenance import attach_provenance_to_response
 
@@ -14795,53 +14926,17 @@ def _execute_llm_tool_calling_turn(
 
     intent = conversation_agent.detect_intent(user_text)
 
-
-
-
-
-
-
-    session_store.add_message(
-
-
-
-
-
-
-
-        session_id=sid,
-
-
-
-
-
-
-
-        role="user",
-
-
-
-
-
-
-
-        content=user_text,
-
-
-
-
-
-
-
-        metadata={"intent": intent},
-
-
-
-
-
-
-
-    )
+    try:
+        _existing_msgs = session_store.get_messages(sid)
+        if not _existing_msgs or _existing_msgs[-1].get("role") != "user" or _existing_msgs[-1].get("content") != user_text:
+            session_store.add_message(
+                session_id=sid,
+                role="user",
+                content=user_text,
+                metadata={"intent": intent},
+            )
+    except Exception:
+        pass
 
 
 
@@ -15428,6 +15523,8 @@ def _execute_llm_tool_calling_turn(
 
 
 
+                elif t_name == "generate_itinerary_plan":
+                    captured_itinerary = t_result.get("itinerary")
                 elif t_name == "modify_itinerary":
 
 
@@ -16773,142 +16870,28 @@ def _execute_llm_tool_calling_turn(
 
 
     # Persist assistant turn in session store
-
-
-
-
-
-
-
-    session_store.add_message(
-
-
-
-
-
-
-
-        session_id=sid,
-
-
-
-
-
-
-
-        role="assistant",
-
-
-
-
-
-
-
-        content=reply_text,
-
-
-
-
-
-
-
-        metadata={
-
-
-
-
-
-
-
-            "intent": intent,
-
-
-
-
-
-
-
-            "source": "central_agent_langchain",
-
-
-
-
-
-
-
-            "tool_executions": executed_tools_info,
-
-
-
-
-
-
-
-            "source_provenance": final_res.get("source_provenance", []),
-
-
-
-
-
-
-
-            "data_provenance": final_res.get("data_provenance", final_res.get("source_provenance", [])),
-
-
-
-
-
-
-
-            "live_sources": final_res.get("live_sources", []),
-
-
-
-
-
-
-
-            "is_cached": final_res.get("is_cached", False),
-
-
-
-
-
-
-
-            "partial_failure": has_failed_tools,
-
-
-
-
-
-
-
-            "execution_mode": final_res.get("execution_mode", "hybrid_llm"),
-
-
-
-
-
-
-
-            "knowledge_sources": captured_sources,
-
-
-
-
-
-
-
-        },
-
-
-
-
-
-
-
-    )
+    try:
+        _existing_msgs = session_store.get_messages(sid)
+        if not _existing_msgs or _existing_msgs[-1].get("role") != "assistant" or _existing_msgs[-1].get("content") != reply_text:
+            session_store.add_message(
+                session_id=sid,
+                role="assistant",
+                content=reply_text,
+                metadata={
+                    "intent": intent,
+                    "source": "central_agent_langchain",
+                    "tool_executions": executed_tools_info,
+                    "source_provenance": final_res.get("source_provenance", []),
+                    "data_provenance": final_res.get("data_provenance", final_res.get("source_provenance", [])),
+                    "live_sources": final_res.get("live_sources", []),
+                    "is_cached": final_res.get("is_cached", False),
+                    "partial_failure": has_failed_tools,
+                    "execution_mode": final_res.get("execution_mode", "hybrid_llm"),
+                    "knowledge_sources": captured_sources,
+                },
+            )
+    except Exception:
+        pass
 
 
 
@@ -17293,49 +17276,29 @@ def process_conversational_turn_stream(
     api_key: Optional[str] = None,
 
     base_url: Optional[str] = None,
-
     llm: Optional[Any] = None,
-
+    user_id: Optional[str] = None,
 ):
-
     """
-
     Streaming generator for conversational turns.
-
     Yields events in SSE-compatible dictionaries:
-
       {"type": "start", "session_id": sid}
-
       {"type": "token", "content": word_or_token}
-
       {"type": "done", "response": complete_response_dict}
-
     """
-
     t0 = time.perf_counter()
-
     full_res = process_conversational_turn(
-
         user_text=user_text,
-
         session_id=session_id,
-
         current_request=current_request,
-
         current_itinerary=current_itinerary,
-
         last_tourism_place=last_tourism_place,
-
         last_itinerary_context=last_itinerary_context,
-
         pending_options=pending_options,
-
         api_key=api_key,
-
         base_url=base_url,
-
         llm=llm,
-
+        user_id=user_id,
     )
 
     sid = full_res.get("session_id") or session_id or "new"

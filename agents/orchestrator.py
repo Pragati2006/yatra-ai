@@ -2033,12 +2033,14 @@ def _finalize_turn_response(res: Dict[str, Any], sid: str, default_intent: str =
         meta["plan"] = {"status": plan_data.get("status")}
 
     try:
-        session_store.add_message(
-            session_id=sid,
-            role="assistant",
-            content=reply,
-            metadata=meta or None,
-        )
+        _prev_a = session_store.get_messages(sid)
+        if not _prev_a or _prev_a[-1].get("role") != "assistant" or _prev_a[-1].get("content") != reply:
+            session_store.add_message(
+                session_id=sid,
+                role="assistant",
+                content=reply,
+                metadata=meta or None,
+            )
     except Exception as exc:
         logger.warning("Failed to persist assistant message to SQLite for session %s: %s", sid, type(exc).__name__)
 
@@ -2274,12 +2276,14 @@ def orchestrate_conversational_turn(
     # Persist user turn message exactly once per turn
     user_msg_id = None
     try:
-        user_msg_id = session_store.add_message(
-            session_id=sid,
-            role="user",
-            content=user_text,
-            metadata={"intent": intent},
-        )
+        _prev_u = session_store.get_messages(sid)
+        if not _prev_u or _prev_u[-1].get("role") != "user" or _prev_u[-1].get("content") != user_text:
+            user_msg_id = session_store.add_message(
+                session_id=sid,
+                role="user",
+                content=user_text,
+                metadata={"intent": intent},
+            )
     except Exception as exc:
         logger.warning("Failed to persist user message for session %s: %s", sid, type(exc).__name__)
 

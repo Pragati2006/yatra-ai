@@ -15,7 +15,7 @@ import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import { MessageSquareIcon, ClockIcon, PlusIcon } from '../components/Icons';
 import { fetchChatHistory } from '../services/api';
-import { getLocalChatMessages } from '../utils/storage';
+import { getLocalChatMessages, getLocalGuestConversations } from '../utils/storage';
 
 export default function HistoryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -40,12 +40,39 @@ export default function HistoryScreen({ navigation }) {
         items = data.history;
       }
 
-      // If no cloud history found, check for local guest session
+      // If no cloud history found, check for local guest session(s)
       if (items.length === 0) {
+        const guestConvs = await getLocalGuestConversations();
+        if (guestConvs && guestConvs.length > 0) {
+          items = guestConvs;
+        } else {
+          const local = await getLocalChatMessages();
+          if (local && local.length > 1) {
+            const firstUser = local.find((m) => m.role === 'user');
+            items = [
+              {
+                conversation_id: 'guest-local-session',
+                title: firstUser?.content ? (firstUser.content.slice(0, 45) + (firstUser.content.length > 45 ? '...' : '')) : 'Guest Consultation',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                messages: local,
+                preview: firstUser?.content || 'Recent guest pilgrimage discussion.',
+              },
+            ];
+          }
+        }
+      }
+      setHistory(items);
+    } catch (e) {
+      // Fallback if backend is offline and no network response
+      const guestConvs = await getLocalGuestConversations();
+      if (guestConvs && guestConvs.length > 0) {
+        setHistory(guestConvs);
+      } else {
         const local = await getLocalChatMessages();
         if (local && local.length > 1) {
           const firstUser = local.find((m) => m.role === 'user');
-          items = [
+          setHistory([
             {
               conversation_id: 'guest-local-session',
               title: firstUser?.content ? (firstUser.content.slice(0, 45) + (firstUser.content.length > 45 ? '...' : '')) : 'Guest Consultation',
@@ -54,27 +81,10 @@ export default function HistoryScreen({ navigation }) {
               messages: local,
               preview: firstUser?.content || 'Recent guest pilgrimage discussion.',
             },
-          ];
+          ]);
+        } else {
+          setHistory([]);
         }
-      }
-      setHistory(items);
-    } catch (e) {
-      // Fallback if backend is offline and no network response
-      const local = await getLocalChatMessages();
-      if (local && local.length > 1) {
-        const firstUser = local.find((m) => m.role === 'user');
-        setHistory([
-          {
-            conversation_id: 'guest-local-session',
-            title: firstUser?.content ? (firstUser.content.slice(0, 45) + (firstUser.content.length > 45 ? '...' : '')) : 'Guest Consultation',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            messages: local,
-            preview: firstUser?.content || 'Recent guest pilgrimage discussion.',
-          },
-        ]);
-      } else {
-        setHistory([]);
       }
     } finally {
       setLoading(false);
@@ -88,7 +98,10 @@ export default function HistoryScreen({ navigation }) {
   };
 
   const handleStartNewChat = () => {
-    navigation.navigate('Assistant', { sessionId: null, messages: null, loadedAt: Date.now() });
+    navigation.navigate('MainTabs', {
+      screen: 'Assistant',
+      params: { sessionId: null, messages: null, loadedAt: Date.now() },
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -109,11 +122,15 @@ export default function HistoryScreen({ navigation }) {
               {
                 text: 'Open',
                 onPress: () =>
-                  navigation.navigate('Assistant', {
-                    sessionId: convId,
-                    messages: item.messages,
-                    tripRequest: item.trip_request,
-                    loadedAt: Date.now(),
+                  navigation.navigate('MainTabs', {
+                    screen: 'Assistant',
+                    params: {
+                      sessionId: convId,
+                      messages: item.messages,
+                      tripRequest: item.trip_request,
+                      itinerary: item.itinerary,
+                      loadedAt: Date.now(),
+                    },
                   }),
               },
             ]

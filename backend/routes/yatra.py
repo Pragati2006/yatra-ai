@@ -108,7 +108,7 @@ def sightseeing(request: SightseeingRequest):
         "count": len(places),
     }
 class ItineraryRequest(BaseModel):
-    option: dict
+    option: dict | None = None
     hotel: dict | None = None
     hotel_nights: int = 0
     sightseeing_places: list[str] = []
@@ -117,12 +117,14 @@ class ItineraryRequest(BaseModel):
 
 @router.post("/itinerary")
 def itinerary(request: ItineraryRequest):
+    opt = request.option or {}
+    req = request.request or {}
     days = coordinator.build_final_itinerary(
-        option=request.option,
+        option=opt,
         hotel=request.hotel,
         hotel_nights=request.hotel_nights,
         sightseeing_places=request.sightseeing_places,
-        request=request.request,
+        request=req,
     )
 
     infeasible = getattr(days, "infeasible_places", [])

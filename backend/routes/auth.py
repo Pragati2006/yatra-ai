@@ -413,6 +413,7 @@ def delete_saved_itinerary_endpoint(itinerary_id: str, request: Request):
 
 
 @router.post("/save-conversation")
+@router.post("/conversations")
 def save_conversation_endpoint(payload: SaveConversationRequest, request: Request):
     """Saves conversation chat thread for authenticated user."""
     user = require_authenticated_user(request)
@@ -432,6 +433,7 @@ def save_conversation_endpoint(payload: SaveConversationRequest, request: Reques
 
 
 @router.get("/saved-conversations")
+@router.get("/conversations")
 def get_saved_conversations_endpoint(request: Request):
     """Lists saved conversations for authenticated user."""
     user = require_authenticated_user(request)
@@ -445,6 +447,7 @@ def get_saved_conversations_endpoint(request: Request):
 
 @router.get("/saved-conversations/{conversation_id}")
 @router.get("/saved-conversation/{conversation_id}")
+@router.get("/conversations/{conversation_id}")
 def get_saved_conversation_detail_endpoint(conversation_id: str, request: Request):
     """Retrieves specific saved conversation strictly verifying user ownership."""
     user = require_authenticated_user(request)
@@ -464,6 +467,8 @@ def get_saved_conversation_detail_endpoint(conversation_id: str, request: Reques
 
 
 @router.delete("/saved-conversation/{conversation_id}")
+@router.delete("/saved-conversations/{conversation_id}")
+@router.delete("/conversations/{conversation_id}")
 def delete_saved_conversation_endpoint(conversation_id: str, request: Request):
     """Deletes saved conversation strictly verifying user ownership."""
     user = require_authenticated_user(request)

@@ -41,7 +41,7 @@ def process_itinerary_message(user_text, current_request=None, current_itinerary
         if current_request:
             current_itinerary = itinerary_agent.generate_default_itinerary(current_request)
         else:
-            dummy_req = {"duration_days": 4, "origin": "Delhi", "pax": 1}
+            dummy_req = {"duration_days": 4, "origin": "your departure point (suggested assumption: New Delhi)", "pax": 1}
             current_itinerary = itinerary_agent.generate_default_itinerary(dummy_req)
 
     cmd = itinerary_agent.parse_itinerary_command(user_text, itinerary=current_itinerary, context=last_context)
@@ -581,6 +581,7 @@ def route_message(
     base_url=None,
     session_id=None,
     llm=None,
+    user_id=None,
 ):
     """Top-level dispatcher and entry point for the persistent conversational trip orchestrator.
     Routes to agents.orchestrator.orchestrate_conversational_turn while maintaining backward
@@ -598,6 +599,7 @@ def route_message(
         api_key=api_key,
         base_url=base_url,
         llm=llm,
+        user_id=user_id,
     )
 
 
@@ -612,6 +614,7 @@ def route_message_stream(
     base_url=None,
     session_id=None,
     llm=None,
+    user_id=None,
 ):
     """Streaming generator wrapper routing to central_agent.process_conversational_turn_stream."""
     import agents.central_agent as central_agent
@@ -626,6 +629,7 @@ def route_message_stream(
         api_key=api_key,
         base_url=base_url,
         llm=llm,
+        user_id=user_id,
     )
 
 

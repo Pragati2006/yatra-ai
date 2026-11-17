@@ -576,15 +576,16 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
     4. Distant excursions (Patnitop, Shiv Khori) require N >= 4 and conservative travel estimates.
     5. Infeasible places are identified and explained in metadata.
     """
-    tr = option.get("transport") or option.get("flight") or {}
-    s = option.get("slot") or {"category": "Normal Darshan", "slot_time": "12:00 PM", "slot_date": tr.get("travel_date", "")}
+    opt = option or {}
+    tr = opt.get("transport") or opt.get("flight") or {}
+    s = opt.get("slot") or {"category": "Normal Darshan", "slot_time": "12:00 PM", "slot_date": tr.get("travel_date", "")}
     req = request or {}
 
     duration = req.get("duration_days")
     if not duration:
         base_days = 2 + (1 if sightseeing_places else 0) + (1 if hotel or hotel_nights else 0)
         duration = max(3, base_days)
-    duration = int(duration)
+    duration = max(1, int(duration))
 
     travel_date = tr.get("travel_date") or req.get("start_date") or datetime.now().strftime("%Y-%m-%d")
     origin = tr.get("origin") or req.get("origin") or "your departure point"
@@ -625,6 +626,36 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
     days = ItineraryList()
     days.infeasible_places = infeasible_places
     days.feasible_places = feasible_places
+
+    # -------------------------------------------------------------------------
+    # EXPRESS 1-DAY ITINERARY: Same-Day Sacred Yatra & Holy Darshan
+    # -------------------------------------------------------------------------
+    if duration == 1:
+        day1_date_str = _fmt_date(start_dt.strftime("%Y-%m-%d"))
+        slot_cat = s.get("category", "Normal Darshan")
+        slot_time = s.get("slot_time", "12:00 PM")
+        express_activities = [
+            f"05:30 AM – 06:30 AM: Early morning arrival at Katra base via {mode.title()}; collect mandatory RFID Yatra Card at Katra counter",
+            "06:30 AM – 11:30 AM: Ascend holy trail to Bhawan (battery car/helicopter from Katra/Sanjichhat or express trek via Tarakote Marg)",
+            f"11:30 AM – 01:30 PM: Sacred Darshan of Maa Vaishno Devi Ji at Holy Bhawan ({slot_cat} at {slot_time})",
+            "02:00 PM – 03:30 PM: Cable car ropeway ascent to Bhairavnath Temple to complete the holy pilgrimage",
+            "04:00 PM – 07:30 PM: Scenic descent back to Katra base town",
+            f"08:00 PM – Onward: Katra bazaar prasad collection & evening departure return journey to {origin}",
+        ]
+        days.append({
+            "day_number": 1,
+            "date": day1_date_str,
+            "title": "Express Sacred Yatra & Holy Darshan (Same-Day Pilgrimage)",
+            "base_location": f"Katra ➔ Bhawan ➔ Return to {origin}",
+            "exertion_level": "High",
+            "activities": express_activities,
+            "rest_buffers": "Post-darshan rest at Bhawan complex; evening departure buffer",
+            "travel_time_est": "Same-day 1-day express trek & darshan",
+            "travel_cost_est": "Local auto ₹100; ropeway to Bhairavnath ₹100 verified ticket",
+            "booking_notes": "Early morning RFID card collection is mandatory at Katra base counters before ascending.",
+            "practicality_note": "Designed as an intensive 1-day express pilgrimage maximizing daylight hours for sacred darshan and evening return.",
+        })
+        return days
 
     # -------------------------------------------------------------------------
     # DAY 1: Arrival, Base Orientation & Yatra Registration

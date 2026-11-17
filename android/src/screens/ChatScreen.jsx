@@ -17,8 +17,8 @@ import ChatBubble from '../components/ChatBubble';
 import MessageComposer from '../components/MessageComposer';
 import ConnectionModal from '../components/ConnectionModal';
 import * as Speech from 'expo-speech';
-import { sendChatMessage, checkBackendHealth, getRuntimeApiUrl, saveConversation } from '../services/api';
-import { getStoredUser, getLocalChatMessages, saveLocalChatMessages } from '../utils/storage';
+import { sendChatMessage, checkBackendHealth, getRuntimeApiUrl, saveConversation, getChatHistory } from '../services/api';
+import { getStoredUser, getLocalChatMessages, saveLocalChatMessages, saveLocalGuestConversation, getAuthToken } from '../utils/storage';
 
 const QUICK_SUGGESTIONS = [
   'Weather at Bhawan',
@@ -50,6 +50,20 @@ export default function ChatScreen({ navigation, route }) {
   const [activeTripRequest, setActiveTripRequest] = useState(null);
   const flatListRef = useRef(null);
 
+  const formatIncomingMessages = (rawList) => {
+    if (!Array.isArray(rawList) || rawList.length === 0) return [INITIAL_WELCOME_MESSAGE];
+    return rawList.map((m, idx) => ({
+      id: m.id || `msg-${idx}-${Date.now()}`,
+      role: m.role || 'assistant',
+      content: m.content || '',
+      timestamp:
+        m.timestamp ||
+        (m.created_at
+          ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+    }));
+  };
+
   useEffect(() => {
     checkHealth();
     loadUser();
@@ -57,15 +71,23 @@ export default function ChatScreen({ navigation, route }) {
 
   useEffect(() => {
     if (route?.params?.sessionId) {
-      setSessionId(route.params.sessionId);
+      const incomingSid = route.params.sessionId;
+      setSessionId(incomingSid);
       if (route?.params?.messages && Array.isArray(route.params.messages) && route.params.messages.length > 0) {
-        setMessages(route.params.messages);
+        setMessages(formatIncomingMessages(route.params.messages));
+      } else {
+        // Fetch from backend or storage if messages array wasn't provided in params
+        getChatHistory(incomingSid).then((data) => {
+          if (data && data.messages && data.messages.length > 0) {
+            setMessages(formatIncomingMessages(data.messages));
+          }
+        }).catch(() => {});
       }
       if (route?.params?.tripRequest) {
         setActiveTripRequest(route.params.tripRequest);
       }
-    } else {
-      // Fresh app launch starts with a clean new conversation session
+    } else if (route?.params?.loadedAt) {
+      // Clean new chat requested
       const freshSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       setSessionId(freshSid);
       setMessages([INITIAL_WELCOME_MESSAGE]);
@@ -87,7 +109,20 @@ export default function ChatScreen({ navigation, route }) {
       const title = firstUserMsg?.content
         ? (firstUserMsg.content.slice(0, 45) + (firstUserMsg.content.length > 45 ? '...' : ''))
         : 'Pilgrimage Consultation';
-      saveConversation(title, messages, sessionId, activeTripRequest, null).catch(() => {});
+
+      saveLocalGuestConversation({
+        conversation_id: sessionId,
+        title,
+        messages,
+        trip_request: activeTripRequest,
+        preview: firstUserMsg?.content || 'Pilgrimage consultation with Yatra AI',
+      }).catch(() => {});
+
+      getAuthToken().then((token) => {
+        if (token) {
+          saveConversation(title, messages, sessionId, activeTripRequest, null).catch(() => {});
+        }
+      });
     }
   }, [messages, sessionId]);
 
@@ -223,7 +258,7 @@ export default function ChatScreen({ navigation, route }) {
       <FlatList
         ref={flatListRef}
         data={messages}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, idx) => item.id || `msg-${idx}`}
         renderItem={({ item }) => (
           <ChatBubble
             message={item}

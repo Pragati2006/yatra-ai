@@ -503,6 +503,11 @@ export const getSavedConversations = async () => {
   return request('/api/auth/saved-conversations');
 };
 
+export const getSavedConversation = async (conversationId) => {
+  if (!conversationId) return null;
+  return request(`/api/auth/saved-conversations/${encodeURIComponent(conversationId)}`);
+};
+
 export const saveConversation = async (title, messages, conversation_id = null, trip_request = null, itinerary = null) => {
   const body = { title, messages };
   if (conversation_id) body.conversation_id = conversation_id;
@@ -564,6 +569,7 @@ export default {
   getSavedItineraries,
   saveItinerary,
   getSavedConversations,
+  getSavedConversation,
   saveConversation,
   getSavedBookings,
   saveBooking,

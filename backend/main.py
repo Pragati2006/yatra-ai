@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from typing import Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -252,8 +253,82 @@ def health_ready():
     return response_payload
 
 
+def get_session_owner_id(session_id: str) -> Optional[str]:
+    """Retrieves owner user_id for a session from in-memory RAM or persistent store."""
+    if not session_id:
+        return None
+    session_obj = session_store.get_session(session_id)
+    if session_obj and session_obj.get("user_id"):
+        return session_obj.get("user_id")
+    try:
+        from agents.auth_service import auth_service
+        if auth_service.is_mongodb():
+            from agents import mongo_store
+            conv_coll = mongo_store._get_coll("auth_saved_conversations")
+            d = conv_coll.find_one(
+                {"$or": [{"conversation_id": session_id.strip()}, {"_id": session_id.strip()}]},
+                projection={"user_id": 1}
+            )
+            if d:
+                return d.get("user_id")
+        else:
+            import sqlite3
+            with sqlite3.connect(auth_service.db_path, timeout=5.0) as conn:
+                row = conn.cursor().execute(
+                    "SELECT user_id FROM saved_conversations WHERE conversation_id = ?",
+                    (session_id.strip(),)
+                ).fetchone()
+                if row:
+                    return row[0]
+    except Exception:
+        pass
+    return None
+
+
+def verify_chat_session_access(session_id: Optional[str], http_request: Optional[Request]) -> Optional[Dict[str, Any]]:
+    """Enforces strict conversation ownership for chat and streaming endpoints.
+    - If session_id is owned by an authenticated user, caller must present a valid token for that user.
+    - If caller is a different user or unauthenticated guest, raises HTTPException(403).
+    - Returns current authenticated user dict or None.
+    """
+    current_user = None
+    if http_request is not None:
+        try:
+            from backend.routes.auth import extract_session_token
+            from agents.auth_service import auth_service
+            token = extract_session_token(http_request)
+            if token:
+                current_user = auth_service.get_user_by_session_token(token)
+        except Exception:
+            pass
+
+    if not session_id:
+        return current_user
+
+    current_uid = current_user.get("user_id") if current_user else None
+    owner_uid = get_session_owner_id(session_id)
+
+    if owner_uid:
+        if not current_uid or current_uid != owner_uid:
+            logger.warning(
+                "Access denied: caller %s attempted to access conversation %s owned by %s",
+                current_uid or "anonymous_guest",
+                session_id,
+                owner_uid,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied to private conversation session.",
+            )
+
+    return current_user
+
+
 @app.post("/api/chat")
 def chat(request: ChatRequest, response: Response = None, http_request: Request = None):
+    # Enforce session ownership
+    current_user = verify_chat_session_access(request.session_id, http_request)
+    calling_user_id = current_user.get("user_id") if current_user else None
 
     try:
         result = coordinator.route_message(
@@ -264,7 +339,10 @@ def chat(request: ChatRequest, response: Response = None, http_request: Request 
             last_tourism_place=request.last_tourism_place,
             last_itinerary_context=request.last_itinerary_context,
             pending_options=request.pending_options,
+            user_id=calling_user_id,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(
             "Unhandled exception in chat processing for session '%s': %s",
@@ -278,17 +356,15 @@ def chat(request: ChatRequest, response: Response = None, http_request: Request 
         )
 
     # Link session to authenticated user if signed in
-    if http_request is not None:
+    if current_user is not None:
         try:
-            from backend.routes.auth import extract_session_token
             from agents.auth_service import auth_service
-            token = extract_session_token(http_request)
-            if token:
-                user = auth_service.get_user_by_session_token(token)
-                sid = (result or {}).get("session_id") or request.session_id
-                if user and sid:
-                    session_store.update_session_user(sid, user["user_id"])
-                    auth_service.sync_saved_conversation_messages(user["user_id"], sid)
+            sid = (result or {}).get("session_id") or request.session_id
+            if sid:
+                sess = session_store.get_session(sid)
+                if not sess or not sess.get("user_id") or sess.get("user_id") == current_user["user_id"]:
+                    session_store.update_session_user(sid, current_user["user_id"])
+                    auth_service.sync_saved_conversation_messages(current_user["user_id"], sid)
         except Exception as exc:
             logger.debug("Silently ignored session user update error: %s", exc)
 
@@ -306,19 +382,19 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
     from fastapi.responses import StreamingResponse
     import json
 
+    # Enforce session ownership
+    stream_user = verify_chat_session_access(request.session_id, http_request)
+    calling_user_id = stream_user.get("user_id") if stream_user else None
+
     # Link session to authenticated user if signed in before stream begins
-    stream_user = None
-    if http_request is not None:
+    if stream_user and request.session_id:
         try:
-            from backend.routes.auth import extract_session_token
             from agents.auth_service import auth_service
-            token = extract_session_token(http_request)
-            if token:
-                stream_user = auth_service.get_user_by_session_token(token)
-                sid = request.session_id
-                if stream_user and sid:
-                    session_store.update_session_user(sid, stream_user["user_id"])
-                    auth_service.sync_saved_conversation_messages(stream_user["user_id"], sid)
+            sid = request.session_id
+            sess = session_store.get_session(sid)
+            if not sess or not sess.get("user_id") or sess.get("user_id") == stream_user["user_id"]:
+                session_store.update_session_user(sid, stream_user["user_id"])
+                auth_service.sync_saved_conversation_messages(stream_user["user_id"], sid)
         except Exception as exc:
             logger.debug("Silently ignored stream session user update error: %s", exc)
 
@@ -333,6 +409,7 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
                 last_tourism_place=request.last_tourism_place,
                 last_itinerary_context=request.last_itinerary_context,
                 pending_options=request.pending_options,
+                user_id=calling_user_id,
             )
             for event in stream_gen:
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
@@ -355,7 +432,9 @@ def chat_stream(request: ChatRequest, http_request: Request = None):
         if not stream_has_error and stream_user and request.session_id:
             try:
                 from agents.auth_service import auth_service
-                auth_service.sync_saved_conversation_messages(stream_user["user_id"], request.session_id)
+                sess = session_store.get_session(request.session_id)
+                if not sess or not sess.get("user_id") or sess.get("user_id") == stream_user["user_id"]:
+                    auth_service.sync_saved_conversation_messages(stream_user["user_id"], request.session_id)
             except Exception as exc:
                 logger.debug("Silently ignored post-stream message sync error: %s", exc)
 
