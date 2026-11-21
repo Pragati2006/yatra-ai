@@ -2,6 +2,11 @@ import os
 import json
 import logging
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Load local environment variables from .env
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -117,13 +122,28 @@ app = FastAPI(
 )
 
 
-class CorrelationIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        cid = request.headers.get("X-Correlation-ID") or request.headers.get("X-Request-ID")
-        correlation_id = set_correlation_id(cid)
-        response = await call_next(request)
-        response.headers["X-Correlation-ID"] = correlation_id
-        return response
+class CorrelationIdMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        cid = headers.get(b"x-correlation-id") or headers.get(b"x-request-id")
+        cid_str = cid.decode("utf-8") if cid else None
+        correlation_id = set_correlation_id(cid_str)
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                h_list = list(message.get("headers", []))
+                h_list.append((b"x-correlation-id", correlation_id.encode("utf-8")))
+                message["headers"] = h_list
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 
 app.add_middleware(CorrelationIdMiddleware)
@@ -324,6 +344,21 @@ def verify_chat_session_access(session_id: Optional[str], http_request: Optional
     return current_user
 
 
+def sanitize_for_json(data: Any) -> Any:
+    """Recursively replaces non-JSON-compliant float values (inf, -inf, nan) with None,
+    and ensures custom iterables/subclasses are converted to standard primitives."""
+    import math
+    if isinstance(data, dict):
+        return {str(k): sanitize_for_json(v) for k, v in data.items() if k != "sort_price"}
+    elif isinstance(data, (list, tuple, set)):
+        return [sanitize_for_json(v) for v in data]
+    elif isinstance(data, float):
+        if math.isinf(data) or math.isnan(data):
+            return None
+        return data
+    return data
+
+
 @app.post("/api/chat")
 def chat(request: ChatRequest, response: Response = None, http_request: Request = None):
     # Enforce session ownership
@@ -374,7 +409,7 @@ def chat(request: ChatRequest, response: Response = None, http_request: Request 
         intent_ms = timing.get("intent_ms", 0.0)
         response.headers["Server-Timing"] = f"total;dur={total_ms}, intent;dur={intent_ms}"
 
-    return result
+    return sanitize_for_json(result)
 
 
 @app.post("/api/chat/stream")

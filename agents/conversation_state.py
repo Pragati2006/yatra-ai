@@ -852,9 +852,9 @@ def evaluate_missing_slots(state: Dict[str, Any]) -> List[str]:
     if not req.get("origin"):
         missing.append("origin")
 
-    # Pax: required if not explicitly specified and not default
+    # Pax: required if not explicitly specified and not default (unless origin and duration are both already provided)
     if not req.get("_pax_explicit") and "pax" not in explicit and not req.get("group_type"):
-        if "origin" not in missing:  # ask after origin is known
+        if "origin" not in missing and not req.get("duration_days") and not req.get("_date_explicit"):
             missing.append("pax")
 
     # Travel date or duration: required to query exact timetables

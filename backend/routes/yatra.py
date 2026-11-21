@@ -683,15 +683,16 @@ def start_user_controlled_workflow_route(request: StartWorkflowRequest, http_req
             if effective_uid:
                 try:
                     sess_state = (session_rec.get("state") or {}) if session_rec else {}
-                    sess_opts = sess_state.get("pending_options") or session_rec.get("pending_options") or {}
+                    raw_opts = sess_state.get("pending_options") or session_rec.get("pending_options") or {}
+                    sess_opt = raw_opts[0] if (isinstance(raw_opts, list) and raw_opts and isinstance(raw_opts[0], dict)) else (raw_opts if isinstance(raw_opts, dict) else {})
                     sess_reqs = sess_state.get("requirements") or session_rec.get("requirements") or {}
                     sess_hotel = sess_state.get("hotel") or session_rec.get("hotel") or {}
 
-                    b_slot_date = (sess_opts.get("slot") or {}).get("slot_date") or sess_reqs.get("start_date") or "2026-10-20"
-                    b_category = (sess_opts.get("slot") or {}).get("category") or "Normal Darshan"
-                    b_slot_time = (sess_opts.get("slot") or {}).get("slot_time") or "Morning (06:00)"
+                    b_slot_date = (sess_opt.get("slot") or {}).get("slot_date") or sess_reqs.get("start_date") or "2026-10-20"
+                    b_category = (sess_opt.get("slot") or {}).get("category") or "Normal Darshan"
+                    b_slot_time = (sess_opt.get("slot") or {}).get("slot_time") or "Morning (06:00)"
                     b_hotel_name = sess_hotel.get("name") or "Devi Darshan Hotel (Katra)"
-                    b_origin = sess_reqs.get("origin") or (sess_opts.get("transport") or {}).get("origin") or ""
+                    b_origin = sess_reqs.get("origin") or (sess_opt.get("transport") or {}).get("origin") or ""
 
                     auth_service.save_booking(
                         user_id=effective_uid,
@@ -856,7 +857,8 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                 cp_data = (wf.get("checkpoint_data") or {}) if wf else {}
 
                 sess_state = (session_rec.get("state") or {}) if session_rec else {}
-                sess_opts = sess_state.get("pending_options") or session_rec.get("pending_options") or {}
+                raw_opts = sess_state.get("pending_options") or session_rec.get("pending_options") or {}
+                sess_opt = raw_opts[0] if (isinstance(raw_opts, list) and raw_opts and isinstance(raw_opts[0], dict)) else (raw_opts if isinstance(raw_opts, dict) else {})
                 sess_reqs = sess_state.get("requirements") or session_rec.get("requirements") or {}
                 sess_hotel = sess_state.get("hotel") or session_rec.get("hotel") or {}
 
@@ -876,7 +878,7 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                 b_slot_date = (
                     result.get("slot_date")
                     or cp_data.get("slot_date")
-                    or (sess_opts.get("slot") or {}).get("slot_date")
+                    or (sess_opt.get("slot") or {}).get("slot_date")
                     or sess_reqs.get("start_date")
                     or "2026-10-20"
                 )
@@ -884,19 +886,19 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                     result.get("category")
                     or cp_data.get("category")
                     or cp_data.get("slot_text")
-                    or (sess_opts.get("slot") or {}).get("category")
+                    or (sess_opt.get("slot") or {}).get("category")
                     or "Normal Darshan"
                 )
                 b_slot_time = (
                     result.get("slot_time")
                     or cp_data.get("slot_time")
-                    or (sess_opts.get("slot") or {}).get("slot_time")
+                    or (sess_opt.get("slot") or {}).get("slot_time")
                     or "Morning (06:00)"
                 )
                 b_transport_info = (
                     result.get("transport_text")
                     or cp_data.get("transport_text")
-                    or str(sess_opts.get("transport") or "Train (Vande Bharat Express)")
+                    or str(sess_opt.get("transport") or "Train (Vande Bharat Express)")
                 )
                 b_hotel_name = (
                     result.get("hotel_name")
@@ -907,10 +909,10 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                 b_total_price = float(
                     result.get("total_price")
                     or cp_data.get("total_price")
-                    or sess_opts.get("total_price")
+                    or sess_opt.get("total_price")
                     or 0.0
                 )
-                b_origin = sess_reqs.get("origin") or (sess_opts.get("transport") or {}).get("origin") or ""
+                b_origin = sess_reqs.get("origin") or (sess_opt.get("transport") or {}).get("origin") or ""
 
                 auth_service.save_booking(
                     user_id=user_id,

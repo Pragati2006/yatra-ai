@@ -78,15 +78,50 @@ def load_curated_bus_schedules(
                     continue
 
                 v_stat = r.get("verification_status", VerificationStatus.UNVERIFIED.value)
+                if v_stat in ("OFFICIALLY_VERIFIED", "VERIFIED", VerificationStatus.VERIFIED_OFFICIAL_SOURCE.value):
+                    v_stat = VerificationStatus.VERIFIED_CURATED_SOURCE.value
+                elif v_stat in ("PARTIALLY_VERIFIED", "SEASONAL_VERIFIED"):
+                    v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
+
                 src_name = r.get("source_name")
                 src_url = r.get("source_url")
                 src_ref = r.get("source_circular_reference")
                 v_by = r.get("verified_by")
                 v_at = r.get("verified_at")
 
-                # Fail-closed: missing source provenance cannot claim VERIFIED_CURATED_SOURCE
+                # Fail-closed: missing source provenance cannot claim verified status
                 if not (src_name and src_url and src_ref and v_by and v_at):
                     v_stat = VerificationStatus.UNVERIFIED.value
+                else:
+                    orig = str(r.get("origin_city", "")).strip().lower()
+                    dest = str(r.get("destination_city", "")).strip().lower()
+                    op_name = str(r.get("operator_name", "")).strip().lower()
+                    j_type = str(r.get("journey_type", "")).strip().upper()
+
+                    # Phase 6.2 Evidence Verification Guards:
+                    # 1. JKRTC official interstate timetables publish Delhi-Jammu; direct Delhi-Katra or
+                    # Pathankot-Katra stage carriage is unsupported as a verified schedule.
+                    if "jksrtc" in op_name or "jkrtc" in op_name:
+                        if orig == "delhi" and dest == "katra" and j_type == "DIRECT":
+                            v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
+                        elif orig == "pathankot" and dest == "katra" and j_type == "DIRECT":
+                            v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
+
+                    # 2. Sub-verification fail-closed: If timetable is unverified or route is partially verified
+                    time_v = (r.get("timetable_verification") or {}).get("status")
+                    route_v = (r.get("route_verification") or {}).get("status")
+                    if time_v == "unverified" or route_v in ("partially_verified", "unverified"):
+                        v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
+
+                    # 3. Multi-leg connecting journeys with estimated layovers cannot claim direct verified stage carriage
+                    if j_type == "CONNECTING":
+                        v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
+
+                    # 4. Domain-only URLs without route-specific paths cannot support fully verified status
+                    from urllib.parse import urlparse
+                    parsed = urlparse(str(src_url or ""))
+                    if parsed.path in ("", "/", "/index.html"):
+                        v_stat = VerificationStatus.PARTIALLY_VERIFIED.value
 
                 schedules.append(
                     CuratedBusSchedule(
@@ -126,6 +161,15 @@ def load_curated_bus_schedules(
                         operator_verification=r.get("operator_verification"),
                         timetable_verification=r.get("timetable_verification"),
                         fare_verification=r.get("fare_verification"),
+                        operator_type=str(r.get("operator_type", "government")).strip().lower(),
+                        boarding_points=r.get("boarding_points") or ([str(r.get("origin_bus_stand", ""))] if r.get("origin_bus_stand") else []),
+                        dropping_points=r.get("dropping_points") or ([str(r.get("destination_bus_stand", ""))] if r.get("destination_bus_stand") else []),
+                        bus_type=r.get("bus_type") or r.get("service_type"),
+                        booking_url=r.get("booking_url"),
+                        availability_status=r.get("availability_status", "COUNTER_TICKETING_UNRESERVED"),
+                        availability_source=r.get("availability_source", "Official Counter / Station"),
+                        journey_type=str(r.get("journey_type", "DIRECT")).strip().upper(),
+                        connecting_details=r.get("connecting_details"),
                     )
                 )
 
@@ -147,15 +191,30 @@ def search_curated_bus_schedules(
     service_id: Optional[str] = None,
     travel_date: Optional[str] = None,
     file_path: Optional[str] = None,
+    operator_type: Optional[str] = None,
+    bus_type: Optional[str] = None,
+    journey_type: Optional[str] = None,
+    direct_only: bool = False,
+    max_fare: Optional[float] = None,
+    sort_by: Optional[str] = None,
 ) -> Tuple[List[CuratedBusSchedule], Dict[str, Any]]:
     """Searches curated bus schedules matching origin, destination, or service_id.
 
+    Supports operator classification (government vs private), bus category filtering
+    (sleeper, seater, AC), journey type filtering (direct vs connecting), and fare sorting.
+
     Args:
-        origin: City name (e.g. 'Jammu', 'Delhi', 'Udhampur') or bus stand name.
+        origin: City name (e.g. 'Jammu', 'Delhi', 'Chandigarh', 'Amritsar') or bus stand name.
         destination: City name (e.g. 'Katra') or bus stand name.
         service_id: Specific bus service ID.
         travel_date: Optional ISO date string (YYYY-MM-DD).
         file_path: Optional path to override dataset.
+        operator_type: Optional filter ('government', 'private').
+        bus_type: Optional filter substring ('sleeper', 'seater', 'ac', 'volvo', 'bharatbenz').
+        journey_type: Optional filter ('DIRECT', 'CONNECTING').
+        direct_only: If True, only returns DIRECT journeys (excludes connecting transfers).
+        max_fare: Optional maximum indicative minimum fare limit.
+        sort_by: Optional sort order ('fare', 'departure', 'duration').
 
     Returns:
         Tuple of (filtered List[CuratedBusSchedule], metadata dict).
@@ -185,18 +244,18 @@ def search_curated_bus_schedules(
 
         # Common aliases
         aliases = {
-            "delhi": ["delhi", "new delhi", "isbt", "kashmiri gate", "kashmere gate", "ndls"],
+            "delhi": ["delhi", "new delhi", "isbt kashmiri gate", "isbt kashmere gate", "kashmiri gate", "kashmere gate", "ndls", "majnu ka tila", "anand vihar"],
             "katra": ["katra", "central bus stand", "svdk", "shri mata vaishno devi"],
             "jammu": ["jammu", "jammu tawi", "gbs", "general bus stand", "rail head", "jat"],
             "udhampur": ["udhampur", "uhp", "battal"],
-            "chandigarh": ["chandigarh", "cdg", "isbt 43", "isbt sector 43"],
+            "chandigarh": ["chandigarh", "cdg", "isbt 43", "isbt sector 43", "sector 43"],
             "amritsar": ["amritsar", "asr", "amritsar isbt"],
-            "shimla": ["shimla", "simla", "isbt tutikandi"],
+            "shimla": ["shimla", "simla", "isbt tutikandi", "tutikandi"],
             "dharamshala": ["dharamshala", "dharamsala", "mcleodganj"],
             "manali": ["manali"],
             "mandi": ["mandi"],
             "pathankot": ["pathankot", "ptk", "ptkc"],
-            "srinagar": ["srinagar", "sxr"],
+            "srinagar": ["srinagar", "sxr", "trc"],
             "jalandhar": ["jalandhar", "jrc"],
             "ludhiana": ["ludhiana", "ldh"],
         }
@@ -224,7 +283,54 @@ def search_curated_bus_schedules(
             if not _matches_location(destination, s.destination_city, s.destination_bus_stand):
                 continue
 
+        # Filter by operator_type
+        if operator_type:
+            op_t = operator_type.strip().lower()
+            if s.operator_type.lower() != op_t:
+                continue
+
+        # Filter by direct_only
+        if direct_only and s.journey_type.upper() != "DIRECT":
+            continue
+
+        # Filter by journey_type
+        if journey_type:
+            j_t = journey_type.strip().upper()
+            if s.journey_type.upper() != j_t:
+                continue
+
+        # Filter by bus_type
+        if bus_type:
+            bt_q = bus_type.strip().lower()
+            combined_type = f"{s.bus_type or ''} {s.service_type or ''}".lower()
+            if bt_q == "ac":
+                if "ac" not in combined_type and "volvo" not in combined_type and "bharatbenz" not in combined_type:
+                    continue
+            elif bt_q == "sleeper":
+                if "sleeper" not in combined_type:
+                    continue
+            elif bt_q == "seater":
+                if "seater" not in combined_type and "ordinary" not in combined_type:
+                    continue
+            else:
+                if bt_q not in combined_type:
+                    continue
+
+        # Filter by max_fare
+        if max_fare is not None:
+            f_val = s.indicative_fare_min if s.indicative_fare_min is not None else s.indicative_fare_max
+            if f_val is not None and f_val > max_fare:
+                continue
+
         filtered.append(s)
+
+    # Apply sorting
+    if sort_by == "fare":
+        filtered.sort(key=lambda x: (x.indicative_fare_min if x.indicative_fare_min is not None else 999999))
+    elif sort_by == "departure":
+        filtered.sort(key=lambda x: (x.departure_time or "99:99"))
+    elif sort_by == "duration":
+        filtered.sort(key=lambda x: (x.duration_hours if x.duration_hours is not None else 9999))
 
     meta_copy = dict(metadata)
     if origin and not filtered:
@@ -234,19 +340,123 @@ def search_curated_bus_schedules(
             "destination": destination or "Katra",
             "message": (
                 f"No verified public bus services found in the curated Katra/Jammu bus registry for origin '{origin}'. "
-                "Curated bus coverage is currently limited to verified corridors connecting Jammu (General Bus Stand & Rail Head), "
-                "Udhampur, and Delhi ISBT to Katra. For other origins, pilgrims should travel by train/flight to Jammu or Delhi "
-                "and connect via high-frequency local feeder buses or JKRTC pilgrim services."
+                "Curated bus coverage includes verified corridors connecting Jammu (General Bus Stand & Rail Head), "
+                "Udhampur, Delhi (ISBT & Majnu Ka Tila), Chandigarh, Amritsar, Pathankot, and Srinagar to Katra. "
+                "For other origins, pilgrims should travel by train/flight to Jammu or Delhi and connect via high-frequency local feeder buses or verified operator services."
             ),
             "supported_origins": [
-                "Jammu (General Bus Stand)",
-                "Jammu (Railway Station Rail Head)",
-                "Udhampur (Bus Stand)",
-                "Delhi (ISBT Kashmiri Gate)",
+                "Delhi (ISBT Kashmiri Gate / Majnu Ka Tila)",
+                "Jammu (General Bus Stand / Railway Station)",
+                "Katra (Central Bus Stand)",
+                "Udhampur (District Bus Stand)",
+                "Chandigarh (ISBT Sector 43)",
+                "Amritsar (ISBT)",
+                "Pathankot (Bus Stand)",
+                "Srinagar (Tourist Reception Centre - TRC)",
             ],
         }
 
     return filtered, meta_copy
+
+
+def get_cheapest_bus(
+    origin: str,
+    destination: str = "Katra",
+    direct_only: bool = False,
+    file_path: Optional[str] = None,
+) -> Optional[CuratedBusSchedule]:
+    """Returns the bus schedule with lowest minimum indicative fare for the route."""
+    schedules, _ = search_curated_bus_schedules(
+        origin=origin,
+        destination=destination,
+        direct_only=direct_only,
+        file_path=file_path,
+        sort_by="fare",
+    )
+    return schedules[0] if schedules else None
+
+
+def get_direct_buses(
+    origin: str,
+    destination: str = "Katra",
+    file_path: Optional[str] = None,
+) -> List[CuratedBusSchedule]:
+    """Returns only direct, through bus services to the destination."""
+    schedules, _ = search_curated_bus_schedules(
+        origin=origin,
+        destination=destination,
+        direct_only=True,
+        file_path=file_path,
+    )
+    return schedules
+
+
+def get_connecting_buses(
+    origin: str,
+    destination: str = "Katra",
+    file_path: Optional[str] = None,
+) -> List[CuratedBusSchedule]:
+    """Returns verified connecting bus services with official transfer hubs."""
+    schedules, _ = search_curated_bus_schedules(
+        origin=origin,
+        destination=destination,
+        journey_type="CONNECTING",
+        file_path=file_path,
+    )
+    return schedules
+
+
+def compare_bus_and_train(
+    origin: str = "Delhi",
+    destination: str = "Katra",
+) -> Dict[str, Any]:
+    """Generates a side-by-side comparison between train and bus travel for Katra."""
+    bus_schedules, _ = search_curated_bus_schedules(origin=origin, destination=destination)
+
+    # Separate private and government buses
+    gov_buses = [b for b in bus_schedules if b.operator_type == "government"]
+    pvt_buses = [b for b in bus_schedules if b.operator_type == "private"]
+    verified_buses = [b for b in bus_schedules if b.verification_status == "verified_curated_source"]
+    partial_buses = [b for b in bus_schedules if b.verification_status == "partially_verified"]
+
+    return {
+        "corridor": f"{origin} ↔ {destination}",
+        "train": {
+            "mode": "train",
+            "flagship": "Vande Bharat Express (22439 / 22477)",
+            "overnight": "Shri Shakti Express (22461) / Uttar Sampark Kranti (12445)",
+            "duration": "8h 00m (Vande Bharat) / 11h 30m (Overnight Superfast)",
+            "fare_range": "₹1,665 (Chair Car) / ₹3,015 (Executive) / ₹380–₹1,100 (Sleeper/3AC)",
+            "booking_portal": "https://www.irctc.co.in/",
+            "pros": ["Fastest surface transit (8h)", "On-board catering", "Arrives directly at SVDK station"],
+            "cons": ["High advance booking demand", "Tatkal fills within minutes"],
+        },
+        "bus": {
+            "mode": "bus",
+            "government_operators": ["JKRTC", "HRTC", "PRTC / Punbus"],
+            "private_operators": ["Laxmi Holidays", "Zingbus", "FlixBus", "IntrCity SmartBus", "Ram Dalal Holidays"],
+            "bus_types": ["Volvo 9600 AC Sleeper (2+1)", "BharatBenz AC Sleeper", "Deluxe 2+2 AC Seater", "Ordinary Stage Carriage"],
+            "duration": "12h 00m – 14h 30m (Estimated)",
+            "duration_estimate": "12h 00m – 14h 30m (Overnight Highway Corridor Estimate)",
+            "fare_range": "₹750 – ₹1,900 (Indicative)",
+            "indicative_fare_range": "₹750 – ₹1,900 (Indicative range depending on seater vs sleeper & operator)",
+            "boarding_points": ["ISBT Kashmiri Gate", "Majnu Ka Tila", "Karnal Bypass", "Anand Vihar"],
+            "dropping_points": ["Katra New Bus Stand", "Subhash Parking Katra", "Kachi Parking Katra"],
+            "pros": ["Flexible departure times (multiple evening slots)", "Reclining sleeper berths", "Last-minute seat availability"],
+            "cons": ["Longer transit time (~12–14h)", "Highway traffic and mountain weather dependent"],
+            "total_services": len(bus_schedules),
+            "total_verified_services": len(verified_buses),
+            "verified_services_count": len(verified_buses),
+            "partially_verified_count": len(partial_buses),
+            "government_count": len(gov_buses),
+            "private_count": len(pvt_buses),
+        },
+        "recommendation": (
+            "For speed and maximum comfort, the **Vande Bharat Express (22439)** is the top recommendation (8 hours). "
+            "If train tickets are waitlisted, **Premium AC Sleeper Buses (Laxmi Holidays / Zingbus / IntrCity / JKRTC Volvo)** "
+            "provide reliable overnight transit departing Delhi around 18:00–21:30 and arriving Katra refreshed by 08:30–10:30."
+        ),
+    }
 
 
 def get_bus_service_by_id(

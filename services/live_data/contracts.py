@@ -464,6 +464,16 @@ class CuratedBusSchedule:
     operator_verification: Optional[ClaimVerification] = None
     timetable_verification: Optional[ClaimVerification] = None
     fare_verification: Optional[ClaimVerification] = None
+    # Multi-operator discovery & journey metadata (Phase 6)
+    operator_type: str = "government"  # "government" | "private"
+    boarding_points: List[str] = field(default_factory=list)
+    dropping_points: List[str] = field(default_factory=list)
+    bus_type: Optional[str] = None
+    booking_url: Optional[str] = None
+    availability_status: str = "COUNTER_TICKETING_UNRESERVED"
+    availability_source: str = "Official Counter / Station"
+    journey_type: str = "DIRECT"  # "DIRECT" | "CONNECTING" | "LOCAL_REGIONAL"
+    connecting_details: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         # Strict fail-safe: bus schedules are timetable/statutory guidance, never live tracking
@@ -492,13 +502,18 @@ class CuratedBusSchedule:
                 self.fare_verification.status = VerificationStatus.INDICATIVE_INFORMATION.value
 
         # Fail-closed verification downgrade if primary evidence missing
+        valid_verified_statuses = (
+            VerificationStatus.VERIFIED_CURATED_SOURCE.value,
+            VerificationStatus.VERIFIED_OFFICIAL_SOURCE.value,
+            VerificationStatus.PARTIALLY_VERIFIED.value,
+        )
         if (
             not self.source_name
             or not self.source_url
             or not self.source_circular_reference
             or not self.verified_at
             or not self.verified_by
-            or self.verification_status != VerificationStatus.VERIFIED_CURATED_SOURCE.value
+            or self.verification_status not in valid_verified_statuses
         ):
             self.verification_status = VerificationStatus.UNVERIFIED.value
 

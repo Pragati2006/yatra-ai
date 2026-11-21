@@ -231,6 +231,16 @@ def request_otp_endpoint(payload: RequestOTPRequest):
     return res
 
 
+@router.get("/smtp-status")
+def smtp_status_endpoint():
+    """Diagnostic endpoint reporting SMTP provider readiness without exposing secrets."""
+    from agents.auth_service import validate_smtp_configuration
+    return {
+        "status": "success",
+        "smtp": validate_smtp_configuration(),
+    }
+
+
 @router.post("/verify-otp")
 def verify_otp_endpoint(payload: VerifyOTPRequest, request: Request, response: Response):
     """

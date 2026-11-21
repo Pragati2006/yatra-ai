@@ -41,23 +41,76 @@ def clear_retrieval_tracking(token=None):
 
 
 def _local_search_tourist_attraction(query):
-    places = explore_data.get_places()
+    try:
+        import agents.content_agent as content_agent
+        places = content_agent.get_all_places_enriched()
+    except Exception:
+        places = explore_data.get_places()
     q = query.strip().lower()
     if not query:
         return []
-    # 1. Exact match
+
+    # 1. Broad exploration / listing query for a district/region (e.g. 'in Kishtwar', 'in Srinagar', 'near Jammu')
+    import re
+    is_list_query = bool(re.search(r"\b(visit in|places in|places to visit|suggest places|what can i visit|tourist places in|historical places near|attractions in)\b", q))
+    district_match = re.search(r"\b(kishtwar|srinagar|jammu|katra|reasi)\b", q)
+
+    if is_list_query and district_match:
+        dist = district_match.group(1).lower()
+        is_historical = bool(re.search(r"\b(history|historical|heritage|fort|palace|ancient)\b", q))
+        is_nature = bool(re.search(r"\b(nature|scenic|garden|park|lake|meadow)\b", q))
+
+        matched = [
+            p for p in places
+            if (p.get("district") and dist in p["district"].lower())
+            or (p.get("region") and dist in p["region"].lower())
+        ]
+        if is_historical:
+            matched = [
+                p for p in matched
+                if any(k in (p.get("category", "") + " " + p.get("description", "")).lower()
+                       for k in ["historic", "heritage", "fort", "palace", "ancient"])
+            ]
+        elif is_nature:
+            matched = [
+                p for p in matched
+                if any(k in (p.get("category", "") + " " + p.get("description", "")).lower()
+                       for k in ["garden", "park", "lake", "meadow", "nature"])
+            ]
+        if matched:
+            return matched
+
+    # 2. Check if any known place name is a substring of the query (e.g. 'Dachigam National Park' in 'Is Dachigam National Park suitable...')
+    substring_matches = []
+    for p in places:
+        name = p["name"]
+        if name in ("Katra", "Srinagar (Dal Lake & Gardens)") and not bool(re.search(r"\b(dal lake|gardens)\b", q)):
+            continue
+        clean_name = re.sub(r"\s*\([^)]*\)", "", name).strip().lower()
+        if clean_name in q or (len(clean_name) >= 5 and clean_name in q):
+            substring_matches.append(p)
+    if substring_matches:
+        substring_matches.sort(key=lambda x: len(x["name"]), reverse=True)
+        return [substring_matches[0]]
+
+    # 3. Exact match
     exact = [p for p in places if p["name"].lower() == q]
     if exact:
         return exact
-    # 2. Name contains query
+    # 4. Name contains query
     name_m = [p for p in places if q in p["name"].lower()]
     if name_m:
         return name_m
-    # 3. Region/category match
-    reg_m = [p for p in places if q in p.get("region", "").lower() or q in p.get("category", "").lower()]
+    # 5. Region/district/category match
+    reg_m = [
+        p for p in places
+        if q in p.get("region", "").lower()
+        or q in p.get("district", "").lower()
+        or q in p.get("category", "").lower()
+    ]
     if reg_m:
         return reg_m
-    # 4. Description match
+    # 6. Description match
     desc_m = [p for p in places if q in p.get("description", "").lower()]
     return desc_m
 
@@ -148,7 +201,11 @@ def search_tourist_attraction(query):
             return nearby_results
 
         # Use the existing local tourism dataset as fallback.
-        all_places = explore_data.get_places()
+        try:
+            import agents.content_agent as content_agent
+            all_places = content_agent.get_all_places_enriched()
+        except Exception:
+            all_places = explore_data.get_places()
         local_places = [
             p
             for p in all_places
@@ -175,9 +232,67 @@ def search_tourist_attraction(query):
     # Only query Atlas if circuit breaker confirms connection health
     if tourist_attractions is not None and mongo_db.is_available():
         try:
+            import re
+            q_clean = query.strip()
+            q_lower = q_clean.lower()
+
+            # 1. Broad exploration / listing query for a district or region
+            is_list_query = bool(re.search(r"\b(visit in|places in|places to visit|suggest places|what can i visit|tourist places in|historical places near|attractions in)\b", q_lower))
+            district_match = re.search(r"\b(kishtwar|srinagar|jammu|katra|reasi)\b", q_lower)
+
+            if is_list_query and district_match:
+                dist = district_match.group(1).title()
+                is_historical = bool(re.search(r"\b(history|historical|heritage|fort|palace|ancient)\b", q_lower))
+                is_nature = bool(re.search(r"\b(nature|scenic|garden|park|lake|meadow)\b", q_lower))
+
+                mongo_filter = {
+                    "$or": [
+                        {"district": {"$regex": f"^{dist}$", "$options": "i"}},
+                        {"region": {"$regex": f"^{dist}$", "$options": "i"}},
+                    ]
+                }
+                dist_results = list(tourist_attractions.find(mongo_filter, {"_id": 0}))
+                if is_historical:
+                    dist_results = [
+                        p for p in dist_results
+                        if any(k in (p.get("category", "") + " " + p.get("description", "")).lower()
+                               for k in ["historic", "heritage", "fort", "palace", "ancient"])
+                    ]
+                elif is_nature:
+                    dist_results = [
+                        p for p in dist_results
+                        if any(k in (p.get("category", "") + " " + p.get("description", "")).lower()
+                               for k in ["garden", "park", "lake", "meadow", "nature"])
+                    ]
+                if dist_results:
+                    _ATTRACTION_CACHE[q_key] = dist_results
+                    _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                    record_retrieval_source("atlas")
+                    return dist_results
+
+            # 2. Check if query contains any known destination name
+            all_names_docs = list(tourist_attractions.find({}, {"name": 1, "_id": 0}))
+            name_substrings = []
+            for p in all_names_docs:
+                p_name = p["name"]
+                if p_name in ("Katra", "Srinagar (Dal Lake & Gardens)") and not bool(re.search(r"\b(dal lake|gardens)\b", q_lower)):
+                    continue
+                clean_p = re.sub(r"\s*\([^)]*\)", "", p_name).strip().lower()
+                if clean_p in q_lower or (len(clean_p) >= 5 and clean_p in q_lower):
+                    name_substrings.append(p_name)
+            if name_substrings:
+                name_substrings.sort(key=len, reverse=True)
+                target_p_name = name_substrings[0]
+                exact_name_match = list(tourist_attractions.find({"name": target_p_name}, {"_id": 0}))
+                if exact_name_match:
+                    _ATTRACTION_CACHE[q_key] = exact_name_match
+                    _ATTRACTION_SOURCE_CACHE[q_key] = "atlas"
+                    record_retrieval_source("atlas")
+                    return exact_name_match
+
             regex = {"$regex": query, "$options": "i"}
 
-            # 1. Exact name match
+            # 3. Exact name match
             exact_results = list(
                 tourist_attractions.find(
                     {"name": {"$regex": f"^{query}$", "$options": "i"}},
@@ -190,7 +305,7 @@ def search_tourist_attraction(query):
                 record_retrieval_source("atlas")
                 return exact_results
 
-            # 2. Name contains query
+            # 4. Name contains query
             name_results = list(
                 tourist_attractions.find(
                     {"name": regex},
@@ -203,13 +318,15 @@ def search_tourist_attraction(query):
                 record_retrieval_source("atlas")
                 return name_results
 
-            # 3. Region/category match
+            # 5. Region/district/category match
             region_results = list(
                 tourist_attractions.find(
                     {
                         "$or": [
                             {"region": regex},
+                            {"district": regex},
                             {"category": regex},
+                            {"category_type": regex},
                         ]
                     },
                     {"_id": 0},
@@ -221,7 +338,7 @@ def search_tourist_attraction(query):
                 record_retrieval_source("atlas")
                 return region_results
 
-            # 4. Description match
+            # 6. Description match
             description_results = list(
                 tourist_attractions.find(
                     {"description": regex},

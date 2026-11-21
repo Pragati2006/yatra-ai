@@ -229,15 +229,21 @@ def search_buses(origin, start_date, end_date, min_seats=1):
             dep_time = s.departure_time
             arr_time = s.arrival_time
             fare_class = s.fare_classification or "STATUTORY_NOTIFIED_PER_KM_SLAB"
+            bus_name = f"{s.operator_name} {s.bus_type or s.service_type}".strip()
             records.append({
                 "id": s.service_id,
                 "mode": "bus",
+                "name": bus_name,
                 "operator": s.operator_name,
+                "operator_type": s.operator_type,
+                "bus_type": s.bus_type,
                 "transport_no": s.service_id,
                 "origin": s.origin_city,
                 "destination": s.destination_city,
                 "origin_bus_stand": s.origin_bus_stand,
                 "destination_bus_stand": s.destination_bus_stand,
+                "boarding_points": s.boarding_points,
+                "dropping_points": s.dropping_points,
                 "travel_date": start_date,
                 "departure_time": dep_time,
                 "departure_window": s.departure_window,
@@ -261,6 +267,11 @@ def search_buses(origin, start_date, end_date, min_seats=1):
                 "fare_verification": s.fare_verification.to_dict() if s.fare_verification else None,
                 "source_name": s.source_name,
                 "source_circular_reference": s.source_circular_reference,
+                "booking_url": s.booking_url,
+                "availability_status": s.availability_status,
+                "availability_source": s.availability_source,
+                "journey_type": s.journey_type,
+                "connecting_details": s.connecting_details,
             })
         return records
     except Exception:

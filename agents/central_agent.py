@@ -1209,6 +1209,8 @@ def get_tourism_knowledge(query: str = "", place: Optional[str] = None) -> dict:
 
 
     knowledge = knowledge_agent.get_jk_tourism_knowledge(search_term)
+    if not place_info and knowledge.get("primary_place"):
+        place_info = knowledge["primary_place"]
 
 
 
@@ -8363,6 +8365,14 @@ def _handle_deterministic_accommodation_turn(
         "partial_failure": False,
         "circuit_breaker_state": llm_circuit_breaker.current_state,
     }
+    try:
+        _lm = session_store.get_messages(sid)
+        if not _lm or _lm[-1].get("role") != "user" or _lm[-1].get("content") != user_text:
+            session_store.add_message(session_id=sid, role="user", content=user_text, metadata={"intent": "ACCOMMODATION"})
+        session_store.add_message(session_id=sid, role="assistant", content=res["reply"])
+    except Exception:
+        pass
+
     from utils.provenance import attach_provenance_to_response
     return attach_provenance_to_response(res)
 
@@ -13183,6 +13193,21 @@ def _handle_deterministic_verified_contacts_turn(
 
 
 
+def _sanitize_response_json(data: Any) -> Any:
+    """Sanitizes outgoing dictionary payload to ensure full RFC 7159 JSON compliance.
+    Recursively maps non-compliant floats (inf, -inf, nan) to None and strips internal sorting keys."""
+    import math
+    if isinstance(data, dict):
+        return {str(k): _sanitize_response_json(v) for k, v in data.items() if k != "sort_price"}
+    elif isinstance(data, (list, tuple, set)):
+        return [_sanitize_response_json(v) for v in data]
+    elif isinstance(data, float):
+        if math.isinf(data) or math.isnan(data):
+            return None
+        return data
+    return data
+
+
 def process_conversational_turn(
 
 
@@ -13752,15 +13777,17 @@ def process_conversational_turn(
 
     sid = session["session_id"]
 
-    updated_session = conversation_state.update_conversation_state(user_text, current_state=session)
+    # Detect intent before mutating state to ensure pure informational queries do not contaminate trip requirements
+    early_intent = conversation_agent.detect_intent(user_text)
 
-    merged_req = updated_session.get("state", {}).get("requirements", {})
-
-    session_store.update_session(sid, updates={"requirements": merged_req})
-
-    session["state"]["requirements"] = merged_req
-
-    current_request = merged_req
+    if early_intent in ("TRIP_PLANNING", "BOOKING_INTENT", "BOOKING", "UNKNOWN"):
+        updated_session = conversation_state.update_conversation_state(user_text, current_state=session)
+        merged_req = updated_session.get("state", {}).get("requirements", {})
+        session_store.update_session(sid, updates={"requirements": merged_req})
+        session["state"]["requirements"] = merged_req
+        current_request = merged_req
+    else:
+        current_request = current_request or session.get("state", {}).get("requirements", {})
 
 
 
@@ -13886,14 +13913,28 @@ def process_conversational_turn(
 
 
 
-    if intent in ("BOOKING_INTENT", "BOOKING"):
-
-
-
-
-
-
-
+    if intent in (
+        "BOOKING_INTENT",
+        "BOOKING",
+        "MY_BOOKINGS",
+        "BOOKING_REVIEW",
+        "HOTEL_CHANGE",
+        "TRANSPORT_CHANGE",
+        "DATE_CHANGE",
+        "ITINERARY",
+        "LIVE_TRAIN_STATUS",
+        "HOTEL_SEARCH",
+        "FLIGHT_SEARCH",
+        "BUS_SEARCH",
+        "TRAIN_SEARCH",
+        "TRAIN_SCHEDULE",
+        "ALTITUDE_GUIDANCE",
+        "TREKKING_GUIDANCE",
+        "BHAVAN_TRANSPORT",
+        "TOURISM",
+        "WEATHER",
+        "TRIP_PLANNING",
+    ):
         b_res = orchestrator.orchestrate_conversational_turn(
 
 
@@ -13990,7 +14031,7 @@ def process_conversational_turn(
 
 
 
-        b_res["execution_mode"] = "deterministic_booking"
+        b_res["execution_mode"] = f"deterministic_{intent.lower()}"
 
 
 
@@ -14607,7 +14648,7 @@ def process_conversational_turn(
         fallback_res["fallback_reason"] = "Deterministic routing applied"
     timing["total_ms"] = round((time.perf_counter() - t_start) * 1000.0, 2)
     fallback_res["timing"] = timing
-    return fallback_res
+    return _sanitize_response_json(fallback_res)
 
 
 
@@ -17019,7 +17060,7 @@ def _execute_llm_tool_calling_turn(
     final_res["model"] = getattr(active_llm, "model_name", "openai/gpt-oss-20b")
     final_res["llm_attempted"] = True
     final_res["llm_latency_ms"] = round(llm_cumulative_ms, 2)
-    return final_res
+    return _sanitize_response_json(final_res)
 
 
 

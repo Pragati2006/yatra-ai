@@ -75,7 +75,11 @@ _TOURISM_QUESTION_PATTERNS = [
     r"\b(trek route|which route|how to reach bhawan)\b",
     r"\b(nearby places|nearby attractions|nearby destinations|places to see|places to visit|tourist spots|sightseeing spots|tourist attractions|attractions)\b",
     r"\b(give me|show me|tell me)\b.{0,50}\b(attraction|attractions|place|places|sightseeing)\b",
-    r"\b(bhairavnath|ardhkuwari|charan paduka|ban ganga|shiv khori|patnitop|sanasar|mansar|bahu fort|amar mahal|raghunath|peer kho|himkoti|baba dhansar|jhajjar kotli|nau devi)\b",
+    r"\b(show\s+me\s+|show\s+|see\s+|view\s+|display\s+|look\s+at\s+)?(pictures?|photos?|photographs?|images?|pics?|gallery)\s+(of|for|about|from|at)\b",
+    r"\b(do\s+you\s+have\s+)?(pictures?|photos?|photographs?|images?|pics?)\s+(of|for|about|from|at)\b",
+    r"\b(pictures?|photos?|photographs?|images?|pics?)\b.{0,30}\b(place|places|destination|destinations|attraction|attractions|temple|fort|garden|lake|shrine)\b",
+    r"\b(bhairavnath|bhairon|bhairon ghati|ardhkuwari|charan paduka|ban ganga|shiv khori|patnitop|sanasar|mansar|bahu fort|amar mahal|raghunath|peer kho|himkoti|baba dhansar|jhajjar kotli|nau devi|sinthan|sinthan top|gulmarg|pahalgam|sonamarg|srinagar|dal lake|shankaracharya|kheer bhawani|verinag|achabal|martand|machail|machail mata|sarthal|sarthal devi|kishtwar|chowgan|akhnoor|akhnoor fort|pari mahal|dachigam|botanical garden|naranag)\b",
+    r"\b(visiting\s+hours?|opening\s+hours?|open\s+hours?|when\s+does.*open|visiting\s+timings?)\b",
     r"\b(vaishno devi history|vaishno devi significance|vaishno devi legend|about vaishno devi|what is vaishno devi|what is (the )?(vaishno devi )?yatra|tell me about (the )?yatra)\b",
     r"\b(how far|what (can|to) (i|we) do|tell me more|how to reach|how do i reach|what is the distance|where is it|where located|tell me about it)\b",
     r"\b(suitable for|safe for|can.*visit|can.*go|is it (safe|possible|difficult|steep|easy)|how difficult|trek difficulty)\b",
@@ -112,7 +116,8 @@ _TRIP_PLANNING_PATTERNS = [
 
 
 _ITINERARY_PATTERNS = [
-    r"\b(show|view|see|display|what am i doing|tell me about|what is on|what's on)\b.{0,30}\b(itinerary|day\s*\d+|schedule)\b",
+    r"\b(show|view|see|display|what am i doing|tell me about|what is on|what's on|what is)\b.{0,30}\b(itinerary|day\s*\d+|schedule)\b",
+    r"\b(day[- ]by[- ]day\s+itinerary|daily\s+itinerary|trip\s+schedule)\b",
     r"\bday\s*\d+\b",
     r"\b(move|shift|transfer)\b.{0,40}\b(to day\s*\d+|day\s*\d+)\b",
     r"\b(add|put|include)\b.{0,40}\b(on day\s*\d+|to day\s*\d+|day\s*\d+)\b",
@@ -234,14 +239,133 @@ def _is_pure_help(tl: str) -> bool:
     return t_clean in ("help", "menu", "options", "what can you do", "features", "how can you help")
 
 
+_LIVE_TRAIN_STATUS_PATTERNS = [
+    r"\b(live\s+train\s+status|live\s+status|running\s+status|train\s+running\s+status|current\s+location\s+of\s+train|train\s+delay\s+status|train\s+status)\b",
+    r"\bwhere\s+is\s+(?:the\s+|my\s+)?train\b",
+    r"\bwhere\s+is\s+(?:train\s+)?\d{5}\b",
+    r"\btrack\s+(?:train\s+)?\d{5}\b",
+    r"\bis\s+(?:train\s+)?\d{5}\s+(?:running\s+)?on\s+time\b",
+    r"\bdelay\s+of\s+(?:train\s+)?\d{5}\b",
+]
+
+_TRAIN_SCHEDULE_PATTERNS = [
+    r"\b(train\s+schedule|train\s+timetable|train\s+timings?|timetable|schedule\s+of\s+(?:the\s+)?train)\b",
+    r"\b(vande\s+bharat|shri\s+shakti|uttar\s+sampark|malwa|swaraj|hemkunt|rajdhani|jammu\s+mail)\b.{0,30}\b(schedule|timetable|timing|timings)\b",
+    r"\b(schedule|timetable|timing|timings)\b.{0,30}\b(vande\s+bharat|shri\s+shakti|uttar\s+sampark|malwa|swaraj|hemkunt|rajdhani|jammu\s+mail)\b",
+    r"\b(train\s+time|train\s+times|railway\s+timetable)\b",
+]
+
+_TRAIN_SEARCH_PATTERNS = [
+    r"\b(train|trains)\s+(?:from|between|to)\b",
+    r"\b(search|find|check|show|get|list|available)\s+(?:me\s+)?(?:the\s+)?(train|trains|railways?)\b",
+    r"\b(train|trains)\s+from\s+[a-z]+(?:\s+[a-z]+)?\s+to\s+(?:katra|jammu|svdk|jat)\b",
+    r"\b(train|trains)\s+to\s+(?:katra|jammu|svdk|jat)\b",
+]
+
+_FLIGHT_SEARCH_PATTERNS = [
+    r"\b(flight|flights|air\s+tickets?|airlines?)\s+(?:from|between|to)\b",
+    r"\b(search|find|check|show|get|list|available)\s+(?:me\s+)?(?:the\s+)?(flight|flights|airfare)\b",
+    r"\b(flight|flights)\s+to\s+(?:jammu|srinagar|ixj|sxr)\b",
+    r"\b[a-zA-Z\s]+?\s+to\s+[a-zA-Z\s]+?\s+(?:flight|flights|airfare|air\s+ticket)\b",
+    r"\b(flight|flights)\s+(search|booking|ticket|tickets|fares?|options?)\b",
+]
+
+_BUS_SEARCH_PATTERNS = [
+    r"\b(bus|buses|jksrtc|stage\s+carriage)\s+(?:from|between|to)\b",
+    r"\b(search|find|check|show|get|list|available)\s+(?:me\s+)?(?:the\s+)?(?:all\s+)?(?:private\s+and\s+government\s+|government\s+and\s+private\s+|private\s+|government\s+|ac\s+|sleeper\s+|direct\s+|connecting\s+)?(bus|buses|jksrtc)\b",
+    r"\b(bus|buses)\s+from\s+[a-z]+(?:\s+[a-z]+)?\s+to\s+[a-z]+(?:\s+[a-z]+)?\b",
+    r"\b(bus|buses)\s+to\s+(?:katra|jammu|udhampur|srinagar)\b",
+    r"\b[a-zA-Z\s]+?\s+to\s+[a-zA-Z\s]+?\s+(?:bus|buses|bus\s+schedule|bus\s+timing|bus\s+fare)\b",
+    r"\b(bus|buses)\s+(search|booking|ticket|tickets|fares?|schedule|timetable|timing|timings|options?)\b",
+    r"\b(?:which\s+is\s+the\s+|show\s+(?:me\s+)?(?:the\s+)?)?cheapest\s+(?:verified\s+)?(?:bus|option|transport|service)\b",
+    r"\b(show|find|list)\s+(?:all\s+)?(ac\s+sleeper|sleeper|volvo|direct|connecting)\s+buses\b",
+    r"\b(show|list|find)\s+(?:all\s+)?direct\s+buses(?:\s+only)?\b",
+    r"\b(show|list|find)\s+(?:all\s+)?connecting\s+buses(?:\s+via\s+[a-zA-Z\s]+)?\b",
+    r"\b(show|list|find)\s+(?:both\s+)?(?:private\s+and\s+government|government\s+and\s+private)\s+buses\b",
+    r"\b(show|list|find)\s+(?:private|government)\s+buses\b",
+    r"\bcompare\s+(?:the\s+)?(?:bus\s+and\s+train|train\s+and\s+bus)(?:\s+travel)?\b",
+    r"\b(bus\s+vs\s+train|train\s+vs\s+bus)\b",
+    r"\bbuses\s+from\s+[a-zA-Z\s]+?\s+to\s+[a-zA-Z\s]+?\s+and\s+onward\s+to\s+[a-zA-Z\s]+\b",
+]
+
+_HOTEL_PATTERNS = [
+    r"\b(hotels?|stay|stays|accommodation|accommodations|rooms?|lodging|guest\s*house|guest\s*houses|bhawan\s+stay|dormitory|dormitories|where\s+to\s+stay)\b",
+]
+
+_ALTITUDE_PATTERNS = [
+    r"\b(altitude|elevation|height|how\s+high|sea\s+level|metres\s+high|meters\s+high|feet\s+high)\b",
+]
+
+_TREKKING_PATTERNS = [
+    r"\b(trekking\s+tip|trekking\s+tips|trek\s+tips|tips\s+for\s+trekking|trek\s+advice|trekking\s+advice|tips\s+for.*trek|how\s+steep|steepness|trek\s+difficulty|difficulty\s+of.*trek)\b",
+]
+
+_BHAVAN_TRANSPORT_PATTERNS = [
+    r"\b(transport\s+options?\s+to\s+bhawan|transport\s+to\s+bhawan|options\s+to\s+bhawan|ways\s+to\s+reach\s+bhawan|how\s+to\s+reach\s+bhawan)\b",
+    r"\b(battery\s+car|electric\s+vehicle|palki|palanquin|pithoo|porter|ropeway|cable\s+car|helicopter)\b.{0,30}\b(to\s+bhawan|bhawan|shrine)\b",
+    r"\b(how\s+to\s+climb|modes\s+of\s+transport.*bhawan|transportation.*bhawan)\b",
+]
+
+_BUDGET_CALCULATION_PATTERNS = [
+    r"\b(budget\s+breakdown|cost\s+breakdown|expense\s+breakdown|price\s+breakdown|detailed\s+budget|detailed\s+cost|calculate\s+budget|how\s+much\s+will\s+it\s+cost|total\s+cost)\b",
+]
+
+_MY_BOOKINGS_PATTERNS = [
+    r"\b(show|view|see|check|get|fetch|list|display)\b.{0,30}\b(my\s+)?(?:previous|past|saved|recent|prior)\s+bookings?\b",
+    r"\b(my\s+bookings|previous\s+bookings?|past\s+bookings?|saved\s+bookings?|prior\s+bookings?)\b",
+]
+
+_BOOKING_REVIEW_PATTERNS = [
+    r"\b(review|check|verify|summary\s+of|show\s+me)\b.{0,30}\b(my\s+)?(?:booking\s+details|booking\s+summary|trip\s+summary|plan\s+summary|booking\s+review|complete\s+booking)\b",
+    r"\b(review\s+my\s+booking|booking\s+review|review\s+booking|show\s+me\s+the\s+complete\s+booking|complete\s+booking\s+details)\b",
+]
+
+_HOTEL_CHANGE_PATTERNS = [
+    r"\b(i\s+don'?t\s+want|not\s+want|reject|exclude)\b.{0,40}\b(niharika|hotel|stay|accommodation)\b",
+    r"\b(change|switch|replace|select|pick|choose)\b.{0,40}\b(hotel|stay|accommodation|option\s+\d+|second\s+option|first\s+option|third\s+option)\b",
+    r"\b(show\s+me\s+other\s+hotels|other\s+hotels|different\s+hotel|another\s+hotel|alternative\s+hotels?)\b",
+    r"\b(change\s+my\s+hotel|switch\s+hotel|select\s+another\s+hotel|change\s+hotel|select\s+hotel)\b",
+]
+
+_TRANSPORT_CHANGE_PATTERNS = [
+    r"\b(change|switch|replace|select|pick|choose)\b.{0,40}\b(train|flight|bus|transport|mode)\b",
+    r"\b(can\s+we\s+take|take|use|travel\s+by|travel\s+via)\b.{0,30}\b(train|flight|bus|vande\s+bharat|shri\s+shakti|uttar\s+sampark)\b",
+    r"\b(select|choose|pick)\s+(?:train\s+)?(?:\d{5}|vande\s+bharat|shri\s+shakti|uttar\s+sampark)\b",
+    r"\b(select|choose|pick|switch\s+to|change\s+to)\s+(?:the\s+)?(?:laxmi\s+holidays|zingbus|flixbus|intrcity|ram\s+dalal|jksrtc|hrtc|prtc)(?:\s+(?:bus|option))?\b",
+    r"\b(change\s+my\s+train|switch\s+to\s+train|switch\s+to\s+flight|switch\s+to\s+bus|change\s+my\s+selected\s+bus)\b",
+]
+
+_DATE_CHANGE_PATTERNS = [
+    r"\b(change|update|reschedule|switch|modify|shift)\b.{0,30}\b(my\s+)?(travel\s+)?dates?\b",
+    r"\b(change|shift|move)\b.{0,30}\b(travel\s+date|departure\s+date|date)\s+to\b",
+    r"\b(we\s+want\s+to\s+travel\s+on|i\s+want\s+to\s+travel\s+on|travel\s+date\s+is|departing\s+on|travel\s+on)\b",
+    r"\b(let'?s\s+travel|travel|travelling|trip\s+dates?)\s+(?:from\s+)?\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+to\s+\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\b",
+    r"\b(?:from\s+)?\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+to\s+\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\b",
+]
+
+
 def detect_intent(user_text):
     """Classifies the pilgrim's message into one of:
       - 'BOOKING'          : explicit booking execution / authorization confirmation
       - 'BOOKING_INTENT'   : intention to proceed to booking with recommended Yatra (triggers navigation)
+      - 'MY_BOOKINGS'      : view previous or saved simulated bookings
+      - 'BOOKING_REVIEW'   : review currently planned booking summary
+      - 'HOTEL_CHANGE'     : modify hotel selection or reject specific hotel
+      - 'TRANSPORT_CHANGE' : modify transport selection or pick specific train
+      - 'DATE_CHANGE'      : update travel dates
       - 'WEATHER'          : weather forecast or climate guidance question
       - 'ITINERARY'        : day-by-day itinerary view or modification request
       - 'TOURISM'          : informational/tourism question — do NOT start booking flow
       - 'AVAILABILITY'     : live slot availability check
+      - 'TRAIN_SEARCH'     : train connectivity or option search
+      - 'TRAIN_SCHEDULE'   : train timetable / schedule details
+      - 'LIVE_TRAIN_STATUS': real-time running status enquiry
+      - 'FLIGHT_SEARCH'    : air travel connectivity search
+      - 'HOTEL_SEARCH'     : accommodation / Katra hotel search
+      - 'ALTITUDE_GUIDANCE': altitude / elevation queries
+      - 'TREKKING_GUIDANCE': trek tips, gradient, route advisory
+      - 'BHAVAN_TRANSPORT' : transit modes from Katra to Bhawan
+      - 'BUDGET_CALCULATION': cost calculation / expense breakdown
       - 'TRIP_PLANNING'    : booking/travel search request
       - 'UNKNOWN'          : ambiguous; default to TRIP_PLANNING to preserve existing behaviour
     """
@@ -253,6 +377,16 @@ def detect_intent(user_text):
         if re.search(pat, tl):
             return "TOURISM"
 
+    # 1b. Check for previous / saved bookings requests
+    for pat in _MY_BOOKINGS_PATTERNS:
+        if re.search(pat, tl):
+            return "MY_BOOKINGS"
+
+    # 1c. Check for booking review / complete booking summary request
+    for pat in _BOOKING_REVIEW_PATTERNS:
+        if re.search(pat, tl):
+            return "BOOKING_REVIEW"
+
     # 2. Check for booking intent / navigation requests (user wants to proceed with recommended plan)
     for pat in _BOOKING_INTENT_PATTERNS:
         if re.search(pat, tl):
@@ -262,6 +396,19 @@ def detect_intent(user_text):
     for pat in _BOOKING_CONFIRMATION_PATTERNS:
         if re.search(pat, tl):
             return "BOOKING"
+
+    # 3b. Check for selective modification intents (hotel, transport, date)
+    for pat in _HOTEL_CHANGE_PATTERNS:
+        if re.search(pat, tl):
+            return "HOTEL_CHANGE"
+
+    for pat in _TRANSPORT_CHANGE_PATTERNS:
+        if re.search(pat, tl):
+            return "TRANSPORT_CHANGE"
+
+    for pat in _DATE_CHANGE_PATTERNS:
+        if re.search(pat, tl):
+            return "DATE_CHANGE"
 
     # 3.5 Check for comprehensive trip planning requests before single-domain checks
     for pat in (
@@ -276,29 +423,74 @@ def detect_intent(user_text):
         if re.search(pat, tl):
             return "WEATHER"
 
-    # 3. Check for itinerary intent
+    # 5. Check for specialized transport & timetable queries (precede generic trip planning origin phrases)
+    for pat in _LIVE_TRAIN_STATUS_PATTERNS:
+        if re.search(pat, tl):
+            return "LIVE_TRAIN_STATUS"
+
+    for pat in _TRAIN_SCHEDULE_PATTERNS:
+        if re.search(pat, tl):
+            return "TRAIN_SCHEDULE"
+
+    for pat in _TRAIN_SEARCH_PATTERNS:
+        if re.search(pat, tl):
+            return "TRAIN_SEARCH"
+
+    for pat in _FLIGHT_SEARCH_PATTERNS:
+        if re.search(pat, tl):
+            return "FLIGHT_SEARCH"
+
+    for pat in _BUS_SEARCH_PATTERNS:
+        if re.search(pat, tl):
+            return "BUS_SEARCH"
+
+    # 6. Check for hotel and accommodation intent
+    for pat in _HOTEL_PATTERNS:
+        if re.search(pat, tl):
+            return "HOTEL_SEARCH"
+
+    # 7. Check for altitude & trekking guidance
+    for pat in _ALTITUDE_PATTERNS:
+        if re.search(pat, tl):
+            return "ALTITUDE_GUIDANCE"
+
+    for pat in _TREKKING_PATTERNS:
+        if re.search(pat, tl):
+            return "TREKKING_GUIDANCE"
+
+    # 8. Check for transport options to Bhawan
+    for pat in _BHAVAN_TRANSPORT_PATTERNS:
+        if re.search(pat, tl):
+            return "BHAVAN_TRANSPORT"
+
+    # 9. Budget calculation & itemized expense breakdown
+    for pat in _BUDGET_CALCULATION_PATTERNS:
+        if re.search(pat, tl):
+            return "BUDGET_CALCULATION"
+
+    # 10. Check for itinerary intent
     for pat in _ITINERARY_PATTERNS:
         if re.search(pat, tl):
             return "ITINERARY"
 
-    # 4. Check for RPA availability checking intent (Week 7)
+    # 11. Check for RPA availability checking intent (Week 7)
     for pat in _AVAILABILITY_PATTERNS:
         if re.search(pat, tl):
             return "AVAILABILITY"
 
-    # 5. Strong trip-planning signals take priority (case-insensitive)
+    # 12. Strong trip-planning signals take priority (case-insensitive)
     for pat in _TRIP_PLANNING_PATTERNS:
         if re.search(pat, tl):
             return "TRIP_PLANNING"
     if _has_trip_origin_phrase(tl):
         return "TRIP_PLANNING"
 
-    # 6. Check for pure tourism/information patterns
+    # 13. Check for pure tourism/information patterns
     for pat in _TOURISM_QUESTION_PATTERNS:
         if re.search(pat, tl):
             return "TOURISM"
 
-    # 6.5 Fast-path: Greetings, acknowledgments, help
+    # 14. Fast-path: Greetings, acknowledgments, help
     if _is_pure_greeting(tl):
         return "GREETING"
     if _is_pure_acknowledgment(tl):
@@ -306,7 +498,7 @@ def detect_intent(user_text):
     if _is_pure_help(tl):
         return "HELP"
 
-    # 7. Default — treat as trip planning (preserves prior behaviour)
+    # 15. Default — treat as trip planning (preserves prior behaviour)
     return "UNKNOWN"
 
 
@@ -705,6 +897,87 @@ def format_tourism_reply(tourism_result):
     query = (tourism_result.get("query") or "").lower()
     is_followup = tourism_result.get("is_followup", False)
 
+    # 0a. Altitude & Elevation Inquiries
+    if kind == "altitude":
+        p = primary or (places[0] if places else None)
+        if p and p.get("altitude_m"):
+            name = p.get("name", "Bhairon Ghati")
+            alt_m = p.get("altitude_m")
+            alt_ft = round(alt_m * 3.28084)
+            cat_name = p.get("category_type", "Religious Site").replace("_", " ").title()
+            return (
+                f"🙏 **Jai Mata Di!**\n\n"
+                f"### Altitude of {name}\n\n"
+                f"**The altitude of {name} is approximately {alt_m:,} metres ({alt_ft:,} feet) above sea level.**\n\n"
+                f"• **Elevation:** ~{alt_m} m / ~{alt_ft} ft\n"
+                f"• **Category:** {cat_name}\n"
+                f"• **Location:** {p.get('location_route') or p.get('distance', '')}\n\n"
+                f"**Climatic & Trek Advisory:**\n"
+                f"• Temperatures at this elevation are typically 5°C to 8°C cooler than Katra base town. Carrying a light windcheater or jacket is advised year-round.\n"
+                f"• For pilgrims climbing on foot, the incline from Bhawan is steep (~426 m elevation gain over 2 km). A passenger ropeway is also available from Bhawan.\n\n"
+                f"_Would you like trekking tips or ropeway details for {name}?_"
+            )
+        else:
+            return (
+                "🙏 **Jai Mata Di!**\n\n"
+                "### Elevation Profile along the Vaishno Devi Pilgrimage Route\n\n"
+                "• **Katra Base Town:** ~750 m (~2,460 ft)\n"
+                "• **Ban Ganga:** ~800 m (~2,625 ft)\n"
+                "• **Charan Paduka:** ~1,030 m (~3,380 ft)\n"
+                "• **Ardhkuwari Temple:** ~1,400 m (~4,593 ft)\n"
+                "• **Sanjichhat (Helipad):** ~1,768 m (~5,800 ft)\n"
+                "• **Holy Cave Shrine (Bhawan):** ~1,585 m (~5,200 ft)\n"
+                "• **Bhairavnath Temple (Bhairon Ghati):** ~2,011 m (~6,600 ft) *(Highest point of pilgrimage)*\n\n"
+                "**Nearby Regional Altitudes:**\n"
+                "• **Patnitop Hill Station:** ~2,024 m (~6,640 ft)\n"
+                "• **Sinthan Top Mountain Pass:** ~3,748 m (~12,296 ft)\n\n"
+                "_Which destination's weather or trek conditions would you like to explore?_"
+            )
+
+    # 0b. Trekking Guidance & Route Tips
+    if kind == "trekking_tips":
+        p = primary or (places[0] if places else None)
+        place_name = p.get("name", "Bhairon Ghati") if p else "Bhairon Ghati"
+        return (
+            f"🙏 **Jai Mata Di!**\n\n"
+            f"### Trekking Tips & Advisory for {place_name}\n\n"
+            f"The stretch to {place_name} (~2,011 m elevation) is the steepest section of the pilgrimage:\n\n"
+            "**Key Trekking Advice:**\n"
+            "1. **Steep Gradient & Pacing:** The 2 km uphill trek from Bhawan rises sharply by ~426 metres. Maintain a steady, relaxed pace and take 2-minute breathers rather than prolonged halts.\n"
+            "2. **Footwear:** Wear broken-in sports shoes or trekking shoes with deep rubber tread. Avoid leather shoes, flat slippers, or sandals.\n"
+            "3. **Passenger Ropeway Option:** A modern cable car operates between Bhawan and Bhairon Temple. It takes only ~3–5 minutes (approx ₹100 round-trip) and is strongly recommended for elderly pilgrims, children, and those with knee or breathing difficulties.\n"
+            "4. **Hydration & Warm Clothing:** Keep hydrated with warm water or lemon electrolytes. Because of the 2,011 m altitude, strong cold winds are frequent—carry a windcheater or fleece jacket.\n"
+            "5. **Spiritual Completeness:** As per sacred tradition, the Vaishno Devi Yatra is believed to be blessed and fulfilled only after seeking the darshan of Baba Bhairavnath.\n\n"
+            "_Would you like details on ropeway operating hours or pony/palki availability?_"
+        )
+
+    # 0c. Transport Options to Bhawan
+    if kind == "bhavan_transport":
+        return (
+            "🙏 **Jai Mata Di!**\n\n"
+            "### Transport Options to Reach Bhawan from Katra\n"
+            "*The Shri Mata Vaishno Devi Shrine Board (SMVDSB) provides multiple transit modes across the 13 km route:*\n\n"
+            "1. **Walking / Foot Trek (Traditional Route):**\n"
+            "   • Distance: ~13 km from Banganga to Bhawan via Charan Paduka and Ardhkuwari.\n"
+            "   • Paved track with overhead sheds, water coolers, medical booths, and vegetarian eateries throughout.\n\n"
+            "2. **Tarakote Marg (Alternative Walking Route):**\n"
+            "   • Distance: ~12 km gentler gradient track from Katra to Ardhkuwari.\n"
+            "   • Exclusively for pedestrians—no ponies or mules permitted. Very clean, quiet, and eco-friendly.\n\n"
+            "3. **Battery-Operated Auto / Electric Vehicles:**\n"
+            "   • Operates between Ardhkuwari and Bhawan (~5.5 km) on the alternate Himkoti route.\n"
+            "   • Dedicated priority for senior citizens, persons with disabilities, and medical cases. Nominal fare (approx ₹350), subject to queue token.\n\n"
+            "4. **Helicopter Service:**\n"
+            "   • Operates between Katra Helipad and Sanjichhat Helipad (~8 minutes flying time).\n"
+            "   • Remaining distance from Sanjichhat to Bhawan is ~2.5 km (walk, battery car, or palki). Advance booking via official Shrine Board portal.\n\n"
+            "5. **Palki / Palanquin & Pithoo Service:**\n"
+            "   • Available from Katra and Ardhkuwari. Palkis are carried by 4 porters; pithoos carry small children or luggage at fixed official rates.\n\n"
+            "6. **Ponies / Mules:**\n"
+            "   • Available along the traditional route from Banganga. Strict government-fixed tariff based on destination.\n\n"
+            "**Connecting Bhawan to Bhairon Temple:**\n"
+            "• **Bhairon Ropeway (Cable Car):** Takes ~3–5 minutes from Bhawan to Bhairon Temple (~₹100 per passenger round-trip).\n\n"
+            "_Would you like to check current weather conditions or hotel stays in Katra?_"
+        )
+
     # 1. Aarti Timings
     if kind == "aarti":
         aarti = tourism_result.get("aarti_timings") or {}
@@ -808,27 +1081,92 @@ def format_tourism_reply(tourism_result):
 
     # 7. Nearby Places (Concise, no dump)
     if kind == "nearby_places" and places:
+        q_low = (tourism_result.get("query") or "").lower()
+        if "jammu" in q_low:
+            title_text = "Key Historical & Cultural Places in/near Jammu" if any(k in q_low for k in ["historic", "heritage", "palace", "fort", "ancient"]) else "Key Places to Visit in/near Jammu"
+            sub_text = "*Verified destinations across Jammu City and surrounding heritage circuits:*"
+            travel_note = "\n**Local Travel Note:** Taxis and local autos are readily available in Jammu city for temple and heritage palace circuits.\n"
+        elif "kishtwar" in q_low:
+            title_text = "Places to Visit in Kishtwar"
+            sub_text = "*Verified mountain destinations and pilgrimage shrines in Kishtwar District:*"
+            travel_note = "\n**Local Travel Note:** Accessible via scenic mountain drive from Jammu/Katra via NH-244.\n"
+        elif "srinagar" in q_low or "kashmir" in q_low:
+            title_text = "Places to Visit in Srinagar & Kashmir Valley"
+            sub_text = "*Verified Mughal gardens, lakes, and heritage sites across Srinagar:*"
+            travel_note = "\n**Local Travel Note:** Accessible from Jammu/Katra via NH-44 corridor or direct flight into Srinagar.\n"
+        else:
+            title_text = "Key Places to Visit Around Katra"
+            sub_text = "*Concise guide to popular shrines and spots along the trek and around Katra town:*"
+            travel_note = "\n**Local Travel Note:** Private taxis or auto-rickshaws are readily available in Katra town for nearby temples and nature spots.\n"
+
         lines = [
-            "🙏 **Jai Mata Di!**\n\n"
-            "### Key Places to Visit Around Katra\n"
-            "*Concise guide to popular shrines and spots along the trek and around Katra town:*\n"
+            "🙏 **Jai Mata Di!**\n\n",
+            f"### {title_text}\n",
+            f"{sub_text}\n\n",
         ]
         for p in places[:7]:
+            dist_str = p.get('distance') or (f"District {p['district']}" if p.get('district') else (f"{p['region']} Region" if p.get('region') else ''))
             lines.append(
-                f"• **{p['name']}** ({p.get('category', '')}, {p.get('distance', '')}): {p.get('description', '')}"
+                f"• **{p['name']}** ({p.get('category', '')}, {dist_str}): {p.get('description', '')}\n"
             )
-        lines.append(
-            "\n**Local Travel Note:** Private taxis or auto-rickshaws are readily available in Katra town for nearby temples and nature spots.\n"
-        )
+        lines.append(travel_note)
 
-        return "\n\n".join(lines)
+        return "".join(lines)
 
-    # 8. Single Place / Place Follow-up Question
-    primary = tourism_result.get("primary_place") or (places[0] if (places and kind == "place") else None)
+    # 8. Visiting Hours Specific Query
+    if kind == "visiting_hours":
+        p = primary or (places[0] if places else None)
+        if p:
+            name = p.get("name", "")
+            is_religious = p.get("category_type") == "religious_site"
+            alt_m = p.get("altitude_m")
+            alt_str = f"~{alt_m:,} m (~{round(alt_m * 3.28084):,} ft)" if alt_m else "N/A"
+            if is_religious:
+                darshan = p.get("darshan_timings") or p.get("timings", "Open 24 hours (brief pauses during daily Aarti)")
+                aarti = p.get("aarti_timings") or "Morning & Evening (refer to daily schedule)"
+                return (
+                    f"🙏 **Jai Mata Di!**\n\n"
+                    f"### Visiting & Darshan Hours: {name}\n\n"
+                    f"• **Darshan Timings:** {darshan}\n"
+                    f"• **Aarti Timings:** {aarti}\n"
+                    f"• **Altitude:** {alt_str}\n"
+                    f"• **Entry Fee:** {p.get('entry_fee', 'Free')}\n"
+                    f"• **Category:** Religious Site\n"
+                    f"• **Location:** {p.get('location_route') or p.get('distance', '')}\n\n"
+                    f"**Pilgrim Advisory:**\n"
+                    f"{p.get('religious_information') or p.get('description', '')}\n"
+                )
+            else:
+                vh = p.get("visiting_hours") or "Daytime access (approx. 06:00 - 17:00), strictly subject to weather conditions and seasonal road clearance"
+                best_time = p.get("best_time_to_visit", "April to October")
+                entry = p.get("entry_fee", "Free / Nil")
+                access = p.get("accessibility", "Accessible by motorable road, weather permitting")
+                seasonal = p.get("seasonal_restrictions", "Subject to seasonal snow/weather clearances")
+                cat_name = p.get("category_type", "Tourist Destination").replace("_", " ").title()
+                return (
+                    f"🙏 **Jai Mata Di!**\n\n"
+                    f"### Visiting Hours & Travel Guide: {name}\n\n"
+                    f"• **Visiting Hours:** {vh}\n"
+                    f"• **Altitude:** {alt_str}\n"
+                    f"• **Category:** {cat_name}\n"
+                    f"• **Best Time to Visit:** {best_time}\n"
+                    f"• **Entry Fee:** {entry}\n"
+                    f"• **Accessibility:** {access}\n"
+                    f"• **Seasonal Restrictions:** {seasonal}\n\n"
+                    f"**Overview:**\n"
+                    f"{p.get('description', '')}\n\n"
+                    f"**Note:** {name} is a scenic nature/tourism destination. Please confirm road and weather clearance before visiting.\n"
+                )
+
+    # 9. Single Place / Place Follow-up Question
+    primary = tourism_result.get("primary_place") or (places[0] if (places and kind in ("place", "visiting_hours")) else None)
     if primary:
         p = primary
         category = p.get("category", "")
         travel_note = explore_data.get_local_travel_note(category)
+        is_religious = p.get("category_type") == "religious_site"
+        alt_m = p.get("altitude_m")
+        alt_str = f"~{alt_m:,} m (~{round(alt_m * 3.28084):,} ft)" if alt_m else "N/A"
 
         if category == "On the trek route":
             route_pos_label = "Pilgrimage Route Position"
@@ -851,14 +1189,26 @@ def format_tourism_reply(tourism_result):
                 f"🙏 **Jai Mata Di!**\n\n"
                 f"### Distance & Travel: {p['name']}\n\n"
                 f"• **Distance:** {p.get('distance', 'N/A')}\n"
+                f"• **Altitude:** {alt_str}\n"
                 f"• **Category:** {category}\n"
                 f"• **{route_pos_label}:** {route_pos}\n"
                 f"• **Local Travel Note:** {travel_note}\n\n"
                 f"**Overview:** {p.get('description', '')}\n\n"
-                ''
             )
 
         if is_followup and re.search(r"\b(what (can|to) (i|we) do|activities|things to do|see)\b", query):
+            practical_lines = [
+                f"• **Altitude:** {alt_str}",
+                f"• **Entry Fee:** {p.get('entry_fee', 'Free')}",
+                f"• **Distance:** {p.get('distance', 'N/A')}",
+            ]
+            if is_religious:
+                practical_lines.insert(0, f"• **Darshan Timings:** {p.get('darshan_timings') or p.get('timings', 'Open 24 hours')}")
+            else:
+                practical_lines.insert(0, f"• **Visiting Hours:** {p.get('visiting_hours') or 'Daytime access'}")
+                if p.get("best_time_to_visit"):
+                    practical_lines.append(f"• **Best Time to Visit:** {p['best_time_to_visit']}")
+
             return (
                 f"🙏 **Jai Mata Di!**\n\n"
                 f"### What to Do & See at {p['name']}\n\n"
@@ -866,16 +1216,53 @@ def format_tourism_reply(tourism_result):
                 f"• {p.get('description', '')}\n"
                 f"• **Historical / Cultural Background:** {p.get('historical_background', '')}\n\n"
                 f"**Practical Information:**\n"
-                f"• **Timings:** {p.get('timings', 'Not confirmed')}\n"
-                f"• **Entry Fee:** {p.get('entry_fee', 'Free')}\n"
-                f"• **Distance:** {p.get('distance', 'N/A')}\n\n"
-                ''
+                + "\n".join(practical_lines) + "\n\n"
             )
+
+        # Entry fee formatting without inventing facts
+        fee_val = p.get('entry_fee')
+        if fee_val:
+            fee_str = fee_val
+        elif p.get('is_curated', True):
+            fee_str = 'Free'
+        else:
+            fee_str = 'Information not officially published (consult local district authorities)'
+
+        # Visiting hours formatting without inventing facts
+        timing_val = p.get('darshan_timings') or p.get('visiting_hours') or p.get('timings')
+        if timing_val:
+            timing_str = timing_val
+        elif p.get('is_curated', True):
+            timing_str = 'Open 24 hours' if is_religious else 'Daytime access (weather permitting)'
+        else:
+            timing_str = 'Information not officially published (consult local district authorities)'
+
+        # Standard Place Card
+        practical_info = [
+            f"• **Altitude:** {alt_str}",
+            f"• **Entry Fee:** {fee_str}",
+            f"• **Local Travel:** {travel_note}",
+        ]
+        if is_religious:
+            practical_info.insert(0, f"• **Darshan Timings:** {timing_str}")
+            if p.get("aarti_timings"):
+                practical_info.insert(1, f"• **Aarti Timings:** {p['aarti_timings']}")
+        else:
+            practical_info.insert(0, f"• **Visiting Hours:** {timing_str}")
+            if p.get("best_time_to_visit"):
+                practical_info.append(f"• **Best Time to Visit:** {p['best_time_to_visit']}")
+            if p.get("accessibility"):
+                practical_info.append(f"• **Accessibility:** {p['accessibility']}")
+
+        source_note = ""
+        if p.get("source_url"):
+            domain = p.get("source_domain") or "District Administration"
+            source_note = f"\n\n*Verified official record: [{domain}]({p['source_url']})*"
 
         return (
             f"🙏 **Jai Mata Di!**\n\n"
             f"### {p['name']}\n"
-            f"*{category} · {p.get('distance', '')}*\n\n"
+            f"*{category} · {p.get('distance', '')} · Altitude: {alt_str}*\n\n"
             f"**Overview**\n"
             f"{p.get('description', '')}\n\n"
             f"**Significance & Background**\n"
@@ -883,11 +1270,8 @@ def format_tourism_reply(tourism_result):
             f"**{route_pos_label}**\n"
             f"{route_pos}\n\n"
             f"**Practical Information**\n"
-            f"• **Timings:** {p.get('timings', 'Not confirmed')}\n"
-            f"• **Entry Fee:** {p.get('entry_fee', 'Free')}\n"
-            f"• **Local Travel:** {travel_note}\n"
-            f"• **Video Guide:** [Watch Video Guide]({p.get('video_search', '#')})\n\n"
-            ''
+            + "\n".join(practical_info)
+            + f"{source_note}\n\n"
         )
 
     # 9. Fallback

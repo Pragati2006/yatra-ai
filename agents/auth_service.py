@@ -203,15 +203,33 @@ class SMTPEmailProvider(BaseEmailProvider):
     """Production SMTP email provider reading credentials safely from environment."""
 
     def __init__(self):
-        self.smtp_host = os.getenv("SMTP_HOST")
-        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.smtp_user = os.getenv("SMTP_USER")
-        self.smtp_pass = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@yatra-ai.org")
+        self.smtp_host = os.getenv("SMTP_HOST") or os.getenv("EMAIL_HOST") or os.getenv("MAIL_SERVER")
+        raw_port = os.getenv("SMTP_PORT") or os.getenv("EMAIL_PORT") or os.getenv("MAIL_PORT") or "587"
+        try:
+            self.smtp_port = int(raw_port)
+        except Exception:
+            self.smtp_port = 587
+        self.smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_USERNAME") or os.getenv("EMAIL_HOST_USER") or os.getenv("MAIL_USERNAME")
+        self.smtp_pass = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS") or os.getenv("EMAIL_HOST_PASSWORD") or os.getenv("MAIL_PASSWORD")
+        self.from_email = os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_FROM") or os.getenv("DEFAULT_FROM_EMAIL") or "noreply@yatra-ai.org"
+        raw_secure = (os.getenv("SMTP_SECURE") or os.getenv("SMTP_SSL") or "").lower()
+        self.use_ssl = (self.smtp_port == 465) or (raw_secure in ("ssl", "true", "1"))
 
     def is_configured(self) -> bool:
         """Returns True if required SMTP host and authentication credentials exist."""
         return bool(self.smtp_host and self.smtp_user and self.smtp_pass)
+
+    def get_diagnostics(self) -> Dict[str, Any]:
+        """Safe diagnostics dictionary omitting any secrets/passwords."""
+        return {
+            "configured": self.is_configured(),
+            "smtp_host": self.smtp_host or "(not configured)",
+            "smtp_port": self.smtp_port,
+            "has_user": bool(self.smtp_user),
+            "has_password": bool(self.smtp_pass),
+            "from_email": self.from_email,
+            "use_ssl": self.use_ssl,
+        }
 
     def send_otp(self, to_email: str, otp_code: str) -> bool:
         if not self.is_configured():
@@ -234,15 +252,31 @@ class SMTPEmailProvider(BaseEmailProvider):
         msg["To"] = to_email
 
         try:
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_pass)
-                server.send_message(msg)
+            if self.use_ssl:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=5) as server:
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=5) as server:
+                    server.starttls()
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.send_message(msg)
             logger.info("SMTPEmailProvider: Verification email delivered to %s", mask_email(to_email))
             return True
         except Exception as exc:
             logger.error("SMTPEmailProvider: Failed to send email to %s: %s", mask_email(to_email), type(exc).__name__)
             return False
+
+
+def validate_smtp_configuration() -> Dict[str, Any]:
+    """Safe configuration helper inspecting whether email dispatch is ready in this environment."""
+    provider = get_email_provider()
+    if isinstance(provider, SMTPEmailProvider):
+        return provider.get_diagnostics()
+    return {
+        "configured": True,
+        "provider_type": "mock_development",
+    }
 
 
 # Global email provider singleton (defaults to None; dynamically resolves if unset)
@@ -540,11 +574,11 @@ class AuthService:
         # In production mode: enforce that mock provider is NEVER silently used to leak OTPs
         if is_production_mode():
             if isinstance(provider, MockEmailProvider) or (hasattr(provider, "is_configured") and not provider.is_configured()):
-                logger.error("Production email dispatch blocked: SMTP provider is not configured.")
+                logger.warning("Production email dispatch blocked: SMTP provider is not configured.")
                 return {
                     "status": "error",
                     "error_code": "EMAIL_SERVICE_UNAVAILABLE",
-                    "message": "Email verification service is currently unavailable. Please contact the administrator.",
+                    "message": "Email verification service is currently offline. You can continue using Yatra AI seamlessly as a guest.",
                 }
             delivered = provider.send_otp(normalized, plain_otp)
             if not delivered:
@@ -552,7 +586,7 @@ class AuthService:
                 return {
                     "status": "error",
                     "error_code": "EMAIL_SERVICE_UNAVAILABLE",
-                    "message": "Failed to deliver verification email. Please try again later.",
+                    "message": "Failed to deliver verification email. Please try again later or continue using Yatra AI seamlessly as a guest.",
                 }
         else:
             delivered = provider.send_otp(normalized, plain_otp)

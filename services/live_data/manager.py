@@ -281,6 +281,7 @@ class UnifiedLiveDataManager:
 
         # Step 2: Provider Selection
         provider: Optional[BaseLiveDataProvider] = None
+        candidates: List[BaseLiveDataProvider] = []
         if provider_id:
             provider = self._registry.get_provider(dom, provider_id)
             if not provider:
@@ -307,7 +308,26 @@ class UnifiedLiveDataManager:
                     error_type=ProviderErrorType.UNAVAILABLE,
                     message=f"No active provider is configured for data domain '{dom}'.",
                 )
-            provider = candidates[0]
+
+            # Intelligent mode / action matching for multi-provider domains (e.g. transport)
+            req_mode = str(request.params.get("mode") or "").strip().lower()
+            req_action = str(request.params.get("action") or "").strip().lower()
+            matched_candidate = None
+            if req_mode:
+                for c in candidates:
+                    cid = c.provider_id.lower()
+                    if req_mode in cid or (req_mode == "train" and "rail" in cid) or (req_mode == "bus" and "bus" in cid) or (req_mode == "flight" and "flight" in cid):
+                        matched_candidate = c
+                        break
+            elif req_action:
+                act_prefix = req_action.split("_")[0]
+                for c in candidates:
+                    cid = c.provider_id.lower()
+                    if act_prefix in cid or (act_prefix == "train" and "rail" in cid) or (act_prefix == "bus" and "bus" in cid) or (act_prefix == "flight" and "flight" in cid):
+                        matched_candidate = c
+                        break
+
+            provider = matched_candidate or candidates[0]
 
         # Step 3: Check Provider Availability & Half-Open Canary Reservation
         canary_reserved = False
@@ -363,6 +383,16 @@ class UnifiedLiveDataManager:
                     future = executor.submit(provider.fetch_live_data, request)
                     res = future.result(timeout=timeout)
 
+                # Check if provider returned UNAVAILABLE and fail over
+                if res.status == "UNAVAILABLE" or not res.is_success:
+                    provider.record_execution_failure(ProviderErrorType.UNAVAILABLE)
+                    if not provider_id and len(candidates) > 1:
+                        fallback_p = self._select_fallback_candidate(provider, candidates, request)
+                        if fallback_p:
+                            logger.info("Private request: Failing over from '%s' to fallback provider '%s'", provider.provider_id, fallback_p.provider_id)
+                            return self.execute_request(request, provider_id=fallback_p.provider_id, bypass_cache=bypass_cache)
+                    return res
+
                 # Payload schema validation
                 val_ok, val_err = provider.validate_payload(res.data)
                 if not val_ok:
@@ -378,6 +408,11 @@ class UnifiedLiveDataManager:
                 return res
             except FutureTimeoutError:
                 provider.record_execution_failure(ProviderErrorType.TIMEOUT)
+                if not provider_id and len(candidates) > 1:
+                    fallback_p = self._select_fallback_candidate(provider, candidates, request)
+                    if fallback_p:
+                        logger.info("Private request timed out: Failing over from '%s' to fallback provider '%s'", provider.provider_id, fallback_p.provider_id)
+                        return self.execute_request(request, provider_id=fallback_p.provider_id, bypass_cache=bypass_cache)
                 return self._build_error_result(
                     request=request,
                     provider_id=provider.provider_id,
@@ -386,6 +421,11 @@ class UnifiedLiveDataManager:
                 )
             except Exception as exc:
                 provider.record_execution_failure(ProviderErrorType.UNKNOWN)
+                if not provider_id and len(candidates) > 1:
+                    fallback_p = self._select_fallback_candidate(provider, candidates, request)
+                    if fallback_p:
+                        logger.info("Private request failed: Failing over from '%s' to fallback provider '%s'", provider.provider_id, fallback_p.provider_id)
+                        return self.execute_request(request, provider_id=fallback_p.provider_id, bypass_cache=bypass_cache)
                 return self._build_error_result(
                     request=request,
                     provider_id=provider.provider_id,
@@ -437,6 +477,10 @@ class UnifiedLiveDataManager:
                         if res.source_provenance:
                             res.source_provenance["verification_status"] = VerificationStatus.UNVERIFIED.value
                             res.source_provenance["disclaimer"] = f"Payload validation issue: {val_err}"
+                    # If upstream returned UNAVAILABLE, trigger fallback to secondary candidate
+                    if res.status == "UNAVAILABLE":
+                        raise RuntimeError(f"Provider '{provider.provider_id}' returned UNAVAILABLE: {res.error.message if res.error else 'upstream unavailable'}")
+
                     # Return dictionary representation for cache
                     return res.to_dict()
                 except FutureTimeoutError:
@@ -554,6 +598,13 @@ class UnifiedLiveDataManager:
                 provider.record_execution_failure(
                     ProviderErrorType.TIMEOUT if isinstance(last_fetch_error, ProviderTimeoutError) else ProviderErrorType.UNKNOWN
                 )
+                # If a secondary fallback provider is registered for this domain, fail over seamlessly
+                if not provider_id and len(candidates) > 1:
+                    fallback_p = self._select_fallback_candidate(provider, candidates, request)
+                    if fallback_p:
+                        logger.info("Failing over from '%s' to fallback provider '%s' for domain '%s'", provider.provider_id, fallback_p.provider_id, dom)
+                        return self.execute_request(request, provider_id=fallback_p.provider_id, bypass_cache=bypass_cache)
+
                 # Life-safety policy: emergency domain fallback to statutory numbers
                 if dom == DataDomain.EMERGENCY.value:
                     return self._build_emergency_fallback_result(
@@ -574,7 +625,14 @@ class UnifiedLiveDataManager:
                     message=f"Provider execution failed: {last_fetch_error}",
                 )
 
-            # Case E: Provider returned None or empty
+            # Case E: Provider returned UNAVAILABLE or None or empty
+            if last_fetch_result is not None and last_fetch_result.status == "UNAVAILABLE":
+                if not provider_id and len(candidates) > 1:
+                    fallback_p = self._select_fallback_candidate(provider, candidates, request)
+                    if fallback_p:
+                        logger.info("Provider '%s' unavailable; failing over to fallback provider '%s' for domain '%s'", provider.provider_id, fallback_p.provider_id, dom)
+                        return self.execute_request(request, provider_id=fallback_p.provider_id, bypass_cache=bypass_cache)
+
             if last_fetch_result is not None and last_fetch_result.status == "NO_RESULTS":
                 provider.record_execution_success()
                 return last_fetch_result
@@ -714,6 +772,49 @@ class UnifiedLiveDataManager:
             advisory=advisory or payload.get("advisory"),
         )
 
+    def _select_fallback_candidate(
+        self,
+        curr_provider: BaseLiveDataProvider,
+        candidate_list: List[BaseLiveDataProvider],
+        req: ProviderRequest,
+    ) -> Optional[BaseLiveDataProvider]:
+        """Intelligently selects the most appropriate fallback candidate matching mode/action."""
+        req_mode = str(req.params.get("mode") or "").lower()
+        req_action = str(req.params.get("action") or "").lower()
+        other_candidates = [c for c in candidate_list if c.provider_id != curr_provider.provider_id]
+        if not other_candidates:
+            return None
+
+        # 1. Matches requested mode (e.g. "train" -> curated_railway_schedules)
+        if req_mode:
+            for c in other_candidates:
+                cid = c.provider_id.lower()
+                if req_mode in cid or (req_mode == "train" and "rail" in cid):
+                    return c
+
+        # 2. Matches requested action (e.g. "train_search" -> rail adapter)
+        if req_action:
+            act_prefix = req_action.split("_")[0]
+            for c in other_candidates:
+                cid = c.provider_id.lower()
+                if act_prefix in cid or (act_prefix == "train" and "rail" in cid):
+                    return c
+
+        # 3. Current provider was railway -> pick curated railway
+        if "rail" in curr_provider.provider_id.lower():
+            for c in other_candidates:
+                if "curated_railway" in c.provider_id.lower():
+                    return c
+
+        # 4. Current provider was accommodation -> pick curated accommodation
+        if "accommodation" in curr_provider.provider_id.lower():
+            for c in other_candidates:
+                if "curated" in c.provider_id.lower() and ("accommodation" in c.provider_id.lower() or "katra" in c.provider_id.lower()):
+                    return c
+
+        # 5. Fallback to first available alternative candidate
+        return other_candidates[0]
+
     def _build_emergency_fallback_result(
         self,
         request: ProviderRequest,
@@ -797,26 +898,28 @@ def get_live_data_manager() -> UnifiedLiveDataManager:
         if _GLOBAL_MANAGER is None:
             mgr = UnifiedLiveDataManager()
             try:
+                from services.live_data.adapters.bus_data_adapter import BusDataAdapter
+                from services.live_data.adapters.live_accommodation_adapter import LiveAccommodationAdapter
+                from services.live_data.adapters.live_railway_adapter import LiveRailwayAdapter
                 from services.live_data.adapters.curated_accommodation_adapter import CuratedAccommodationAdapter
                 from services.live_data.adapters.curated_bus_adapter import CuratedBusAdapter
                 from services.live_data.adapters.curated_contact_adapter import VerifiedContactAdapter
                 from services.live_data.adapters.curated_operational_notices_adapter import CuratedOperationalNoticesAdapter
                 from services.live_data.adapters.curated_flight_adapter import CuratedFlightAdapter
                 from services.live_data.adapters.curated_railway_adapter import CuratedRailwayAdapter
+                from services.live_data.adapters.live_flight_adapter import LiveFlightAdapter
                 from services.live_data.adapters.weather_adapter import OpenMeteoWeatherAdapter
 
-                if CuratedAccommodationAdapter().is_configured():
-                    mgr.register_provider(CuratedAccommodationAdapter())
-                if CuratedOperationalNoticesAdapter().is_configured():
-                    mgr.register_provider(CuratedOperationalNoticesAdapter())
-                if VerifiedContactAdapter().is_configured():
-                    mgr.register_provider(VerifiedContactAdapter())
-                if CuratedRailwayAdapter().is_configured():
-                    mgr.register_provider(CuratedRailwayAdapter())
-                if CuratedBusAdapter().is_configured():
-                    mgr.register_provider(CuratedBusAdapter())
-                if CuratedFlightAdapter().is_configured():
-                    mgr.register_provider(CuratedFlightAdapter())
+                mgr.register_provider(BusDataAdapter())
+                mgr.register_provider(LiveRailwayAdapter())
+                mgr.register_provider(LiveAccommodationAdapter())
+                mgr.register_provider(LiveFlightAdapter())
+                mgr.register_provider(CuratedRailwayAdapter())
+                mgr.register_provider(CuratedAccommodationAdapter())
+                mgr.register_provider(CuratedBusAdapter())
+                mgr.register_provider(CuratedFlightAdapter())
+                mgr.register_provider(CuratedOperationalNoticesAdapter())
+                mgr.register_provider(VerifiedContactAdapter())
                 mgr.register_provider(OpenMeteoWeatherAdapter())
             except Exception as exc:
                 logger.debug("Failed registering default live data adapters: %s", exc)

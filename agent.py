@@ -750,9 +750,9 @@ def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightsee
     optionally including a hotel stay and a list of sightseeing places
     (hotel cost is added to the total; sightseeing places are informational,
     not priced, since they aren't bookable through this app)."""
-    total = option["total_price"]
+    total = option.get("total_price") or 0.0
     if hotel:
-        total += hotel.get("price_per_night", 0) * hotel_nights
+        total += (hotel.get("price_per_night") or 0.0) * hotel_nights
 
     booking_id = db.create_booking(
         user_name=user_name,

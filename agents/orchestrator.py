@@ -383,7 +383,7 @@ def detect_missing_mandatory_fields(req: Dict[str, Any]) -> List[str]:
         missing.append("origin")
 
     if not req.get("_pax_explicit") and not req.get("group_type") and "pax" not in explicit:
-        if "origin" not in missing:
+        if "origin" not in missing and not req.get("duration_days") and not req.get("_date_explicit"):
             missing.append("pax")
 
     if not req.get("duration_days") and not req.get("_date_explicit"):
@@ -652,7 +652,7 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
             "flight": tr_enriched,
             "slot": best_slot,
             "total_price": total_combo if has_fare else None,
-            "sort_price": total_combo if has_fare else float("inf"),
+            "sort_price": total_combo if has_fare else None,
             "bundle_explanation": bundle_exp,
         }
 
@@ -680,7 +680,7 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
             "session_id": session_id,
         }
 
-    distinct_combos.sort(key=lambda c: c.get("sort_price", float("inf")))
+    distinct_combos.sort(key=lambda c: c.get("sort_price") if c.get("sort_price") is not None else 999999999.0)
     options = []
     if not mode_pref:
         # Diversity across available modes first (e.g. 1 flight, 1 train, 1 bus)
@@ -699,9 +699,33 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
         if c not in options:
             options.append(c)
 
-    options.sort(key=lambda c: c.get("sort_price", float("inf")))
+    options.sort(key=lambda c: c.get("sort_price") if c.get("sort_price") is not None else 999999999.0)
     combos = options
-    selected_combo = combos[0]
+
+    # Check if user explicitly selected a train or transport option
+    user_tr = req.get("selected_transport") or req.get("selected_train") or req.get("train_number")
+    if user_tr:
+        user_tr_str = str(user_tr).lower()
+        matched_combo = next(
+            (c for c in distinct_combos if user_tr_str in str(c["transport"].get("train_number", "")).lower()
+             or user_tr_str in str(c["transport"].get("transport_no", "")).lower()
+             or user_tr_str in str(c["transport"].get("name", "")).lower()
+             or user_tr_str in str(c["transport"].get("operator", "")).lower()
+             or user_tr_str in str(c["transport"].get("id", "")).lower()),
+            None,
+        )
+        if matched_combo:
+            selected_combo = matched_combo
+            if selected_combo not in combos:
+                combos.insert(0, selected_combo)
+            else:
+                combos.remove(selected_combo)
+                combos.insert(0, selected_combo)
+        else:
+            selected_combo = combos[0]
+    else:
+        selected_combo = combos[0]
+
     selected_tr = selected_combo["transport"]
     selected_slot = selected_combo["slot"]
 
@@ -735,7 +759,41 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
         catalog_error = "CATALOG_UNAVAILABLE"
         hotels = []
 
-    selected_hotel = hotels[0] if hotels else None
+    user_selected_hotel = req.get("selected_hotel") or req.get("hotel")
+    reject_niharika = bool(req.get("reject_niharika") or req.get("_reject_niharika"))
+
+    available_hotels = list(hotels)
+    if reject_niharika:
+        available_hotels = [
+            h for h in available_hotels
+            if "niharika" not in h.get("name", "").lower() and "niharika" not in h.get("id", "").lower()
+        ]
+
+    selected_hotel = None
+    if user_selected_hotel:
+        if isinstance(user_selected_hotel, dict) and user_selected_hotel.get("name"):
+            target_name = user_selected_hotel.get("name", "").lower()
+            selected_hotel = next(
+                (h for h in available_hotels if h.get("name", "").lower() == target_name or target_name in h.get("name", "").lower()),
+                user_selected_hotel,
+            )
+        elif isinstance(user_selected_hotel, str):
+            target_str = user_selected_hotel.lower()
+            selected_hotel = next(
+                (h for h in available_hotels if target_str in h.get("name", "").lower() or target_str in h.get("id", "").lower()),
+                None,
+            )
+
+    if not selected_hotel and available_hotels:
+        if hotel_pref == "Premium":
+            selected_hotel = next((h for h in available_hotels if h.get("category") == "Premium"), available_hotels[-1])
+        elif hotel_pref == "Mid-Range":
+            selected_hotel = next((h for h in available_hotels if h.get("category") == "Mid-Range"), available_hotels[0])
+        elif hotel_pref == "Budget":
+            selected_hotel = next((h for h in available_hotels if h.get("category") in ("Budget", "Dharamshala")), available_hotels[0])
+        else:
+            selected_hotel = available_hotels[0]
+
     if catalog_error == "CATALOG_UNAVAILABLE":
         req["accommodation_advisory"] = "Katra accommodation recommendations are temporarily unavailable due to catalog retrieval failure. Transport and darshan arrangements are confirmed."
     elif not selected_hotel:
@@ -833,8 +891,11 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
         "status": "PLAN_READY",
         "pax": pax,
         "options": combos[:3],
+        "available_options": combos[:3],
         "selected_option": selected_combo,
         "hotel": selected_hotel,
+        "hotels": available_hotels[:6],
+        "available_hotels": available_hotels[:6],
         "itinerary": itinerary_days,
         "budget_evaluation": budget_eval,
         "infeasible_places": infeasible_places,
@@ -858,6 +919,11 @@ def coordinate_plan(req: Dict[str, Any], session_id: Optional[str] = None, plan_
         "itinerary": itinerary_days,
         "infeasible_places": infeasible_places,
         "feasible_places": feasible_places,
+        "hotel": selected_hotel,
+        "hotels": available_hotels[:6],
+        "available_hotels": available_hotels[:6],
+        "available_options": combos[:3],
+        "options": combos[:3],
         "session_id": session_id,
         "authorization_required": True,
         "rpa_ready": True,
@@ -1183,6 +1249,9 @@ def is_replanning_query(user_text: str) -> bool:
         "change mode", "switch to", "travel by", "change to", "change it to", "switch it to",
         "change to train", "change to flight", "change to bus", "by train", "by flight", "by bus",
         "cheaper hotel", "different hotel", "change hotel", "luxury hotel", "budget hotel",
+        "second option", "option 2", "third option", "select another hotel", "other hotels",
+        "don't want niharika", "dont want niharika", "change my train", "change transport",
+        "change my travel date", "change travel date", "change date to", "travel on",
         "make it relaxed", "make it packed", "make it balanced",
         "travelling with", "traveling with", "make pax", "members",
         "number of travellers", "number of travelers", "number of pilgrims", "travellers to", "travelers to", "pilgrims to",
@@ -1291,6 +1360,39 @@ def handle_replanning(user_text: str, session_data: Dict[str, Any]) -> Dict[str,
             if np not in curr_places:
                 curr_places.append(np)
         req["sightseeing_places"] = curr_places
+
+    # 12. Date updates in replanning
+    if legacy_agent.has_explicit_date(user_text):
+        st_date, en_date = legacy_agent._extract_date_range(user_text)
+        if st_date:
+            req["start_date"] = st_date
+            req["_date_explicit"] = True
+            if en_date:
+                req["end_date"] = en_date
+                try:
+                    d1 = datetime.strptime(st_date, "%Y-%m-%d")
+                    d2 = datetime.strptime(en_date, "%Y-%m-%d")
+                    req["duration_days"] = max(1, (d2 - d1).days + 1)
+                except Exception:
+                    pass
+
+    # 13. Hotel rejection or selection in replanning
+    tl_rep = user_text.lower()
+    if "niharika" in tl_rep and any(w in tl_rep for w in ["don't want", "dont want", "not want", "reject", "other", "different"]):
+        req["reject_niharika"] = True
+        req["_reject_niharika"] = True
+        req.pop("selected_hotel", None)
+        req.pop("hotel", None)
+
+    # 14. Train selection in replanning
+    for t_num in ("22439", "22440", "22477", "22478", "22461", "12445"):
+        if t_num in tl_rep:
+            req["selected_transport"] = t_num
+            req["mode"] = "train"
+            break
+    if "vande bharat" in tl_rep:
+        req["selected_transport"] = "22439"
+        req["mode"] = "train"
 
     curr_version = state.get("plan_version", 1)
     new_version = curr_version + 1
@@ -1936,11 +2038,17 @@ def _finalize_turn_response(res: Dict[str, Any], sid: str, default_intent: str =
     res.setdefault("recommendation", None)
     res.setdefault("budget_evaluation", None)
     res.setdefault("knowledge_sources", [])
+    res.setdefault("destination_images", [])
+    res.setdefault("matched_destination", None)
     res.setdefault("status", "SUCCESS")
     reply = res.get("reply", "")
     intent = res.get("intent", default_intent)
     plan_version = res.get("plan_version")
     status = res.get("status")
+
+    # Ensure selected_option is populated for legacy/API compatibility if selected_options is present
+    if res.get("selected_options") and not res.get("selected_option"):
+        res["selected_option"] = res["selected_options"]
 
     # Ensure response_source and knowledge_source are present
     if "response_source" not in res or "knowledge_source" not in res:
@@ -1982,6 +2090,10 @@ def _finalize_turn_response(res: Dict[str, Any], sid: str, default_intent: str =
         meta["response_source"] = res["response_source"]
     if res.get("knowledge_source"):
         meta["knowledge_source"] = res["knowledge_source"]
+    if res.get("destination_images"):
+        meta["destination_images"] = res["destination_images"]
+    if res.get("matched_destination"):
+        meta["matched_destination"] = res["matched_destination"]
 
     # Size-bounded structured card payload for safe cold-reload restoration
     rec = res.get("recommendation")
@@ -2188,6 +2300,1393 @@ def handle_availability_query(
     }
 
 
+def handle_train_search_intent(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    from services import railway_schedules as rs
+    req = current_request or session.get("state", {}).get("requirements", {})
+    t_lower = (user_text or "").lower()
+
+    extracted_origin = None
+    for city in ["delhi", "new delhi", "chandigarh", "amritsar", "haridwar", "kanpur", "lucknow", "mumbai", "pune", "varanasi", "bhopal", "patna"]:
+        if city in t_lower:
+            extracted_origin = city.title()
+            break
+    if not extracted_origin and req.get("origin"):
+        extracted_origin = req.get("origin")
+
+    if not extracted_origin:
+        m = re.search(r"\bfrom\s+([a-zA-Z\s]+?)(?:\s+to|\s+train|\s*$)", t_lower)
+        if m:
+            cand = m.group(1).strip()
+            if cand and cand not in ("train", "trains", "katra", "jammu", "the"):
+                extracted_origin = cand.title()
+
+    if not extracted_origin:
+        reply = (
+            "🚆 **Train Search to Shri Mata Vaishno Devi Katra (SVDK)**\n\n"
+            "Which departure city or station would you like to search trains from? "
+            "(e.g., **New Delhi**, **Chandigarh**, **Amritsar**, **Haridwar**, or **Kanpur**)"
+        )
+        return {
+            "intent": "TRAIN_SEARCH",
+            "status": "NEEDS_INFO",
+            "reply": reply,
+            "session_id": session.get("session_id"),
+            "request": req,
+        }
+
+    trains_result = rs.search_curated_schedules(origin=extracted_origin, destination="SVDK")
+    direct_trains = trains_result[0] if isinstance(trains_result, tuple) and trains_result else []
+
+    # Attempt live train route search via UnifiedLiveDataManager if configured
+    live_trains = []
+    live_provider_name = None
+    try:
+        from services.live_data.manager import get_live_data_manager
+        from services.live_data.contracts import ProviderRequest, DataDomain
+        mgr = get_live_data_manager()
+        req_live = ProviderRequest(
+            domain=DataDomain.TRANSPORT.value,
+            location=extracted_origin,
+            params={"action": "train_search", "origin": extracted_origin, "destination": "SVDK"},
+        )
+        res_live = mgr.execute_request(req_live, provider_id="live_railway_telemetry_adapter")
+        if res_live.is_success and isinstance(res_live.data, dict) and res_live.data.get("trains"):
+            live_trains = res_live.data.get("trains", [])
+            live_provider_name = res_live.data.get("provider", "Live Indian Railways Gateway")
+    except Exception as exc:
+        logger.debug("Live railway query skipped: %s", exc)
+
+    if live_trains:
+        lines = [
+            f"🚆 **Available Trains from {extracted_origin} to Shri Mata Vaishno Devi Katra (SVDK)**\n",
+            f"📡 *Live train schedules retrieved via {live_provider_name}:*\n",
+        ]
+        for t in live_trains[:6]:
+            days = t.get("days_of_operation")
+            days_str = ", ".join(days) if isinstance(days, list) and days else "Daily"
+            classes = t.get("travel_classes")
+            classes_str = "/".join(classes) if isinstance(classes, list) and classes else "Standard"
+            dep = t.get("departure_time", "Scheduled")
+            arr = t.get("arrival_time", "Scheduled")
+            dur = f"{t.get('duration_hours')} hrs" if t.get("duration_hours") else f"{t.get('duration_minutes')} mins"
+            lines.append(
+                f"• **{t.get('train_number')} - {t.get('train_name')}**\n"
+                f"  - **Departure:** {dep} ({t.get('origin_station_name') or extracted_origin}) → **Arrival:** {arr} ({t.get('destination_station_name') or 'SVDK'})\n"
+                f"  - **Duration:** {dur} | **Runs:** {days_str} | **Classes:** {classes_str}\n"
+            )
+        lines.append(
+            "📌 **Official IRCTC Booking Note:**\n"
+            "Advance bookings open 120 days prior on the official IRCTC portal ([irctc.co.in](https://www.irctc.co.in)). "
+            "Tatkal quota opens at 10:00 AM (AC) and 11:00 AM (Non-AC) one day prior to departure."
+        )
+        reply = "\n".join(lines)
+        return {
+            "intent": "TRAIN_SEARCH",
+            "status": "SUCCESS",
+            "reply": reply,
+            "session_id": session.get("session_id"),
+            "request": req,
+            "trains": live_trains[:6],
+        }
+
+    if not direct_trains:
+        trains_result_jat = rs.search_curated_schedules(origin=extracted_origin, destination="JAT")
+        direct_trains = trains_result_jat[0] if isinstance(trains_result_jat, tuple) and trains_result_jat else []
+
+    if direct_trains:
+        lines = [
+            f"🚆 **Available Trains from {extracted_origin} to Shri Mata Vaishno Devi Katra (SVDK)**\n",
+            "*Curated scheduled departures direct to Katra base camp:*\n"
+        ]
+        for t in direct_trains[:5]:
+            days_str = ", ".join(t.days_of_operation) if t.days_of_operation else "Daily"
+            classes_str = "/".join(t.travel_classes) if t.travel_classes else "Standard"
+            lines.append(
+                f"• **{t.train_number} - {t.train_name}**\n"
+                f"  - **Departure:** {t.departure_time} ({t.origin_station_name or extracted_origin}) → **Arrival:** {t.arrival_time} ({t.destination_station_name})\n"
+                f"  - **Duration:** {t.duration_hours} hrs | **Runs:** {days_str} | **Classes:** {classes_str}\n"
+                f"  - **Notes:** {t.notes or 'Direct connectivity'}\n"
+            )
+        lines.append(
+            "📌 **Official Booking Note:**\n"
+            "Advance bookings open 120 days prior on the official IRCTC portal ([irctc.co.in](https://www.irctc.co.in)). "
+            "Tatkal quota opens at 10:00 AM (AC) and 11:00 AM (Non-AC) one day prior to departure."
+        )
+        reply = "\n".join(lines)
+    else:
+        reply = (
+            f"🚆 **Train Connectivity from {extracted_origin} to Katra (SVDK)**\n\n"
+            f"For travelers from {extracted_origin}, direct or connecting rail connections typically run via "
+            f"**New Delhi (NDLS)** or **Jammu Tawi (JAT)**:\n\n"
+            f"• **From New Delhi:** 22439 Vande Bharat Express (06:00), 22477 Vande Bharat Express (15:00), 22461 Shri Shakti AC Express (19:05).\n"
+            f"• **Connecting Note:** Regular express trains and connecting Vande Bharat rakes operate daily from New Delhi to SVDK.\n\n"
+            f"Please check real-time seat availability and booking on the official IRCTC portal ([irctc.co.in](https://www.irctc.co.in))."
+        )
+
+    return {
+        "intent": "TRAIN_SEARCH",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+        "request": req,
+        "trains": [
+            {
+                "train_number": t.train_number,
+                "train_name": t.train_name,
+                "departure_time": t.departure_time,
+                "arrival_time": t.arrival_time,
+                "days_of_operation": t.days_of_operation,
+                "travel_classes": t.travel_classes,
+                "duration_hours": t.duration_hours,
+            }
+            for t in direct_trains[:5]
+        ] if direct_trains else [],
+    }
+
+
+def handle_train_schedule_intent(
+    user_text: str,
+    session: Dict[str, Any],
+) -> Dict[str, Any]:
+    from services import railway_schedules as rs
+    tl = (user_text or "").lower()
+
+    is_vande_bharat = "vande bharat" in tl or "22439" in tl or "22440" in tl or "22477" in tl or "22478" in tl
+    is_shri_shakti = "shri shakti" in tl or "22461" in tl or "22462" in tl
+    is_uttar_sampark = "uttar sampark" in tl or "12445" in tl or "12446" in tl
+
+    if is_vande_bharat or (not is_shri_shakti and not is_uttar_sampark):
+        reply = (
+            "🚆 **Vande Bharat Express Timetable & Operating Schedule**\n\n"
+            "**1. Train 22439 (New Delhi → Shri Mata Vaishno Devi Katra - Morning Service):**\n"
+            "• **Departure:** 06:00 AM (06:00) from New Delhi (NDLS)\n"
+            "• **Intermediate Halts:** Ambala Cantt (08:10), Ludhiana Jn (09:19), Jalandhar Cantt (10:00), Pathankot Cantt (11:15), Jammu Tawi (12:43)\n"
+            "• **Arrival:** 02:20 PM (14:20) at SMVD Katra (SVDK) — *Total Travel Time: 8h 20m*\n"
+            "• **Operating Days:** Monday, Tuesday, Thursday, Friday, Saturday, Sunday (**Weekly Off: Wednesday**; revised from original Tuesday maintenance)\n\n"
+            "**2. Train 22440 (SMVD Katra → New Delhi - Return Rake):**\n"
+            "• **Departure:** 02:55 PM (14:55) from SMVD Katra (SVDK)\n"
+            "• **Intermediate Halts:** Jammu Tawi (16:10), Pathankot Cantt (17:29), Jalandhar Cantt (18:51), Ludhiana Jn (19:34), Ambala Cantt (20:54)\n"
+            "• **Arrival:** 11:10 PM (23:10) at New Delhi (NDLS) — *Total Travel Time: 8h 15m*\n"
+            "• **Operating Days:** Monday, Tuesday, Thursday, Friday, Saturday, Sunday (**Weekly Off: Wednesday**)\n\n"
+            "**3. Train 22477 / 22478 (Second Afternoon Service via Udhampur):**\n"
+            "• **22477 (NDLS → SVDK):** Departs NDLS at 03:00 PM (15:00), arrives Katra at 11:20 PM (23:20) (Operates 6 days a week, **Weekly Off: Wednesday**)\n"
+            "• **22478 (SVDK → NDLS):** Departs Katra at 05:40 AM (05:40), arrives NDLS at 02:00 PM (14:00) (Operates 6 days a week, **Weekly Off: Wednesday**)\n\n"
+            "ℹ️ **NTES & Official Reservation Advisory:**\n"
+            "• Timetable reflects published Northern Railway Working Timetable schedules.\n"
+            "• Real-time platform assignments and live GPS running telemetry are managed dynamically via the National Train Enquiry System (NTES / dial 139).\n"
+            "• Official tickets can be booked through IRCTC ([irctc.co.in](https://www.irctc.co.in)). Catering is included in the fare."
+        )
+    elif is_shri_shakti:
+        reply = (
+            "🚆 **22461 / 22462 Shri Shakti AC Express Timetable**\n\n"
+            "• **Train 22461 (New Delhi → SVDK):** Dep 19:05 (NDLS) → Arr 07:40 (SVDK) | **Daily Overnight Service**\n"
+            "• **Train 22462 (SVDK → New Delhi):** Dep 23:00 (SVDK) → Arr 10:45 (NDLS) | **Daily Overnight Service**\n"
+            "• **Major Halts:** Ambala Cantt, Ludhiana, Jalandhar Cantt, Pathankot Cantt, Jammu Tawi, Udhampur\n"
+            "• **Classes:** 1A, 2A, 3A (Fully Air-Conditioned)\n\n"
+            "ℹ️ *Live running status is tracked on NTES. Bookings via IRCTC.*"
+        )
+    else:
+        reply = (
+            "🚆 **12445 / 12446 Uttar Sampark Kranti Express Timetable**\n\n"
+            "• **Train 12445 (New Delhi → SVDK):** Dep 20:50 (NDLS) → Arr 08:05 (SVDK) | **Daily Service**\n"
+            "• **Train 12446 (SVDK → New Delhi):** Dep 19:55 (SVDK) → Arr 06:55 (NDLS) | **Daily Service**\n"
+            "• **Classes:** 1A, 2A, 3A, SL\n\n"
+            "ℹ️ *Live running status is tracked on NTES. Bookings via IRCTC.*"
+        )
+
+    return {
+        "intent": "TRAIN_SCHEDULE",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+    }
+
+
+def handle_live_train_status_intent(
+    user_text: str,
+    session: Dict[str, Any],
+) -> Dict[str, Any]:
+    from services.live_data.manager import get_live_data_manager
+    from services.live_data.contracts import ProviderRequest, DataDomain
+    import re
+
+    tl = (user_text or "").lower()
+    train_match = re.search(r"\b(22439|22440|22477|22478|22461|22462|12445|12446|\d{5})\b", tl)
+    train_no = train_match.group(1) if train_match else None
+
+    if not train_no:
+        if "vande bharat" in tl:
+            train_no = "22439"
+        elif "shri shakti" in tl:
+            train_no = "22461"
+        elif "uttar sampark" in tl:
+            train_no = "12445"
+        else:
+            train_no = "22439"
+
+    mgr = get_live_data_manager()
+    req = ProviderRequest(
+        domain=DataDomain.TRANSPORT.value,
+        location="SVDK",
+        params={"action": "live_status", "train_number": train_no},
+    )
+    res = mgr.execute_request(req)
+
+    if res.is_success and isinstance(res.data, dict) and res.data.get("live_status_available"):
+        d = res.data
+        train_name = d.get("train_name") or f"Train {train_no}"
+        cur_station = d.get("current_station") or "In Transit"
+        delay = d.get("delay_minutes", 0)
+        status_txt = "🟢 On Time" if delay <= 5 else f"🟡 Delayed by {delay} mins"
+        last_upd = d.get("last_updated", "Just now")
+        provider_name = d.get("provider", "Live Railway Gateway")
+
+        reply = (
+            f"📡 **Live Running Telemetry: {train_no} ({train_name})**\n\n"
+            f"• **Current Location:** {cur_station}\n"
+            f"• **Live Status:** {status_txt}\n"
+            f"• **Running Delay:** {delay} minutes\n"
+            f"• **Last Telemetry Update:** {last_upd}\n"
+            f"• **Source Provider:** {provider_name}\n\n"
+            f"ℹ️ *Live tracking powered by upstream GPS/transponder telemetry. Confirm platform allocations upon arrival at station.*"
+        )
+    else:
+        sched_res = handle_train_schedule_intent(f"schedule for {train_no}", session)
+        reply = (
+            f"📡 **Live Status Enquiry: Train {train_no}**\n\n"
+            "⚠️ **Live GPS Telemetry Notice:**\n"
+            "Real-time GPS running telemetry and live delay tracking require an active connection to the National Train Enquiry System (NTES) gateway via `RAILCORE_API_KEY` or `RAILWAY_API_KEY`. Currently operating in verified scheduled timetable mode.\n\n"
+            + sched_res.get("reply", "")
+        )
+
+    return {
+        "intent": "LIVE_TRAIN_STATUS",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+    }
+
+
+def handle_hotel_search_intent(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    from services.live_data.manager import get_live_data_manager
+    from services.live_data.contracts import ProviderRequest, DataDomain
+    import re
+
+    tl = (user_text or "").lower()
+    pax_match = re.search(r"\b(\d+)\s*(?:guests?|people|pax|persons?|adults?)\b", tl)
+    guests = int(pax_match.group(1)) if pax_match else 2
+
+    req_data = current_request or session.get("state", {}).get("requirements", {}) or {}
+    check_in = req_data.get("start_date")
+    check_out = req_data.get("end_date")
+
+    mgr = get_live_data_manager()
+    req = ProviderRequest(
+        domain=DataDomain.ACCOMMODATION.value,
+        location="Katra",
+        params={
+            "city": "Katra",
+            "action": "hotel_search",
+            "guests": guests,
+            "check_in_date": check_in,
+            "check_out_date": check_out,
+        },
+    )
+    res = mgr.execute_request(req)
+
+    if res.is_success and isinstance(res.data, dict) and res.data.get("properties") and res.data.get("live_status_available"):
+        props = res.data.get("properties", [])
+        ci_display = res.data.get("check_in", "Upcoming")
+        co_display = res.data.get("check_out", "Next Day")
+        prov_name = res.data.get("provider", "Live Hotels Gateway")
+
+        hotel_lines = []
+        for p in props[:5]:
+            h_name = p.get("name", "Hotel")
+            h_rate = p.get("rate_per_night", "Contact for price")
+            h_rating = f"★ {p.get('overall_rating')}" if p.get("overall_rating") else "Verified"
+            h_desc = p.get("description", "Hotel in Katra")
+            hotel_lines.append(f"• **{h_name}** ({h_rating})\n  - **Rate:** {h_rate}/night | **City:** Katra\n  - *{h_desc}*")
+
+        reply = (
+            f"🏨 **Live Hotel Availability & Rates in Katra**\n\n"
+            f"*Queried for {guests} guest(s) | Check-in: {ci_display} | Check-out: {co_display}*\n\n"
+            + "\n\n".join(hotel_lines)
+            + f"\n\nℹ️ **Live Pricing Source:** {prov_name}. Rates are subject to dynamic booking changes.\n"
+            f"• Official Shrine Board Bhawans (Niharika, Kalika Dham, Trikuta Bhawan) can be reserved at [maavaishnodevi.org](https://www.maavaishnodevi.org)."
+        )
+    else:
+        reply = (
+            "🏨 **Verified Accommodations & Official Shrine Board Bhawans in Katra**\n\n"
+            "Devotees visiting Shri Mata Vaishno Devi Ji have excellent staying options across Katra base camp and the trek route:\n\n"
+            "**1. Official Shrine Board Bhawans (SMVDSB):**\n"
+            "• **Niharika Complex:** Located right at Katra Bus Stand / Central Market. Features AC/Non-AC rooms, suites, and dormitory beds (₹150–₹1,200/night). Highly convenient for Yatra registration.\n"
+            "• **Shakti Bhawan & Ashirwad Complex:** Located close to the bus stand; clean, subsidized pilgrim accommodation.\n"
+            "• **Kalika Dham & Saraswati Dham:** Near Katra Railway Station, ideal for pilgrims arriving by train.\n"
+            "• **Bhawans on the Track:** Main Bhawan Complex, Manokamana Bhawan, and Ardhkuwari Rest House.\n"
+            "• *Booking:* Official Shrine Board rooms open online 60 days in advance at [maavaishnodevi.org](https://www.maavaishnodevi.org).\n\n"
+            "**2. Recommended Katra Private Hotels:**\n"
+            "• **Budget Stays (₹800 – ₹1,500/night):** Located around Jammu Road and Main Bazaar; clean rooms with Wi-Fi and hot water.\n"
+            "• **Comfort / Mid-Range (₹1,800 – ₹3,500/night):** Located along Railway Road and Katra Bypass; often offer free shuttle pickup/drop to Banganga entry gate.\n"
+            "• **Premium Hotels (₹4,000 – ₹7,500/night):** Luxury properties with full vegetarian dining, spa, and shrine-facing views.\n\n"
+            "ℹ️ *Note: Live dynamic room rates and real-time inventory queries require a provider key (`SERPAPI_API_KEY` or `HOTEL_API_KEY`). Displaying verified Katra properties & official Shrine Board Bhawans above.*"
+        )
+
+    return {
+        "intent": "HOTEL_SEARCH",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+        "request": current_request or session.get("state", {}).get("requirements", {}),
+    }
+
+
+def handle_flight_search_intent(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    from services.live_data.manager import get_live_data_manager
+    from services.live_data.contracts import ProviderRequest, DataDomain
+    import re
+
+    tl = (user_text or "").lower()
+
+    # Destination detection (default to Jammu / IXJ for Vaishno Devi yatra)
+    dest_city = "Jammu"
+    if "srinagar" in tl or "sxr" in tl:
+        dest_city = "Srinagar"
+
+    # Origin detection
+    extracted_origin = None
+    origin_cities = [
+        "delhi", "new delhi", "mumbai", "bangalore", "bengaluru", "hyderabad",
+        "kolkata", "chennai", "pune", "ahmedabad", "chandigarh", "amritsar",
+        "lucknow", "varanasi", "jaipur"
+    ]
+    for oc in origin_cities:
+        if oc in tl:
+            extracted_origin = oc.title()
+            break
+
+    req_data = current_request or session.get("state", {}).get("requirements", {}) or {}
+    if not extracted_origin and req_data.get("origin"):
+        extracted_origin = req_data.get("origin")
+
+    if not extracted_origin:
+        return {
+            "intent": "FLIGHT_SEARCH",
+            "status": "NEEDS_INFO",
+            "reply": (
+                f"✈️ **Flight Search Guidance to {dest_city} (IXJ/SXR)**\n\n"
+                f"Please specify your **departure city** (e.g., Delhi, Mumbai, Bengaluru, Hyderabad, Kolkata) to search available flight schedules and airfares."
+            ),
+            "missing_fields": ["origin"],
+            "options": [],
+            "session_id": session.get("session_id"),
+        }
+
+    travel_date = req_data.get("start_date")
+
+    mgr = get_live_data_manager()
+    req = ProviderRequest(
+        domain=DataDomain.TRANSPORT.value,
+        location=extracted_origin,
+        params={
+            "action": "flight_search",
+            "mode": "flight",
+            "origin": extracted_origin,
+            "destination": dest_city,
+            "travel_date": travel_date,
+        },
+    )
+
+    # Attempt live flight gateway first
+    res = mgr.execute_request(req, provider_id="live_flight_telemetry_adapter")
+    is_live = res.is_success and isinstance(res.data, dict) and bool(res.data.get("flights"))
+
+    if not is_live:
+        # Graceful failover to curated flight schedules
+        res = mgr.execute_request(req, provider_id="curated_flight_schedules")
+
+    if res.is_success and isinstance(res.data, dict) and (res.data.get("flights") or res.data.get("schedules")):
+        flights = res.data.get("flights") or res.data.get("schedules") or []
+        prov_name = res.data.get("provider") or (
+            "SerpApi Google Flights Gateway" if is_live else "Verified Airline Schedules"
+        )
+        travel_dt_display = res.data.get("travel_date") or travel_date or "Upcoming week"
+
+        flight_lines = []
+        for f in flights[:5]:
+            fn = f.get("flight_no") or f.get("transport_no") or f.get("airline") or "Flight"
+            fare_disp = f.get("price_inr") or (f"₹{f.get('price'):,}" if f.get("price") else None) or (f"₹{f.get('indicative_fare_min'):,}" if f.get('indicative_fare_min') else None) or "Check airline portal"
+            dep_t = f.get("departure_time") or "Direct"
+            arr_t = f.get("arrival_time") or "Direct"
+            dur = f.get("duration_desc") or f.get("estimated_duration_desc") or "Direct"
+            flight_lines.append(f"• **{fn}**\n  - **Fare:** {fare_disp} | **Departure:** {dep_t} → **Arrival:** {arr_t} ({dur})")
+
+        transfer_note = (
+            "ℹ️ **Ground Transfer to Katra Base Camp:**\n"
+            "• **Jammu Airport (IXJ) to Katra:** ~50 km (~1.5 hours). Authorized Prepaid Taxis are available 24x7 outside arrivals (~₹1,500–₹2,000). Regular JKRTC direct AC/Deluxe buses depart from Jammu General Bus Stand."
+            if dest_city == "Jammu" else
+            "ℹ️ **Kashmir Valley Travel Note:**\n"
+            "• **Srinagar Airport (SXR):** Serves Kashmir pilgrimage circuits. Road travel between Srinagar and Katra is via NH 44 (~240 km, ~6–7 hours across the Banihal Qazigund tunnel)."
+        )
+
+        source_label = "📡 **Live Google Flights Search**" if is_live else "📋 **Verified Curated Flight Schedules**"
+        reply = (
+            f"✈️ {source_label}: **{extracted_origin} → {dest_city}**\n\n"
+            f"*Outbound travel date: {travel_dt_display} | Data Source: {prov_name}*\n\n"
+            + "\n\n".join(flight_lines)
+            + f"\n\n{transfer_note}\n\n"
+            f"📌 *Direct airline bookings can be confirmed on airline websites or authorized travel portals.*"
+        )
+    else:
+        reply = (
+            f"✈️ **Flight Connectivity from {extracted_origin} to Jammu (IXJ)**\n\n"
+            f"Direct and 1-stop flights operate daily between **{extracted_origin}** and **Jammu Airport (Satwari - IXJ)**:\n\n"
+            f"• **Major Carriers:** IndiGo, Air India, SpiceJet, Akasa Air.\n"
+            f"• **Average Flight Duration:** ~1h 15m to 1h 30m direct from Delhi.\n"
+            f"• **Indicative Airfare:** ₹4,000 – ₹7,500 depending on advance booking.\n\n"
+            f"ℹ️ *Live airfare queries require an active `SERPAPI_API_KEY` or `FLIGHT_API_KEY`. Displaying standard corridor timetable above.*"
+        )
+
+    return {
+        "intent": "FLIGHT_SEARCH",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+        "flights": res.data.get("flights", []) if res.data else [],
+    }
+
+
+def handle_bus_search_intent(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    from services.live_data.manager import get_live_data_manager
+    from services.live_data.contracts import ProviderRequest, DataDomain
+    from services.bus_schedules import search_curated_bus_schedules, compare_bus_and_train
+    import re
+
+    tl = (user_text or "").lower()
+
+    # Known city names map
+    city_map = {
+        "katra": "Katra",
+        "jammu": "Jammu",
+        "udhampur": "Udhampur",
+        "srinagar": "Srinagar",
+        "delhi": "Delhi",
+        "new delhi": "Delhi",
+        "chandigarh": "Chandigarh",
+        "amritsar": "Amritsar",
+        "pathankot": "Pathankot",
+        "jalandhar": "Jalandhar",
+        "ludhiana": "Ludhiana",
+        "shimla": "Shimla",
+        "manali": "Manali",
+        "dharamshala": "Dharamshala",
+        "mandi": "Mandi",
+    }
+
+    extracted_origin = None
+    extracted_dest = None
+
+    # Check for connecting route pattern: "from X to Y and onward to Z"
+    m_onward = re.search(r"\bfrom\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+?)\s+and\s+onward\s+to\s+([a-zA-Z\s]+)", tl)
+    if m_onward:
+        f_part = m_onward.group(1).strip()
+        t_part = m_onward.group(3).strip()
+        for k, v in city_map.items():
+            if k in f_part and not extracted_origin:
+                extracted_origin = v
+            if k in t_part and not extracted_dest:
+                extracted_dest = v
+
+    # Check "from X to Y"
+    if not (extracted_origin and extracted_dest):
+        m_from_to = re.search(r"\bfrom\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)", tl)
+        if m_from_to:
+            f_part = m_from_to.group(1).strip()
+            t_part = m_from_to.group(2).strip()
+            t_part = re.sub(r"\b(buses|bus|timing|timings|schedule|fares?|today|tomorrow|and\s+onward.*)\b", "", t_part).strip()
+            for k, v in city_map.items():
+                if k in f_part and not extracted_origin:
+                    extracted_origin = v
+                if k in t_part and not extracted_dest:
+                    extracted_dest = v
+
+    # Check "to Y from X"
+    if not (extracted_origin and extracted_dest):
+        m_to_from = re.search(r"\bto\s+([a-zA-Z\s]+?)\s+from\s+([a-zA-Z\s]+)", tl)
+        if m_to_from:
+            t_part = m_to_from.group(1).strip()
+            f_part = m_to_from.group(2).strip()
+            f_part = re.sub(r"\b(buses|bus|timing|timings|schedule|fares?|today|tomorrow)\b", "", f_part).strip()
+            for k, v in city_map.items():
+                if k in t_part and not extracted_dest:
+                    extracted_dest = v
+                if k in f_part and not extracted_origin:
+                    extracted_origin = v
+
+    # Individual "to Y" or "from X" checks if one is missing
+    if not extracted_dest:
+        m_to = re.search(r"\bto\s+([a-zA-Z\s]+)", tl)
+        if m_to:
+            t_part = m_to.group(1).strip()
+            for k, v in city_map.items():
+                if k in t_part:
+                    extracted_dest = v
+                    break
+
+    if not extracted_origin:
+        m_from = re.search(r"\bfrom\s+([a-zA-Z\s]+)", tl)
+        if m_from:
+            f_part = m_from.group(1).strip()
+            for k, v in city_map.items():
+                if k in f_part:
+                    extracted_origin = v
+                    break
+
+    # Check if origin was in current request context
+    req_data = current_request or session.get("state", {}).get("requirements", {}) or {}
+    if not extracted_origin and req_data.get("origin"):
+        extracted_origin = req_data.get("origin")
+
+    # Contextual defaults if still incomplete
+    if "via jammu" in tl or "connecting" in tl:
+        if not extracted_origin or extracted_origin.lower() in ("jammu", "katra"):
+            extracted_origin = req_data.get("origin") or "Delhi"
+            extracted_dest = "Katra"
+
+    if not extracted_dest and not extracted_origin:
+        extracted_origin = "Jammu"
+        extracted_dest = "Katra"
+    elif extracted_origin and not extracted_dest:
+        if extracted_origin.lower() in ("katra",):
+            extracted_dest = "Jammu"
+        else:
+            extracted_dest = "Katra"
+    elif extracted_dest and not extracted_origin:
+        if extracted_dest.lower() in ("katra",):
+            extracted_origin = "Jammu"
+        elif extracted_dest.lower() in ("jammu",):
+            extracted_origin = "Katra"
+        elif extracted_dest.lower() in ("srinagar", "udhampur"):
+            extracted_origin = "Jammu"
+        else:
+            extracted_origin = "Jammu"
+
+    travel_date = req_data.get("start_date")
+
+    # 1. Check for Bus vs Train Comparison query
+    if re.search(r"\b(compare|vs)\b", tl) and any(w in tl for w in ("train", "rail", "travel")):
+        comp = compare_bus_and_train(origin=extracted_origin or "Delhi", destination=extracted_dest or "Katra")
+        tr = comp["train"]
+        bs = comp["bus"]
+        ver_bs_cnt = bs.get('total_verified_services', bs.get('verified_services_count', 0))
+        part_bs_cnt = bs.get('partially_verified_count', 0)
+        tot_bs_cnt = bs.get('total_services', 0)
+        reply = (
+            f"🚄↔️🚌 **Comparative Analysis: Train vs Bus Travel ({comp['corridor']})**\n\n"
+            f"**1. Train Options ({tr['flagship']} & {tr['overnight']})**\n"
+            f"• ⏱️ **Duration:** {tr['duration']}\n"
+            f"• 💰 **Fares:** {tr['fare_range']}\n"
+            f"• 📑 **Fare Breakdown:** {tr.get('detailed_fares', tr['fare_range'])}\n"
+            f"• 📚 **Source:** {tr.get('source_citation', 'Northern Railway WTT & IRCTC (Nov 2026)')}\n"
+            f"• 🌐 **Booking:** {tr['booking_portal']}\n"
+            f"• 👍 **Pros:** {', '.join(tr['pros'])}\n"
+            f"• ⚠️ **Cons:** {', '.join(tr['cons'])}\n\n"
+            f"**2. Bus Options ({tot_bs_cnt} Services: {ver_bs_cnt} Verified + {part_bs_cnt} Partially Verified / Indicative across Government & Private Fleets)**\n"
+            f"• 🏛️ **Government Operators:** {', '.join(bs['government_operators'])}\n"
+            f"• 🏢 **Private Operators:** {', '.join(bs['private_operators'])}\n"
+            f"• 🚌 **Bus Categories:** {', '.join(bs['bus_types'])}\n"
+            f"• ⏱️ **Duration:** {bs['duration']}\n"
+            f"• 💰 **Indicative Fares:** {bs['fare_range']}\n"
+            f"• 📑 **Tariff Breakdown:** {bs.get('detailed_fares', bs['fare_range'])}\n"
+            f"• 📚 **Source:** {bs.get('source_citation', 'J&K STA & Carrier Tariffs (Nov 2026)')}\n"
+            f"• 📍 **Boarding Points:** {', '.join(bs['boarding_points'])}\n"
+            f"• 📍 **Dropping Points:** {', '.join(bs['dropping_points'])}\n"
+            f"• 👍 **Pros:** {', '.join(bs['pros'])}\n"
+            f"• ⚠️ **Cons:** {', '.join(bs['cons'])}\n\n"
+            f"💡 **Pilgrim Recommendation:**\n"
+            f"{comp['recommendation']}"
+        )
+        return {
+            "intent": "BUS_SEARCH",
+            "status": "SUCCESS",
+            "reply": reply,
+            "session_id": session.get("session_id"),
+            "comparison": comp,
+        }
+
+    # 2. Extract multi-operator filter parameters
+    operator_filter = None
+    if any(p in tl for p in ("private and government", "government and private", "both")):
+        operator_filter = None
+    elif "private" in tl:
+        operator_filter = "private"
+    elif any(p in tl for p in ("government", "govt", "jksrtc", "hrtc", "prtc")):
+        operator_filter = "government"
+
+    bus_type_filter = None
+    if "ac sleeper" in tl or "sleeper" in tl:
+        bus_type_filter = "sleeper"
+    elif "seater" in tl:
+        bus_type_filter = "seater"
+    elif "volvo" in tl:
+        bus_type_filter = "volvo"
+    elif "bharatbenz" in tl:
+        bus_type_filter = "bharatbenz"
+
+    direct_only = bool(re.search(r"\b(direct\s+buses\s+only|direct\s+only|direct\s+buses)\b", tl))
+    connecting_requested = bool(re.search(r"\b(and\s+onward\s+to\s+katra|onward\s+to\s+katra|via\s+jammu|connecting)\b", tl))
+    cheapest_requested = bool(re.search(r"\b(cheapest|lowest\s+fare|lowest\s+price)\b", tl))
+
+    sort_by = "fare" if cheapest_requested else None
+    journey_type = "CONNECTING" if connecting_requested else None
+
+    # Query unified bus discovery service
+    schedules, meta = search_curated_bus_schedules(
+        origin=extracted_origin,
+        destination=extracted_dest,
+        operator_type=operator_filter,
+        bus_type=bus_type_filter,
+        journey_type=journey_type,
+        direct_only=direct_only,
+        sort_by=sort_by,
+    )
+
+    if schedules:
+        bus_lines = []
+        for s in schedules:
+            op_name = s.operator_name
+            op_badge = "🏛️ [Government / State Undertaking]" if s.operator_type == "government" else "🏢 [Private Fleet Operator]"
+            b_type = s.bus_type or s.service_type or "Stage Carriage"
+            orig_stand = s.origin_bus_stand or extracted_origin
+            dest_stand = s.destination_bus_stand or extracted_dest
+            op_hours = s.operating_hours or (f"{s.departure_time} - {s.arrival_time}" if s.departure_time else "Daytime Regular Service")
+            freq = f"Every {s.frequency_minutes} mins" if s.frequency_minutes else "Daily Scheduled Departure"
+            dur = f"~{s.duration_hours} hrs" if s.duration_hours else "~1.5 hrs"
+            f_min = s.indicative_fare_min
+            f_max = s.indicative_fare_max
+            fare_str = f"₹{int(f_min)} - ₹{int(f_max)}" if f_min and f_max and f_min != f_max else (f"₹{int(f_min)}" if f_min else "Statutory fare")
+            booking_link = f" | [Online Booking]({s.booking_url})" if s.booking_url else ""
+            notes = s.notes or s.route_description or ""
+
+            # Check if this is a connecting route
+            if s.journey_type == "CONNECTING" and s.connecting_details:
+                c_det = s.connecting_details
+                l1 = c_det.get("leg1", {})
+                l2 = c_det.get("leg2", {})
+                bus_lines.append(
+                    f"• **{op_name}** — 🔄 **CONNECTING ROUTE VIA JAMMU GBS**\n"
+                    f"  - 🏷️ **Classification:** {op_badge}\n"
+                    f"  - 📍 **Leg 1:** {l1.get('origin', orig_stand)} → {l1.get('destination', 'Jammu GBS')} ({l1.get('operator')})\n"
+                    f"    - Timing: ~{l1.get('duration_hours')} hrs | Indicative Fare: ₹{l1.get('fare_min')} - ₹{l1.get('fare_max')}\n"
+                    f"  - ⏱️ **Official Transfer Buffer:** {c_det.get('transfer_buffer_minutes', 60)} mins at {c_det.get('transfer_point', 'Jammu GBS')}\n"
+                    f"  - 📍 **Leg 2:** {l2.get('origin', 'Jammu GBS')} → {l2.get('destination', dest_stand)} ({l2.get('operator')})\n"
+                    f"    - Timing: ~{l2.get('duration_hours')} hrs | Indicative Fare: ₹{l2.get('fare_min')} - ₹{l2.get('fare_max')}\n"
+                    f"  - 💰 **Combined Estimated Tariff:** {fare_str} | **Estimated Travel Time:** {dur}\n"
+                    f"  - ℹ️ *{notes}*"
+                )
+            else:
+                b_pts = f"Boarding: {', '.join(s.boarding_points)}" if s.boarding_points else f"Boarding: {orig_stand}"
+                d_pts = f"Dropping: {', '.join(s.dropping_points)}" if s.dropping_points else f"Dropping: {dest_stand}"
+                bus_lines.append(
+                    f"• **{op_name}** ({b_type}) — {op_badge}\n"
+                    f"  - 📍 **Boarding:** {b_pts}\n"
+                    f"  - 📍 **Dropping:** {d_pts}\n"
+                    f"  - 🕒 **Departure / Window:** {op_hours} ({freq})\n"
+                    f"  - ⏱️ **Duration:** {dur}\n"
+                    f"  - 💰 **Tariff:** {fare_str} ({s.fare_classification})\n"
+                    f"  - 🎟️ **Availability & Booking:** {s.availability_status}{booking_link}\n"
+                    f"  - ℹ️ *{notes}*"
+                )
+
+        gov_cnt = sum(1 for s in schedules if s.operator_type == "government")
+        pvt_cnt = sum(1 for s in schedules if s.operator_type == "private")
+        ver_cnt = sum(1 for s in schedules if s.verification_status == "verified_curated_source")
+        part_cnt = sum(1 for s in schedules if s.verification_status == "partially_verified")
+
+        filter_banner = ""
+        if cheapest_requested:
+            ch_s = schedules[0]
+            filter_banner = (
+                f"🏆 **Cheapest Bus Found (Lowest Indicative Tariff):** **{ch_s.operator_name}** ({ch_s.bus_type or ch_s.service_type})\n"
+                f"💰 **Lowest Indicative Tariff:** ₹{int(ch_s.indicative_fare_min or 0)} per person ({ch_s.fare_classification})\n"
+                f"🕒 **Departure:** {ch_s.departure_time or ch_s.operating_hours} | ⏱️ **Duration:** ~{ch_s.duration_hours} hrs\n"
+                f"⚠️ *Disclaimer: Tariffs are indicative based on verified operator schedules; final prices vary by seat category and booking portal.*\n\n"
+            )
+        elif operator_filter == "private":
+            filter_banner = "🏷️ *Displaying verified private bus fleet operators only.*\n\n"
+        elif operator_filter == "government":
+            filter_banner = "🏷️ *Displaying verified government & state transport undertakings only.*\n\n"
+        elif bus_type_filter:
+            filter_banner = f"🏷️ *Filtered by category: {bus_type_filter.upper()} buses.*\n\n"
+        elif direct_only:
+            filter_banner = "🏷️ *Displaying direct non-stop through buses only.*\n\n"
+        elif connecting_requested:
+            filter_banner = "🏷️ *Displaying verified connecting routes via Jammu General Bus Stand with transfer buffers.*\n\n"
+
+        reply = (
+            f"🚌 **Official Public Bus Transport — Multi-Operator Bus Transport Gateway: {extracted_origin} → {extracted_dest}**\n\n"
+            f"{filter_banner}"
+            f"📋 **Fleet Composition:** {len(schedules)} verified service(s) ({ver_cnt} Verified + {part_cnt} Partially Verified / Indicative; {gov_cnt} Government + {pvt_cnt} Private) from discoverable services in the curated registry (not an exhaustive catalogue of all operators in India)\n"
+            f"📡 **Live GPS Tracking:** Not Connected *(No public GPS telemetry or GTFS feed in J&K)*\n"
+            f"💰 **Fare Classification:** Statutory Govt-Notified Tariff *(J&K STA Notification No. 01-P-MVD of 2026 for Regional Slabs)* & Operator Published Tariffs\n"
+            f"🎟️ **Seat Availability:** Counter Ticketing / Unreserved *(Tickets issued on board or at stand counters; online booking for private sleeper coaches)*\n\n"
+            + "\n\n".join(bus_lines)
+            + "\n\n"
+            f"🌐 **Official Booking Portals & Helplines:**\n"
+            f"• **JKRTC Online Booking:** https://jksrtc.co.in/ | Helpline: `+91-9149473175`\n"
+            f"• **HRTC Online Portal:** https://hrtchp.com/\n"
+            f"• **Laxmi Holidays:** https://www.laxmiholidays.com/\n"
+            f"• **Zingbus:** https://www.zingbus.com/\n"
+            f"• **FlixBus India:** https://www.flixbus.in/\n"
+            f"• **IntrCity SmartBus:** https://www.intrcity.com/\n"
+            f"• **Ram Dalal Holidays:** https://www.ramdalaltravels.com/\n"
+            f"• **Jammu General Bus Stand (GBS):** `0191-2476290` | **Katra Central Stand:** `01991-232049`\n\n"
+            f"⚠️ *Truth-in-Data Notice: Fares and operating windows reflect official operator tariffs and statutory STA notification slabs. Private sleeper buses offer advance online seat selection on carrier portals; regional stage carriages issue tickets on board or at stand counters.*"
+        )
+    else:
+        reply = (
+            f"🚌 **Bus Connectivity: {extracted_origin} → {extracted_dest}**\n\n"
+            f"No verified bus service matching your criteria was found for **{extracted_origin} → {extracted_dest}**.\n\n"
+            f"• **Supported Direct Bus Corridors:** Delhi, Chandigarh, Amritsar, Pathankot, Jammu, and Udhampur to Katra.\n"
+            f"• **Connecting Guidance:** For other origins, travel by train/flight to Delhi or Jammu and connect via high-frequency local feeder buses or private sleeper coaches.\n"
+            f"• **Helpline:** Contact Jammu General Bus Stand at `0191-2476290` or JKRTC at `+91-9149473175`."
+        )
+
+    return {
+        "intent": "BUS_SEARCH",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+        "buses": [s.to_dict() for s in schedules],
+    }
+
+
+def handle_budget_calculation_intent(
+    user_text: str,
+    session: Dict[str, Any],
+) -> Dict[str, Any]:
+    reply = (
+        "💰 **Estimated Budget & Expense Breakdown for Vaishno Devi Yatra**\n\n"
+        "Here is a comprehensive itemized cost breakdown per pilgrim:\n\n"
+        "**1. Statutory Registration:**\n"
+        "• **RFID Yatra Registration Card (Parchi):** **FREE (₹0)** — Issued 24x7 by SMVDSB.\n\n"
+        "**2. Travel to Katra (SVDK):**\n"
+        "• **Vande Bharat Express (Chair Car / Executive):** ₹1,665 / ₹3,015 from New Delhi.\n"
+        "• **Superfast Trains (Sleeper / 3AC):** ₹380 – ₹1,100 per person.\n"
+        "• **Flights to Jammu (IXJ):** ₹3,500 – ₹6,500 (plus ₹1,500–₹2,000 for Jammu–Katra taxi).\n\n"
+        "**3. Accommodation in Katra (per night):**\n"
+        "• **Shrine Board Dormitory / Room:** ₹150 – ₹1,200\n"
+        "• **Budget Private Hotel:** ₹800 – ₹1,500\n"
+        "• **Mid-range / Premium Hotel:** ₹2,000 – ₹4,500\n\n"
+        "**4. Trek Transit (Optional):**\n"
+        "• **Walking on Foot (Banganga or Tarakote Marg):** **₹0**\n"
+        "• **Battery Auto (Adhkuwari ↔ Bhawan):** ₹350 per person\n"
+        "• **Bhairon Passenger Ropeway:** ₹100 per person (round-trip)\n"
+        "• **Helicopter Service (Katra ↔ Sanjichhat):** ~₹2,100 one-way\n"
+        "• **Pony / Palki:** ₹1,250 – ₹3,500 (as per official SMVDSB rate chart)\n\n"
+        "**5. Food & Offerings:**\n"
+        "• Shrine Board Prasad & Meals: ₹300 – ₹600 per day\n\n"
+        "**Estimated Total per Pilgrim (2-day trip):**\n"
+        "• **Budget Pilgrimage:** ~₹2,500 – ₹3,500\n"
+        "• **Comfort Pilgrimage:** ~₹5,000 – ₹8,000\n"
+        "• **Premium Pilgrimage (Flights/Helicopter):** ~₹12,000 – ₹18,000"
+    )
+    return {
+        "intent": "BUDGET_CALCULATION",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session.get("session_id"),
+    }
+
+
+def handle_hotel_change(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Handles hotel change, rejection of Niharika, or numbered hotel option selection."""
+    from services.accommodation_catalog import search_hotels_for_orchestrator
+
+    state = session.get("state", {})
+    req = dict(state.get("requirements", {}))
+    if current_request:
+        req.update(current_request)
+    session_id = session.get("session_id")
+    tl = (user_text or "").lower()
+
+    # Load all verified Katra hotels
+    all_hotels = search_hotels_for_orchestrator(check_in_date=req.get("start_date"))
+    if not all_hotels:
+        from services.accommodation_catalog import search_hotels_with_status
+        all_hotels, _ = search_hotels_with_status()
+
+    # Exclude mid-trek mountain stops (Ardhkuwari and Main Bhawan are trek halts, not Katra base hotels)
+    katra_hotels = [h for h in all_hotels if "ardhkuwari" not in h.get("name", "").lower() and "main bhawan" not in h.get("name", "").lower()]
+
+    # Check for rejection of Niharika Complex
+    if "niharika" in tl and any(w in tl for w in ["don't want", "dont want", "not want", "reject", "other", "different", "exclude"]):
+        req["reject_niharika"] = True
+        req["_reject_niharika"] = True
+        req.pop("selected_hotel", None)
+        req.pop("hotel", None)
+
+    # Filter available hotels based on rejection
+    available = [
+        h for h in katra_hotels
+        if not (req.get("reject_niharika") and "niharika" in h.get("name", "").lower())
+    ]
+    # Prioritize Katra base camp hotels (Mid-Range & Budget first, then Premium, then Dharamshalas)
+    order_map = {"Mid-Range": 1, "Budget": 2, "Premium": 3, "Dharamshala": 4}
+    available = sorted(available, key=lambda h: (order_map.get(h.get("category"), 5), h.get("price_per_night", 9999)))
+
+    new_hotel = None
+    # Check for ordinal / numbered option selection: "second option", "option 2", "third option", etc.
+    if re.search(r"\b(?:second\s+option|option\s+2|2nd\s+option)\b", tl):
+        if len(available) > 1:
+            new_hotel = available[1]
+    elif re.search(r"\b(?:third\s+option|option\s+3|3rd\s+option)\b", tl):
+        if len(available) > 2:
+            new_hotel = available[2]
+    elif re.search(r"\b(?:first\s+option|option\s+1|1st\s+option)\b", tl):
+        if available:
+            new_hotel = available[0]
+    else:
+        # Check if user mentioned a specific hotel name in text
+        for h in available:
+            h_name = h.get("name", "").lower()
+            key_tokens = [tok for tok in h_name.split() if len(tok) > 4 and tok not in ("hotel", "complex", "shakti", "katra", "bhawan")]
+            if h_name in tl or any(tok in tl for tok in key_tokens):
+                new_hotel = h
+                break
+
+    if not new_hotel:
+        # User requested other/different hotel: cycle away from currently selected hotel
+        cur_h = state.get("selected_options", {}).get("accommodation") or {}
+        cur_name = (cur_h.get("name") or "").lower()
+        candidates = [h for h in available if h.get("name", "").lower() != cur_name and "niharika" not in h.get("name", "").lower()]
+        new_hotel = candidates[0] if candidates else (available[0] if available else None)
+
+    if new_hotel:
+        req["selected_hotel"] = new_hotel
+        req["hotel"] = new_hotel
+        state.setdefault("selected_options", {})["accommodation"] = new_hotel
+        if state.get("plan"):
+            state["plan"]["hotel"] = new_hotel
+
+    # Re-evaluate complete plan with updated hotel
+    if not req.get("origin"):
+        saved_origin = session.get("state", {}).get("requirements", {}).get("origin")
+        if saved_origin:
+            req["origin"] = saved_origin
+
+    if not req.get("origin"):
+        h_name = new_hotel.get("name") if new_hotel else "Updated Katra Hotel"
+        h_cat = new_hotel.get("category", "Standard") if new_hotel else "Standard"
+        h_price = new_hotel.get("price_per_night", 1200) if new_hotel else 1200
+        reply = (
+            f"🏨 **Accommodation Preference Updated — {h_name}**\n\n"
+            f"• **Hotel:** {h_name} ({h_cat})\n"
+            f"• **Tariff:** ₹{h_price:,.0f}/night\n\n"
+            f"To calculate confirmed transport options and complete your itemized budget, please specify **which city you will be travelling from**."
+        )
+        return {
+            "intent": "HOTEL_CHANGE",
+            "reply": reply,
+            "status": "NEEDS_INFO",
+            "missing_fields": ["origin"],
+            "hotel": new_hotel,
+            "hotel_changed": True,
+            "requirements": req,
+            "session_id": session_id,
+        }
+
+    curr_v = state.get("plan_version", 1)
+    next_v = curr_v + 1
+    state["plan_version"] = next_v
+    plan_res = coordinate_plan(req, session_id=session_id, plan_version=next_v)
+    if not plan_res:
+        plan_res = {}
+    plan_res["plan_version"] = next_v
+    state["plan"] = plan_res.get("plan")
+    state["budget_evaluation"] = plan_res.get("budget_evaluation")
+    state["itinerary"] = plan_res.get("itinerary")
+    state["selected_options"] = plan_res.get("selected_options")
+    state["requirements"] = req
+    if session_id:
+        session_store.update_session(
+            session_id=session_id,
+            updates={
+                "plan_version": next_v,
+                "requirements": req,
+                "plan": plan_res.get("plan"),
+                "selected_options": plan_res.get("selected_options"),
+                "budget_evaluation": plan_res.get("budget_evaluation"),
+                "itinerary": plan_res.get("itinerary"),
+                "authorized_plan_version": None,
+                "authorization": {"pending": False, "granted": False},
+            }
+        )
+
+    h_name = new_hotel.get("name") if new_hotel else "Updated Katra Hotel"
+    h_cat = new_hotel.get("category", "Standard") if new_hotel else "Standard"
+    h_price = new_hotel.get("price_per_night", 1200) if new_hotel else 1200
+    grand_tot = plan_res.get("budget_evaluation", {}).get("grand_total")
+    tot_str = f"₹{grand_tot:,.0f}" if grand_tot else "Calculated"
+
+    reply = (
+        f"🏨 **Accommodation Updated: {h_name}**\n\n"
+        f"🙏 **Jai Mata Di!** I have updated your stay to **{h_name}** ({h_cat} · ₹{h_price:,.0f}/night).\n\n"
+        f"• **Location:** {new_hotel.get('location', 'Central Katra Base')}\n"
+        f"• **Room Allocation:** {plan_res.get('budget_evaluation', {}).get('breakdown', {}).get('hotel', {}).get('rooms', 1)} room(s) for {req.get('pax', 2)} pilgrims\n"
+        f"• **Updated Total Trip Estimate:** **{tot_str}** (includes round-trip transport, hotel stay, and darshan arrangements)\n\n"
+        f"Would you like to review the complete booking or proceed to confirmation?"
+    )
+
+    plan_res["reply"] = reply
+    plan_res["intent"] = "HOTEL_CHANGE"
+    plan_res["hotel"] = new_hotel
+    plan_res["available_hotels"] = available[:6]
+    return plan_res
+
+
+def handle_transport_change(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Handles train/transport switch or specific train/bus selection."""
+    state = session.get("state", {})
+    req = dict(state.get("requirements", {}))
+    if current_request:
+        req.update(current_request)
+    session_id = session.get("session_id")
+    tl = (user_text or "").lower()
+
+    # Multi-operator bus mapping
+    bus_operator_map = {
+        "laxmi holidays": "Laxmi Holidays",
+        "laxmi": "Laxmi Holidays",
+        "zingbus": "Zingbus",
+        "flixbus": "FlixBus",
+        "intrcity": "IntrCity",
+        "ram dalal": "Ram Dalal Holidays",
+        "hrtc": "HRTC",
+        "prtc": "PRTC",
+        "punbus": "Punbus",
+        "jksrtc": "JKRTC",
+    }
+    matched_bus_op = None
+    for k, v in bus_operator_map.items():
+        if k in tl:
+            matched_bus_op = v
+            break
+
+    if matched_bus_op:
+        req["selected_transport"] = matched_bus_op
+        req["mode"] = "bus"
+    elif "22439" in tl or "vande bharat" in tl:
+        req["selected_transport"] = "22439"
+        req["mode"] = "train"
+    elif "22440" in tl:
+        req["selected_transport"] = "22440"
+        req["mode"] = "train"
+    elif "22461" in tl or "shri shakti" in tl:
+        req["selected_transport"] = "22461"
+        req["mode"] = "train"
+    elif "12445" in tl or "uttar sampark" in tl:
+        req["selected_transport"] = "12445"
+        req["mode"] = "train"
+    elif "flight" in tl:
+        req["mode"] = "flight"
+    elif "bus" in tl:
+        req["mode"] = "bus"
+    elif "train" in tl:
+        req["mode"] = "train"
+
+    if not req.get("origin"):
+        saved_origin = session.get("state", {}).get("requirements", {}).get("origin")
+        if saved_origin:
+            req["origin"] = saved_origin
+
+    if not req.get("origin"):
+        tr_desc = req.get("selected_transport") or req.get("mode") or "Transport"
+        reply = (
+            f"🚄↔️🚌 **Transport Preference Updated — {str(tr_desc).title()}**\n\n"
+            f"• **Preferred Mode / Service:** {tr_desc}\n\n"
+            f"Please specify your **departure city** so I can search confirmed schedules, timings, and fares to Katra."
+        )
+        return {
+            "intent": "TRANSPORT_CHANGE",
+            "reply": reply,
+            "status": "NEEDS_INFO",
+            "missing_fields": ["origin"],
+            "transport_changed": True,
+            "requirements": req,
+            "session_id": session_id,
+        }
+
+    curr_v = state.get("plan_version", 1)
+    next_v = curr_v + 1
+    state["plan_version"] = next_v
+    plan_res = coordinate_plan(req, session_id=session_id, plan_version=next_v)
+    if not plan_res:
+        plan_res = {}
+    plan_res["plan_version"] = next_v
+    state["plan"] = plan_res.get("plan")
+    state["budget_evaluation"] = plan_res.get("budget_evaluation")
+    state["itinerary"] = plan_res.get("itinerary")
+    state["selected_options"] = plan_res.get("selected_options")
+    state["requirements"] = req
+    if session_id:
+        session_store.update_session(
+            session_id=session_id,
+            updates={
+                "plan_version": next_v,
+                "requirements": req,
+                "plan": plan_res.get("plan"),
+                "selected_options": plan_res.get("selected_options"),
+                "budget_evaluation": plan_res.get("budget_evaluation"),
+                "itinerary": plan_res.get("itinerary"),
+                "authorized_plan_version": None,
+                "authorization": {"pending": False, "granted": False},
+            }
+        )
+
+    sel_tr = plan_res.get("selected_options", {}).get("transport") or {}
+    tr_name = sel_tr.get("name") or sel_tr.get("operator") or "Transport Service"
+    dep_time = sel_tr.get("departure_time") or "Regular departure"
+    grand_tot = plan_res.get("budget_evaluation", {}).get("grand_total")
+    tot_str = f"₹{grand_tot:,.0f}" if grand_tot else "Calculated"
+
+    if sel_tr.get("mode") == "bus":
+        op_type = f" ({sel_tr.get('operator_type', 'Stage Carriage').title()})" if sel_tr.get("operator_type") else ""
+        b_pts = ", ".join(sel_tr.get("boarding_points", [])) if sel_tr.get("boarding_points") else sel_tr.get("origin_bus_stand", req.get("origin", "Delhi"))
+        d_pts = ", ".join(sel_tr.get("dropping_points", [])) if sel_tr.get("dropping_points") else sel_tr.get("destination_bus_stand", "Katra Central Bus Stand")
+        bk_url = sel_tr.get("booking_url") or "Bus Stand Counter / Operator Portal"
+        f_min = sel_tr.get("indicative_fare_min")
+        f_max = sel_tr.get("indicative_fare_max")
+        fare_text = f"₹{int(f_min)} - ₹{int(f_max)}" if f_min and f_max and f_min != f_max else (f"₹{int(f_min)}" if f_min else "Indicative tariff")
+
+        reply = (
+            f"🚌 **Transport Selection Updated: {tr_name}**\n\n"
+            f"🙏 **Jai Mata Di!** I have updated your travel arrangement to **{tr_name}**{op_type} (Bus).\n\n"
+            f"• **Route:** {sel_tr.get('origin', req.get('origin', 'Delhi'))} → Katra\n"
+            f"• **Boarding:** {b_pts}\n"
+            f"• **Dropping:** {d_pts}\n"
+            f"• **Departure:** {dep_time} | **Arrival:** {sel_tr.get('arrival_time', 'Next morning')}\n"
+            f"• **Indicative Fare:** {fare_text} per person ({sel_tr.get('fare_classification', 'Published Tariff')})\n"
+            f"• **Official Booking:** {bk_url}\n"
+            f"• **Updated Total Trip Estimate:** **{tot_str}**\n\n"
+            f"You can review your full itinerary or say **Proceed with booking** when ready."
+        )
+    else:
+        reply = (
+            f"🚆 **Transport Selection Updated: {tr_name}**\n\n"
+            f"🙏 **Jai Mata Di!** I have updated your travel arrangement to **{tr_name}** ({sel_tr.get('mode', 'train').title()}).\n\n"
+            f"• **Route:** {sel_tr.get('origin', req.get('origin', 'Delhi'))} → Katra (SVDK)\n"
+            f"• **Departure:** {dep_time} | **Arrival:** {sel_tr.get('arrival_time', 'Same day')}\n"
+            f"• **Updated Total Trip Estimate:** **{tot_str}**\n\n"
+            f"You can review your full itinerary or say **Proceed with booking** when ready."
+        )
+
+    plan_res["reply"] = reply
+    plan_res["intent"] = "TRANSPORT_CHANGE"
+    plan_res["selected_option"] = plan_res.get("selected_options")
+    return plan_res
+
+
+def handle_date_change(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Handles travel date selection or date modification."""
+    state = session.get("state", {})
+    req = dict(state.get("requirements", {}))
+    if current_request:
+        req.update(current_request)
+    session_id = session.get("session_id")
+
+    st_date, en_date = None, None
+    if legacy_agent.has_explicit_date(user_text):
+        st_date, en_date = legacy_agent._extract_date_range(user_text)
+
+    if not st_date:
+        parsed_dt, _, _, _, _ = conversation_agent.parse_and_validate_yatra_date(user_text, context=req)
+        if parsed_dt:
+            st_date = parsed_dt
+
+    if not st_date:
+        return {
+            "status": "AWAITING_INPUT",
+            "reply": (
+                "📅 **Select New Travel Dates**\n\n"
+                "🙏 **Jai Mata Di!** Please select your new departure date and return date below, or type your preferred dates (e.g. *25 to 28 November*)."
+            ),
+            "intent": "DATE_CHANGE",
+            "showDatePicker": True,
+            "request": req,
+        }
+
+    if st_date:
+        req["start_date"] = st_date
+        req["_date_explicit"] = True
+        if en_date:
+            req["end_date"] = en_date
+            try:
+                d1 = datetime.strptime(st_date, "%Y-%m-%d")
+                d2 = datetime.strptime(en_date, "%Y-%m-%d")
+                req["duration_days"] = max(1, (d2 - d1).days + 1)
+            except Exception:
+                pass
+        else:
+            dur = req.get("duration_days") or 4
+            try:
+                d1 = datetime.strptime(st_date, "%Y-%m-%d")
+                req["end_date"] = (d1 + timedelta(days=max(1, dur - 1))).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+    if not req.get("origin"):
+        saved_origin = session.get("state", {}).get("requirements", {}).get("origin")
+        if saved_origin:
+            req["origin"] = saved_origin
+
+    if not req.get("origin"):
+        st_disp = req.get("start_date", "Upcoming")
+        en_disp = req.get("end_date", "")
+        dur_disp = req.get("duration_days", 4)
+        reply = (
+            f"🗓️ **Travel Dates Updated**\n\n"
+            f"• **Window:** {st_disp} to {en_disp} ({dur_disp} days)\n\n"
+            f"Please specify your **departure city** so I can check transport schedules and generate your complete pilgrimage package."
+        )
+        return {
+            "intent": "DATE_CHANGE",
+            "reply": reply,
+            "status": "NEEDS_INFO",
+            "missing_fields": ["origin"],
+            "requirements": req,
+            "session_id": session_id,
+        }
+
+    curr_v = state.get("plan_version", 1)
+    next_v = curr_v + 1
+    state["plan_version"] = next_v
+    plan_res = coordinate_plan(req, session_id=session_id, plan_version=next_v)
+    if not plan_res:
+        plan_res = {}
+    plan_res["plan_version"] = next_v
+    state["plan"] = plan_res.get("plan")
+    state["budget_evaluation"] = plan_res.get("budget_evaluation")
+    state["itinerary"] = plan_res.get("itinerary")
+    state["selected_options"] = plan_res.get("selected_options")
+    state["requirements"] = req
+    if session_id:
+        session_store.update_session(
+            session_id=session_id,
+            updates={
+                "plan_version": next_v,
+                "requirements": req,
+                "plan": plan_res.get("plan"),
+                "selected_options": plan_res.get("selected_options"),
+                "budget_evaluation": plan_res.get("budget_evaluation"),
+                "itinerary": plan_res.get("itinerary"),
+                "authorized_plan_version": None,
+                "authorization": {"pending": False, "granted": False},
+            }
+        )
+
+    st_disp = req.get("start_date", "Upcoming")
+    en_disp = req.get("end_date", "")
+    dur_disp = req.get("duration_days", 4)
+    grand_tot = plan_res.get("budget_evaluation", {}).get("grand_total")
+    tot_str = f"₹{grand_tot:,.0f}" if grand_tot else "Calculated"
+
+    reply = (
+        f"📅 **Travel Dates Updated**\n\n"
+        f"🙏 **Jai Mata Di!** Your yatra schedule has been updated to:\n\n"
+        f"• **Departure Date:** **{st_disp}**\n"
+        f"• **Return Date:** **{en_disp}** ({dur_disp} Days / {max(1, dur_disp-1)} Nights)\n"
+        f"• **Darshan Slot:** Normal Darshan · {st_disp}\n"
+        f"• **Updated Total Trip Estimate:** **{tot_str}**\n\n"
+        f"Transport and Katra accommodation have been automatically aligned with your new dates. Say **Proceed with booking** when you are ready to continue."
+    )
+
+    plan_res["reply"] = reply
+    plan_res["intent"] = "DATE_CHANGE"
+    return plan_res
+
+
+def handle_booking_review(
+    user_text: str,
+    session: Dict[str, Any],
+    current_request: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Presents a comprehensive pre-booking summary review."""
+    state = session.get("state", {})
+    req = dict(state.get("requirements", {}))
+    if current_request:
+        req.update(current_request)
+    session_id = session.get("session_id")
+
+    if not state.get("selected_options"):
+        plan_res = coordinate_plan(req, session_id=session_id)
+        state["plan"] = plan_res.get("plan")
+        state["budget_evaluation"] = plan_res.get("budget_evaluation")
+        state["itinerary"] = plan_res.get("itinerary")
+        state["selected_options"] = plan_res.get("selected_options")
+        state["requirements"] = req
+
+    sel = state.get("selected_options", {})
+    tr = sel.get("transport") or {}
+    htl = sel.get("accommodation") or {}
+    slot = sel.get("darshan_slot") or {}
+    bgt = state.get("budget_evaluation") or {}
+
+    origin = req.get("origin")
+    if not origin:
+        saved_origin = session.get("state", {}).get("requirements", {}).get("origin")
+        origin = saved_origin or "Pending Origin"
+    pax = int(req.get("pax") or 2)
+    st_date = req.get("start_date") or "2026-11-25"
+    en_date = req.get("end_date") or "2026-11-28"
+    dur = int(req.get("duration_days") or 4)
+    nights = max(1, dur - 1)
+    rooms = budget_engine.calculate_rooms_required(pax)
+
+    tr_name = tr.get("name") or tr.get("operator") or f"{origin} to Katra Train"
+    tr_fare = tr.get("price") or tr.get("fare") or 1665
+    htl_name = htl.get("name", "Hotel Asia Vaishno Devi")
+    htl_price = htl.get("price_per_night", 2200)
+    slot_desc = slot.get("category", "Normal Darshan")
+    grand_tot = bgt.get("grand_total") or ((tr_fare * pax * 2) + (htl_price * rooms * nights))
+
+    reply = (
+        f"📋 **Complete Booking Review — Maa Vaishno Devi Yatra**\n\n"
+        f"Please verify your journey summary before human authorization and confirmation:\n\n"
+        f"**1. Pilgrims & Dates:**\n"
+        f"• **Pilgrims:** {pax} adult(s)\n"
+        f"• **Journey Dates:** {st_date} to {en_date} ({dur} Days / {nights} Nights)\n"
+        f"• **Origin / Destination:** {origin} ➔ Katra (SVDK) & Bhawan\n\n"
+        f"**2. Selected Transport:**\n"
+        f"• **Service:** {tr_name} ({tr.get('mode', 'train').title()})\n"
+        f"• **Timings:** Dep: {tr.get('departure_time', '06:00')} | Arr: {tr.get('arrival_time', '14:00')}\n"
+        f"• **Indicative Round-trip Transport:** ₹{float(tr_fare * pax * 2):,.0f}\n\n"
+        f"**3. Katra Accommodation:**\n"
+        f"• **Hotel:** {htl_name} ({htl.get('category', 'Standard')})\n"
+        f"• **Stay:** {rooms} room(s) for {nights} night(s) (₹{float(htl_price):,.0f}/night)\n"
+        f"• **Location:** {htl.get('location', 'Central Katra Base')}\n\n"
+        f"**4. Maa Vaishno Devi Darshan:**\n"
+        f"• **Slot:** {slot_desc} · Scheduled for {slot.get('slot_date', st_date)}\n"
+        f"• **RFID Yatra Registration:** Mandatory SMVDSB pass (₹0 statutory)\n\n"
+        f"💰 **Total Estimated Cost:** **₹{float(grand_tot):,.0f}**\n\n"
+        f"Ready to proceed? Say **Proceed with booking** or click **Confirm & Book** to start the booking checkpoint."
+    )
+
+    return {
+        "intent": "BOOKING_REVIEW",
+        "status": "PLAN_READY",
+        "reply": reply,
+        "session_id": session_id,
+        "request": req,
+        "plan": state.get("plan"),
+        "selected_options": sel,
+        "budget_evaluation": bgt,
+        "itinerary": state.get("itinerary"),
+        "hotel": htl,
+        "available_hotels": state.get("plan", {}).get("available_hotels", []),
+    }
+
+
+def handle_my_bookings(
+    user_text: str,
+    session: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Retrieves and formats saved simulated bookings."""
+    session_id = session.get("session_id")
+    state = session.get("state", {})
+    user_id = session.get("user_id")
+
+    saved_bookings = []
+    if user_id:
+        try:
+            from agents.auth_service import auth_service
+            saved_bookings = auth_service.get_user_bookings(user_id) or []
+        except Exception as e:
+            logger.debug(f"Could not load bookings from auth_service: {e}")
+
+    session_history = state.get("booking_history") or []
+    for b in session_history:
+        b_id = b.get("booking_id")
+        if b_id and not any(sb.get("booking_id") == b_id for sb in saved_bookings):
+            saved_bookings.append(b)
+
+    rpa_exec = state.get("rpa_execution") or {}
+    cur_bid = rpa_exec.get("booking_id")
+    if cur_bid and not any(sb.get("booking_id") == cur_bid for sb in saved_bookings):
+        saved_bookings.append({
+            "booking_id": cur_bid,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "status": "CONFIRMED",
+            "hotel": state.get("selected_options", {}).get("accommodation", {}).get("name", "Hotel Asia Vaishno Devi"),
+            "total_amount": state.get("budget_evaluation", {}).get("grand_total", 8500),
+            "pax": state.get("requirements", {}).get("pax", 2),
+        })
+
+    if saved_bookings:
+        lines = []
+        for i, b in enumerate(saved_bookings[:5], 1):
+            bid = b.get("booking_id", f"VD-DEMO-{100000+i}")
+            dt = b.get("created_at") or b.get("yatra_date") or "Recent"
+            htl = b.get("hotel") or b.get("hotel_name") or "Katra Stay"
+            amt = b.get("total_amount") or b.get("amount") or 8500
+            st = b.get("status", "CONFIRMED")
+            lines.append(
+                f"**{i}. Booking Reference: `{bid}`** ({st})\n"
+                f"   • **Date:** {dt} | **Accommodation:** {htl}\n"
+                f"   • **Amount:** ₹{float(amt):,.0f} | **Pass:** [Download PDF](/api/yatra/booking/{bid}/pdf)"
+            )
+
+        reply = (
+            f"📑 **Your Previous Saved Bookings**\n\n"
+            f"Here are the simulated bookings linked to your session:\n\n"
+            + "\n\n".join(lines)
+            + f"\n\nℹ️ *All bookings can be downloaded as official-styled demo passes from your My Bookings dashboard.*"
+        )
+    else:
+        reply = (
+            "📑 **My Bookings**\n\n"
+            "You do not have any saved bookings under this active session yet.\n\n"
+            "Once you complete a yatra plan and authorize simulated booking, your confirmation ID, "
+            "itinerary details, and downloadable demo pass will be stored here permanently for future reference."
+        )
+
+    return {
+        "intent": "MY_BOOKINGS",
+        "status": "SUCCESS",
+        "reply": reply,
+        "session_id": session_id,
+        "bookings": saved_bookings,
+    }
+
+
 def orchestrate_conversational_turn(
     user_text: str,
     session_id: Optional[str] = None,
@@ -2320,6 +3819,41 @@ def orchestrate_conversational_turn(
             b_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
             return _finalize(b_res, default_intent="BOOKING")
 
+        # 1c. My Bookings Enquiry
+        if intent == "MY_BOOKINGS":
+            mb_res = handle_my_bookings(user_text, session)
+            mb_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            mb_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(mb_res, default_intent="MY_BOOKINGS")
+
+        # 1d. Booking Review / Complete Booking Summary
+        if intent == "BOOKING_REVIEW":
+            br_res = handle_booking_review(user_text, session, current_request=current_request or req)
+            br_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            br_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(br_res, default_intent="BOOKING_REVIEW")
+
+        # 1e. Hotel Selection / Change / Rejection
+        if intent == "HOTEL_CHANGE":
+            hc_res = handle_hotel_change(user_text, session, current_request=current_request or req)
+            hc_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            hc_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(hc_res, default_intent="HOTEL_CHANGE")
+
+        # 1f. Transport Selection / Train Change
+        if intent == "TRANSPORT_CHANGE":
+            tc_res = handle_transport_change(user_text, session, current_request=current_request or req)
+            tc_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            tc_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(tc_res, default_intent="TRANSPORT_CHANGE")
+
+        # 1g. Travel Dates Update / Selection
+        if intent == "DATE_CHANGE":
+            dc_res = handle_date_change(user_text, session, current_request=current_request or req)
+            dc_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            dc_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(dc_res, default_intent="DATE_CHANGE")
+
         # 2. Weather query
         if intent == "WEATHER":
             w_res = coordinator.process_weather_message(user_text, current_request=current_request if current_request is not None else req)
@@ -2382,6 +3916,116 @@ def orchestrate_conversational_turn(
                 t_res["request"] = active_trip_req
             session_store.update_session(sid, updates={"last_tourism_place": t_res.get("last_tourism_place")})
             return _finalize(t_res, default_intent="TOURISM")
+
+        # 5a. Specialized Travel & Transport Intents
+        if intent == "TRAIN_SEARCH":
+            t_res = handle_train_search_intent(user_text, session, current_request=current_request or req)
+            t_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            t_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(t_res, default_intent="TRAIN_SEARCH")
+
+        if intent == "TRAIN_SCHEDULE":
+            ts_res = handle_train_schedule_intent(user_text, session)
+            ts_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            ts_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(ts_res, default_intent="TRAIN_SCHEDULE")
+
+        if intent == "LIVE_TRAIN_STATUS":
+            ts_res = handle_live_train_status_intent(user_text, session)
+            ts_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            ts_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(ts_res, default_intent="LIVE_TRAIN_STATUS")
+
+        if intent == "HOTEL_SEARCH":
+            h_res = handle_hotel_search_intent(user_text, session, current_request=current_request or req)
+            h_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            h_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(h_res, default_intent="HOTEL_SEARCH")
+
+        if intent == "FLIGHT_SEARCH":
+            f_res = handle_flight_search_intent(user_text, session, current_request=current_request or req)
+            f_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            f_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(f_res, default_intent="FLIGHT_SEARCH")
+
+        if intent == "BUS_SEARCH":
+            b_res = handle_bus_search_intent(user_text, session, current_request=current_request or req)
+            b_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            b_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(b_res, default_intent="BUS_SEARCH")
+
+        if intent == "ALTITUDE_GUIDANCE":
+            t_res = coordinator.answer_tourism_query(user_text, last_tourism_place=last_tourism_place or state.get("last_tourism_place"))
+            t_res["intent"] = "ALTITUDE_GUIDANCE"
+            t_res["last_tourism_place"] = t_res.get("last_tourism_place") or last_tourism_place
+            t_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(t_res, default_intent="ALTITUDE_GUIDANCE")
+
+        if intent == "TREKKING_GUIDANCE":
+            t_res = coordinator.answer_tourism_query(user_text, last_tourism_place=last_tourism_place or state.get("last_tourism_place"))
+            t_res["intent"] = "TREKKING_GUIDANCE"
+            t_res["last_tourism_place"] = t_res.get("last_tourism_place") or last_tourism_place
+            t_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(t_res, default_intent="TREKKING_GUIDANCE")
+
+        if intent == "BHAVAN_TRANSPORT":
+            t_res = coordinator.answer_tourism_query(user_text, last_tourism_place=last_tourism_place or state.get("last_tourism_place"))
+            t_res["intent"] = "BHAVAN_TRANSPORT"
+            t_res["last_tourism_place"] = t_res.get("last_tourism_place") or last_tourism_place
+            t_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(t_res, default_intent="BHAVAN_TRANSPORT")
+
+        if intent == "BUDGET_CALCULATION":
+            b_res = handle_budget_calculation_intent(user_text, session)
+            b_res["last_tourism_place"] = last_tourism_place or state.get("last_tourism_place")
+            b_res["last_itinerary_context"] = last_itinerary_context or state.get("last_itinerary_context")
+            return _finalize(b_res, default_intent="BUDGET_CALCULATION")
+
+        if intent == "GREETING":
+            g_res = {
+                "intent": "GREETING",
+                "status": "SUCCESS",
+                "reply": (
+                    "🙏 **Jai Mata Di!** Welcome to Yatra AI, your devoted pilgrimage and travel companion for Maa Vaishno Devi. "
+                    "How may I assist your holy yatra today? You can ask me about live Katra & Bhawan weather, trek routes, "
+                    "mandatory RFID registration guidelines, available trains, or planning a complete personalized itinerary."
+                ),
+                "session_id": sid,
+                "request": req,
+            }
+            return _finalize(g_res, default_intent="GREETING")
+
+        if intent == "ACKNOWLEDGMENT":
+            a_res = {
+                "intent": "ACKNOWLEDGMENT",
+                "status": "SUCCESS",
+                "reply": (
+                    "🙏 **Jai Mata Di!** You are most welcome! May Mata Rani shower Her divine blessings upon your holy pilgrimage. "
+                    "Whenever you need assistance with Katra weather, helicopter updates, train schedules, or trek advisories, "
+                    "I am always here to guide you."
+                ),
+                "session_id": sid,
+                "request": req,
+            }
+            return _finalize(a_res, default_intent="ACKNOWLEDGMENT")
+
+        if intent == "HELP":
+            h_res = {
+                "intent": "HELP",
+                "status": "SUCCESS",
+                "reply": (
+                    "🙏 **Jai Mata Di!** Here is what I can assist you with for your sacred pilgrimage to Maa Vaishno Devi:\n\n"
+                    "- 🌦️ **Live Weather & Altitude Guidance:** Real-time conditions across Katra, Ardhkuwari, Bhawan, and Bhairon Temple.\n"
+                    "- 🚆 **Transport & Connectivity:** Direct and connecting trains, flights, and bus schedules from any Indian city.\n"
+                    "- 🏨 **Verified Accommodations:** Official Shrine Board bhavans and registered Katra hotels.\n"
+                    "- 📜 **Track & Trek Advisories:** Official notices on Traditional Track vs Tarakote Marg, battery cars, palkis, and ropeway.\n"
+                    "- 🎫 **Registration & Rules:** Mandatory RFID Yatra Registration Parchi guidelines, valid IDs, and sanctum dress code.\n"
+                    "- 🗺️ **Comprehensive Itinerary:** Customized multi-day pilgrimage planning with real-time budget optimization."
+                ),
+                "session_id": sid,
+                "request": req,
+            }
+            return _finalize(h_res, default_intent="HELP")
 
         # 5. Day-by-day Itinerary modification
         if intent == "ITINERARY":

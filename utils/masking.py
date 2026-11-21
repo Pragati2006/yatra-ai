@@ -18,6 +18,8 @@ BEARER_TOKEN_REGEX = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9_\-\.]{16,}\b")
 COOKIE_TOKEN_REGEX = re.compile(r"(?i)yatra_auth_session=[A-Za-z0-9_\-\.]{16,}")
 LABELED_OTP_REGEX = re.compile(r"(?i)\b(otp|otp_code|code|verification_code)\s*[:=\s]\s*(['\"]?)(\d{6})\2\b")
 PHONE_REGEX = re.compile(r"\b(?:\+91[\s-]?)?[6789]\d{9}\b")
+SERPAPI_KEY_QUERY_PARAM_REGEX = re.compile(r"(?i)([?&](?:api_key|api-key|key|secret)=)[^&\s\"'\)]+")
+RAILCORE_KEY_HEADER_REGEX = re.compile(r"(?i)\b(X-RailCore-Key|X-API-Key)\s*[:=]\s*['\"]?[A-Za-z0-9_\-\.]{8,}['\"]?")
 
 # Keys classified as sensitive across payloads and dictionaries
 SENSITIVE_KEY_PATTERNS = {
@@ -197,5 +199,11 @@ def sanitize_log_message(message: str) -> str:
         return mask_email(match.group(0))
 
     scrubbed = EMAIL_REGEX.sub(_email_replacer, scrubbed)
+
+    # 7. Redact SerpApi and query parameter API keys
+    scrubbed = SERPAPI_KEY_QUERY_PARAM_REGEX.sub(r"\1[REDACTED]", scrubbed)
+
+    # 8. Redact RailCore and provider API key headers
+    scrubbed = RAILCORE_KEY_HEADER_REGEX.sub(r"\1: [REDACTED]", scrubbed)
 
     return scrubbed

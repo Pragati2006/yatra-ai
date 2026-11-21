@@ -15,7 +15,10 @@ so raw card data never touches this app's code at all.
 
 import time
 
-import streamlit as st
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 
 
 def _luhn_ok(card_number):

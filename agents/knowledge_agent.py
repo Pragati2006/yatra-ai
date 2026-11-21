@@ -14,6 +14,12 @@ import re
 import explore_data
 import yatra_info
 
+try:
+    from services.destination_ingestion.manager import get_destination_manager
+    _dest_manager = get_destination_manager()
+except Exception:
+    _dest_manager = None
+
 # Common informal names that should resolve to an existing place record.
 _PLACE_ALIASES = {
     "katra": "Katra",
@@ -25,6 +31,12 @@ _PLACE_ALIASES = {
     "bhaironath": "Bhairavnath Temple",
     "bhairon baba": "Bhairavnath Temple",
     "bhairon nath": "Bhairavnath Temple",
+    "bhairon ghati": "Bhairavnath Temple",
+    "bhaironghati": "Bhairavnath Temple",
+    "bhairon temple": "Bhairavnath Temple",
+    "bhairavnath temple": "Bhairavnath Temple",
+    "bhawan": "Katra",
+    "vaishno devi bhawan": "Katra",
     "ardhkuwari": "Ardhkuwari Cave",
     "adhkuwari": "Ardhkuwari Cave",
     "garbh joon": "Ardhkuwari Cave",
@@ -78,6 +90,31 @@ _PLACE_ALIASES = {
     "mattan": "Martand Sun Temple, Mattan",
     "sinthan top": "Sinthan Top",
     "sinthan": "Sinthan Top",
+    "akhnoor fort": "Akhnoor Fort",
+    "akhnoor": "Akhnoor Fort",
+    "mubarak mandi": "Mubarak Mandi Palace",
+    "mubarak mandi palace": "Mubarak Mandi Palace",
+    "chashma shahi": "Chashma Shahi",
+    "chashmashahi": "Chashma Shahi",
+    "pari mahal": "Pari Mahal",
+    "parimahal": "Pari Mahal",
+    "tulip garden": "Tulip Garden",
+    "badamwari": "Badamwari",
+    "badam wari": "Badamwari",
+    "nigeen lake": "Nigeen Lake",
+    "nigeen": "Nigeen Lake",
+    "nageen lake": "Nigeen Lake",
+    "hari parbat fort": "Hari Parbat Fort",
+    "hari parbat": "Hari Parbat Fort",
+    "dachigam": "Dachigam National Park",
+    "dachigam national park": "Dachigam National Park",
+    "harwan garden": "Harwan Garden",
+    "harwan": "Harwan Garden",
+    "botanical garden": "Botanical Garden",
+    "machail mata": "Machail Mata",
+    "machail": "Machail Mata",
+    "kishtwar national park": "Kishtwar National Park",
+    "chowgan": "Chowgan",
 }
 
 _STOPWORDS = {
@@ -116,10 +153,28 @@ def is_place_followup(query: str) -> bool:
     return any(re.search(p, q) for p in patterns)
 
 
+def get_all_unified_places() -> list:
+    """Returns the unified catalog across curated and officially ingested destinations."""
+    if _dest_manager:
+        try:
+            return _dest_manager.get_unified_places_catalog()
+        except Exception:
+            pass
+    return explore_data.get_places()
+
+
 def classify_tourism_topic(query: str, last_place: str = None) -> str:
     """Classifies an information question so replies use the right existing source."""
     q = (query or "").lower()
 
+    if re.search(r"\b(altitude|elevation|height|how high|sea level|metres high|feet high)\b", q):
+        return "altitude"
+    if re.search(r"\b(trekking\s+tips?|trek\s+tips?|tips\s+for\s+trekking|trek\s+advice|trekking\s+advice|trek\s+difficulty|tips\s+for.*trek|how\s+steep|steepness)\b", q):
+        return "trekking_tips"
+    if re.search(r"\b(transport.*bhawan|options.*bhawan|reach.*bhawan|ways to reach bhawan|battery car.*bhawan|ropeway.*bhawan|palki.*bhawan|helicopter.*bhawan|transport to bhawan|travel to bhawan)\b", q):
+        return "bhavan_transport"
+    if re.search(r"\b(visiting hour|visiting hours|opening hour|opening hours|open hour|open hours|when does.*open|visiting time)\b", q):
+        return "visiting_hours"
     if re.search(r"\b(pack|packing|carry|bring|wear|what to pack|what to bring|what to carry|what to wear)\b", q):
         return "packing"
     if re.search(r"\b(aarti|aarthi)\b", q):
@@ -135,21 +190,26 @@ def classify_tourism_topic(query: str, last_place: str = None) -> str:
     ) and not find_specific_places(query) and not (last_place and is_place_followup(query)):
         return "vaishno_history"
     specific_places = find_specific_places(query)
-    non_katra_places = [p for p in specific_places if p["name"] != "Katra"]
+    non_katra_places = [p for p in specific_places if p["name"] not in ("Katra", "Srinagar (Dal Lake & Gardens)")]
 
-# Broad destination/sightseeing questions should be treated as
-# nearby-place queries before checking for a specific place.
+    # Broad destination/sightseeing questions should be treated as
+    # nearby-place queries before checking for a specific place.
     if re.search(
-        r"\b(nearby|around katra|around jammu|places to (see|visit)|what places|tourist spots|sightseeing spots|places can i visit)\b",
+        r"\b(nearby|around katra|around jammu|places to (see|visit)|what places|tourist spots|sightseeing spots|places can i visit|visit in|what can i visit|suggest places|historical places)\b",
         q,
     ):
-        if not non_katra_places:
+        if not non_katra_places or re.search(r"\b(kishtwar|srinagar|jammu|katra)\b", q):
             return "nearby_places"
-    
+
     if specific_places or (last_place and is_place_followup(query)):
         return "place"
     if find_specific_places(query) or (last_place and is_place_followup(query)):
         return "place"
+
+    # Regional historical or heritage queries should resolve to regional sightseeing
+    if re.search(r"\b(history|historical|heritage)\b", q) and re.search(r"\b(jammu|srinagar|kishtwar|kashmir|katra)\b", q):
+        return "nearby_places"
+
     if re.search(r"\b(history|historical|heritage|mythology|legend)\b", q):
         return "vaishno_history"
     return "general"
@@ -163,6 +223,12 @@ def find_specific_places(query: str) -> list:
 
     q = _normalize(query)
     places = explore_data.get_places()
+    if _dest_manager:
+        try:
+            extra_places = _dest_manager.get_new_destinations()
+            places = places + extra_places
+        except Exception:
+            pass
     by_name = {p["name"]: p for p in places}
     matched = []
     seen = set()
@@ -178,7 +244,7 @@ def find_specific_places(query: str) -> list:
             continue
         name_tokens = set(_tokens(p["name"]))
         # Require a distinctive name token (ignore generic temple/cave/lake).
-        distinctive = name_tokens - {"temple", "cave", "lake", "palace", "fort", "jammu"}
+        distinctive = name_tokens - {"temple", "cave", "lake", "palace", "fort", "jammu", "garden", "park"}
         if distinctive and distinctive <= query_tokens:
             matched.append(p)
             seen.add(p["name"])
@@ -242,7 +308,35 @@ def get_jk_tourism_knowledge(query: str = "", last_place: str = None) -> dict:
     has_pronoun_ref = bool(re.search(r"\b(it|its|there|that place|this place)\b", query, re.IGNORECASE)) if query else False
 
     if topic == "nearby_places":
-        matched_places = get_nearby_katra_places()
+        q_low = (query or "").lower()
+        all_p = get_all_unified_places()
+        if "jammu" in q_low:
+            jammu_places = [p for p in all_p if (p.get("district") and "jammu" in p["district"].lower()) or (p.get("region") and "jammu" in p["region"].lower()) or "jammu" in p.get("category", "").lower()]
+            if any(k in q_low for k in ["historic", "heritage", "palace", "fort", "ancient"]):
+                matched_places = [p for p in jammu_places if any(k in (p.get("category", "") + " " + p.get("description", "")).lower() for k in ["historic", "heritage", "palace", "fort", "ancient"])]
+            else:
+                matched_places = jammu_places
+        elif "kishtwar" in q_low:
+            matched_places = [p for p in all_p if (p.get("district") and "kishtwar" in p["district"].lower()) or "kishtwar" in p["name"].lower()]
+        elif "srinagar" in q_low or "kashmir" in q_low:
+            matched_places = [p for p in all_p if (p.get("district") and "srinagar" in p["district"].lower()) or (p.get("region") and "kashmir" in p["region"].lower())]
+        else:
+            matched_places = get_nearby_katra_places()
+
+    elif topic in ("altitude", "trekking_tips", "bhavan_transport", "visiting_hours"):
+        if specific:
+            primary_place = specific[0]
+            matched_places = specific
+        elif last_place:
+            resolved = search_place_by_name(last_place)
+            if resolved:
+                primary_place = resolved
+                matched_places = [resolved]
+                is_followup = True
+            else:
+                matched_places = []
+        else:
+            matched_places = []
 
     elif last_place and is_place_followup(query) and (not non_hub_specific or has_pronoun_ref):
         resolved = search_place_by_name(last_place)
@@ -296,6 +390,13 @@ def search_place_by_name(name: str):
     exact = explore_data.get_place_by_name(name)
     if exact:
         return exact
+    if _dest_manager:
+        try:
+            d = _dest_manager.find_destination(name)
+            if d:
+                return d
+        except Exception:
+            pass
     found = find_specific_places(name)
     return found[0] if found else None
 
@@ -305,16 +406,27 @@ def get_personalized_recommendations(travel_preferences: dict = None) -> list:
     Preferences can include: 'category', 'max_distance', 'has_children', 'spirituality_level'."""
     prefs = travel_preferences or {}
     category = prefs.get("category")
-    places = explore_data.get_places(category=category if category != "All" else None)
+    if _dest_manager:
+        try:
+            places = _dest_manager.get_unified_places_catalog(category=category if category != "All" else None)
+        except Exception:
+            places = explore_data.get_places(category=category if category != "All" else None)
+    else:
+        places = explore_data.get_places(category=category if category != "All" else None)
 
     scored_places = []
     for p in places:
         score = 10
-        if prefs.get("has_children") and "trek" in p["category"].lower():
+        p_cat = (p.get("category") or "").lower()
+        if prefs.get("has_children") and "trek" in p_cat:
             score -= 2
-        if prefs.get("spirituality_level") == "high" and ("temple" in p["category"].lower() or "trek" in p["category"].lower()):
+        if prefs.get("spirituality_level") == "high" and ("temple" in p_cat or "trek" in p_cat or "pilgrimage" in p_cat):
             score += 3
-        if prefs.get("nature_focused") and ("nature" in p["category"].lower() or "hill" in p["category"].lower()):
+        if prefs.get("nature_focused") and ("nature" in p_cat or "hill" in p_cat or "garden" in p_cat or "lake" in p_cat or "park" in p_cat or "pass" in p_cat or "meadow" in p_cat):
+            score += 3
+        if (prefs.get("historical_focused") or prefs.get("heritage_focused") or prefs.get("cultural_focused") or prefs.get("category") == "historical" or prefs.get("interest") in ("history", "historical", "heritage", "culture")) and (
+            "historic" in p_cat or "heritage" in p_cat or "palace" in p_cat or "fort" in p_cat or "ancient" in p_cat or p.get("category_type") == "historical_site"
+        ):
             score += 3
         scored_places.append({"place": p, "relevance_score": score})
 

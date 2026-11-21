@@ -202,6 +202,99 @@ def detect_intent(user_text):
     return conversation_agent.detect_intent(user_text)
 
 
+def _resolve_destination_images(user_text, detected_place=None, specific_places=None, matched_places=None):
+    """
+    Deterministically resolves verified destination photographs for conversational chat turns.
+    Guarantees:
+    - Never hallucinates image URLs, licenses, or attributions.
+    - Sourced strictly from verified MongoDB Atlas destination records or verified catalog fallback.
+    - Only triggered when query is about specific tourist attractions or regional sightseeing.
+    - Returns empty gallery if destination has no verified photograph (preserving visual fallback).
+    """
+    try:
+        from services.destination_ingestion.storage import get_verified_images_map
+        images_map = get_verified_images_map()
+    except Exception:
+        images_map = {}
+
+    import mongo_db
+
+    # 1. Direct single destination match
+    target_name = detected_place
+    if not target_name and specific_places:
+        target_name = specific_places[0].get("name") if isinstance(specific_places[0], dict) else specific_places[0]
+
+    if not target_name and user_text:
+        found = knowledge_agent.find_specific_places(user_text)
+        if found:
+            target_name = found[0].get("name")
+
+    # Guard: Do not display town landscape for generic Katra queries unless asked about Katra town itself
+    if target_name == "Katra" and user_text and not re.search(r"\b(katra town|visit katra|katra sightseeing|explore katra|in katra)\b", user_text, re.I):
+        target_name = None
+
+    if target_name:
+        # Check MongoDB Atlas if available
+        if mongo_db.is_available() and mongo_db.tourist_attractions is not None:
+            try:
+                doc = mongo_db.tourist_attractions.find_one(
+                    {"name": {"$regex": f"^{re.escape(target_name)}$", "$options": "i"}},
+                    {"_id": 0, "name": 1, "id": 1, "district": 1, "image_gallery": 1, "image_url": 1}
+                )
+                if doc and doc.get("image_gallery"):
+                    return doc.get("image_gallery", [])[:3], {"name": doc.get("name"), "id": doc.get("id"), "district": doc.get("district")}
+            except Exception:
+                pass
+
+        # Check local verified map
+        mapped = images_map.get(target_name) or images_map.get(target_name.lower().strip())
+        if mapped and mapped.get("image_gallery"):
+            return mapped.get("image_gallery", [])[:3], {"name": target_name, "id": mapped.get("destination_id")}
+
+    # 2. Regional multi-destination queries (e.g. Kishtwar, Srinagar, Jammu heritage)
+    places_to_check = matched_places or []
+    if not places_to_check and user_text:
+        topic = knowledge_agent.classify_tourism_topic(user_text)
+        if topic == "nearby_places":
+            know = knowledge_agent.get_jk_tourism_knowledge(user_text)
+            places_to_check = know.get("matched_places") or []
+
+    if places_to_check:
+        regional_gallery = []
+        seen_places = set()
+        for p in places_to_check:
+            pname = p.get("name") if isinstance(p, dict) else p
+            if not pname or pname in seen_places or pname == "Katra":
+                continue
+
+            gallery = []
+            if mongo_db.is_available() and mongo_db.tourist_attractions is not None:
+                try:
+                    doc = mongo_db.tourist_attractions.find_one({"name": pname}, {"_id": 0, "image_gallery": 1})
+                    if doc and doc.get("image_gallery"):
+                        gallery = doc.get("image_gallery")
+                except Exception:
+                    pass
+
+            if not gallery:
+                mapped = images_map.get(pname) or images_map.get(pname.lower().strip())
+                if mapped and mapped.get("image_gallery"):
+                    gallery = mapped.get("image_gallery")
+
+            if gallery:
+                photo = dict(gallery[0])
+                photo["destination_name"] = pname
+                regional_gallery.append(photo)
+                seen_places.add(pname)
+                if len(regional_gallery) >= 3:
+                    break
+
+        if regional_gallery:
+            return regional_gallery, {"name": "Recommended Regional Destinations", "count": len(regional_gallery)}
+
+    return [], None
+
+
 def answer_tourism_query(user_text, last_tourism_place=None, current_request=None):
     """
     Handles tourism queries using MongoDB-grounded LangChain tool-calling
@@ -234,6 +327,12 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
         specific_places = knowledge_agent.find_specific_places(user_text)
         detected_place = specific_places[0]["name"] if specific_places else last_tourism_place
 
+        images, dest_meta = _resolve_destination_images(
+            user_text=user_text,
+            detected_place=detected_place,
+            specific_places=specific_places,
+        )
+
         return {
             "intent": "TOURISM",
             "reply": llm_reply,
@@ -242,6 +341,8 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
             "itinerary": None,
             "query_kind": query_kind,
             "last_tourism_place": detected_place,
+            "destination_images": images,
+            "matched_destination": dest_meta,
             "mongodb_tool_results": mongodb_result.get("tool_results", []),
             "mongodb_status": mongodb_result.get("status", "success"),
             "source": "mongodb_llm",
@@ -296,6 +397,13 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
     else:
         reply = conversation_agent.format_tourism_reply(knowledge)
 
+    images, dest_meta = _resolve_destination_images(
+        user_text=user_text,
+        detected_place=knowledge.get("last_place"),
+        specific_places=knowledge.get("matched_places") if knowledge.get("query_kind") == "place" else None,
+        matched_places=knowledge.get("matched_places") if knowledge.get("query_kind") == "nearby_places" else None,
+    )
+
     result = {
         "intent": "TOURISM",
         "reply": reply,
@@ -304,6 +412,8 @@ def answer_tourism_query(user_text, last_tourism_place=None, current_request=Non
         "itinerary": None,
         "query_kind": "rag_knowledge" if rag_used else knowledge.get("query_kind"),
         "last_tourism_place": knowledge.get("last_place"),
+        "destination_images": images,
+        "matched_destination": dest_meta,
         "mongodb_tool_results": mongodb_result.get("tool_results", []),
         "mongodb_status": mongodb_result.get(
             "status",
