@@ -9,7 +9,9 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import {
   MicIcon,
@@ -36,6 +38,8 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export default function MessageComposer({ onSend, isLoading, disabled, suggestions = [] }) {
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [text, setText] = useState('');
   const [micState, setMicState] = useState('idle'); // 'idle' | 'listening' | 'processing' | 'completed' | 'error'
   const [micStatus, setMicStatus] = useState('');
@@ -47,6 +51,17 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
 
   const isBusy = isLoading || disabled;
   const chipList = suggestions && suggestions.length > 0 ? suggestions : DEFAULT_PROMPTS;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -192,9 +207,10 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
   };
 
   const activeLang = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang) || SUPPORTED_LANGUAGES[0];
+  const bottomInsetPadding = isKeyboardVisible ? 6 : Math.max(insets.bottom, 10);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInsetPadding }]}>
       {/* Quick Suggestion Chips */}
       <ScrollView
         horizontal
@@ -288,7 +304,7 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
           accessibilityLabel="Select voice language"
         >
-          <GlobeIcon size={12} color={colors.burgundy} strokeWidth={2} />
+          <GlobeIcon size={12} color={colors.royalPlum} strokeWidth={2} />
           <Text style={styles.langPillText}>{activeLang.label.slice(0, 2).toUpperCase()}</Text>
         </TouchableOpacity>
 
@@ -299,7 +315,7 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           placeholder={
             micState === 'listening' ? 'Listening... Speak now' : "Ask Yatra AI (e.g. 'How to reach Bhawan?')"
           }
-          placeholderTextColor={colors.textPlaceholder}
+          placeholderTextColor={colors.textMuted}
           value={text}
           onChangeText={setText}
           onFocus={() => setIsFocused(true)}
@@ -307,8 +323,8 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           multiline
           maxLength={1000}
           editable={!isBusy}
-          cursorColor={colors.burgundy}
-          selectionColor={colors.goldBorder}
+          cursorColor={colors.royalPlum}
+          selectionColor={colors.softPlum}
           accessibilityLabel="Message input field"
         />
 
@@ -325,7 +341,7 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
           {micState === 'listening' ? (
             <SquareIcon size={14} color="#FFFFFF" />
           ) : (
-            <MicIcon size={18} color={colors.burgundy} strokeWidth={2.2} />
+            <MicIcon size={18} color={colors.royalPlum} strokeWidth={2.2} />
           )}
         </TouchableOpacity>
 
@@ -346,11 +362,9 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: colors.goldBorder,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    backgroundColor: 'transparent',
+    paddingTop: 6,
+    paddingHorizontal: 12,
   },
   chipsContainer: {
     flexDirection: 'row',
@@ -358,23 +372,32 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    backgroundColor: colors.goldSubtle,
+    backgroundColor: colors.surfaceWhite,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+    borderColor: colors.borderDefault,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    ...Platform.select({
+      android: { elevation: 1 },
+      ios: {
+        shadowColor: '#54152D',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.03,
+        shadowRadius: 2,
+      },
+    }),
   },
   chipText: {
     fontSize: 12,
-    color: colors.burgundy,
-    fontWeight: '700',
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   statusBanner: {
-    backgroundColor: '#FFF9F0',
+    backgroundColor: colors.surfaceWhite,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
-    borderRadius: 10,
+    borderColor: colors.borderDefault,
+    borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 6,
@@ -383,16 +406,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statusBannerListening: {
-    backgroundColor: '#FFF0F0',
-    borderColor: '#C0392B',
+    backgroundColor: '#FAEBEC',
+    borderColor: colors.danger,
   },
   statusBannerError: {
-    backgroundColor: '#FFF0F0',
-    borderColor: '#E74C3C',
+    backgroundColor: '#FAEBEC',
+    borderColor: colors.danger,
   },
   statusBannerCompleted: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#16A34A',
+    backgroundColor: '#E8F5EE',
+    borderColor: colors.success,
   },
   statusLeft: {
     flexDirection: 'row',
@@ -404,16 +427,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#C0392B',
+    backgroundColor: colors.danger,
   },
   statusText: {
     fontSize: 11,
-    color: colors.burgundy,
+    color: colors.royalPlum,
     fontWeight: '700',
     flex: 1,
   },
   stopBtn: {
-    backgroundColor: '#C0392B',
+    backgroundColor: colors.danger,
     borderRadius: 10,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -436,23 +459,23 @@ const styles = StyleSheet.create({
   },
   langBarLabel: {
     fontSize: 11,
-    color: colors.burgundy,
+    color: colors.royalPlum,
     fontWeight: '700',
   },
   langList: {
     gap: 6,
   },
   langChip: {
-    backgroundColor: colors.bgSubtle,
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: colors.borderDefault,
     borderRadius: 10,
-    paddingVertical: 2,
+    paddingVertical: 3,
     paddingHorizontal: 8,
   },
   langChipActive: {
-    backgroundColor: colors.burgundy,
-    borderColor: colors.burgundy,
+    backgroundColor: colors.royalPlum,
+    borderColor: colors.royalPlum,
   },
   langChipText: {
     fontSize: 10.5,
@@ -466,19 +489,28 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceWhite,
     borderWidth: 1.5,
-    borderColor: colors.goldBorder,
-    borderRadius: 22,
+    borderColor: colors.borderDefault,
+    borderRadius: 26,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    ...Platform.select({
+      android: { elevation: 2 },
+      ios: {
+        shadowColor: '#54152D',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+      },
+    }),
   },
   inputRowFocused: {
-    borderColor: colors.gold,
+    borderColor: colors.champagneTaupe,
   },
   inputRowListening: {
-    borderColor: '#C0392B',
-    backgroundColor: '#FFF9F9',
+    borderColor: colors.danger,
+    backgroundColor: '#FAEBEC',
   },
   langPill: {
     flexDirection: 'row',
@@ -487,24 +519,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 7,
     borderRadius: 10,
-    backgroundColor: colors.goldSubtle,
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: colors.borderDefault,
     marginRight: 4,
     marginBottom: 5,
   },
   langPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.burgundy,
+    color: colors.royalPlum,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     lineHeight: 20,
-    color: colors.text,
-    minHeight: 40,
-    maxHeight: 110,
+    color: colors.textPrimary,
+    minHeight: 38,
+    maxHeight: 120,
     paddingTop: 8,
     paddingBottom: 8,
     paddingHorizontal: 4,
@@ -512,9 +544,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   micButton: {
-    backgroundColor: colors.goldSubtle,
-    borderWidth: 1.2,
-    borderColor: colors.goldBorder,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -524,11 +556,11 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   micButtonActive: {
-    backgroundColor: '#C0392B',
-    borderColor: '#962D22',
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
   },
   sendButton: {
-    backgroundColor: colors.burgundy,
+    backgroundColor: colors.royalPlum,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -538,7 +570,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sendButtonDisabled: {
-    backgroundColor: '#CCCCCC',
-    opacity: 0.6,
+    backgroundColor: colors.warmBeige,
+    opacity: 0.5,
   },
 });
