@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Edit3, Info, X, Train, Plane, Bus, CheckCircle2, Building2, Mountain, Coins, Calendar, Compass, MapPin, Clock, ArrowRight, Check } from 'lucide-react';
+import { Edit3, Info, X, Train, Plane, Bus, CheckCircle2, Building2, Mountain, Coins, Calendar, Compass, MapPin, Clock, ArrowRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import ItineraryTimeline from './ItineraryTimeline';
+import InteractiveDatePicker from './common/InteractiveDatePicker';
 
 /**
  * RecommendedYatra.jsx
@@ -26,6 +27,8 @@ export default function RecommendedYatra({
   planRevisionNotice = '',
 }) {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [showHotelSelector, setShowHotelSelector] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Extract components from planData
   const option = planData?.selected_option || planData?.option || {};
@@ -40,10 +43,59 @@ export default function RecommendedYatra({
   const req = tripRequest || planData?.request || {};
   const origin = req.origin || tr.origin || '';
   const pax = req.pax || req.pilgrims || 1;
-  const durationDays = req.duration_days || req.duration || req.days || (itinerary.length > 0 ? itinerary.length : 4);
-  const travelDate = req.start_date || tr.travel_date || '2026-10-20';
+  const initialDuration = req.duration_days || req.duration || req.days || (itinerary.length > 0 ? itinerary.length : 4);
+  const initialTravelDate = req.start_date || tr.travel_date || '2026-11-25';
+
+  const [currentHotel, setCurrentHotel] = useState(hotel);
+  const [currentTravelDate, setCurrentTravelDate] = useState(initialTravelDate);
+  const [currentDurationDays, setCurrentDurationDays] = useState(initialDuration);
+
+  const durationDays = currentDurationDays;
+  const travelDate = currentTravelDate;
+  const activeHotel = currentHotel || hotel;
   const hotelNights = Math.max(1, durationDays - 1);
   const roomsCount = Math.ceil(pax / 2);
+
+  const verifiedHotelsCatalog = [
+    { name: 'Niharika Complex (SMVDSB)', category: 'Dharamshala', price_per_night: 150, location: 'Near Main Bus Stand, Katra', phone: '01991-234053', operator_type: 'SMVDSB' },
+    { name: 'Trikuta Bhawan (SMVDSB)', category: 'Dharamshala', price_per_night: 150, location: 'Near YRC-II, Katra', phone: '01991-234053', operator_type: 'SMVDSB' },
+    { name: 'Ardhkuwari Complex (SMVDSB)', category: 'Dharamshala', price_per_night: 150, location: 'Ardhkuwari Temple Complex (6 km mark)', phone: '01991-234053', operator_type: 'SMVDSB' },
+    { name: 'Main Bhawan Complex (SMVDSB)', category: 'Dharamshala', price_per_night: 150, location: 'Holy Bhawan Shrine Area (13 km peak)', phone: '01991-234053', operator_type: 'SMVDSB' },
+    { name: 'Vivanta Katra, Vaishno Devi', category: 'Premium', price_per_night: 6000, location: 'Jammu-Katra Highway', phone: '+91 1991 350200', operator_type: 'IHCL_TAJ' },
+    { name: 'Welcomhotel by ITC Hotels, Katra', category: 'Premium', price_per_night: 6500, location: 'SMVD Chowk, Katra', phone: '+91 1991 351 000', operator_type: 'ITC_HOTELS' },
+    { name: 'Lemon Tree Hotel, Katra', category: 'Mid-Range', price_per_night: 3200, location: 'Railway Station Road', phone: '+91 7298524450', operator_type: 'LEMON_TREE_HOTELS' },
+    { name: 'Ramada by Wyndham Katra Station Road', category: 'Premium', price_per_night: 3500, location: 'Station Road, Katra', phone: '+91 1991 350 300', operator_type: 'WYNDHAM_HOTELS' },
+    { name: 'The Vaishnodevi Sarovar Portico, Katra', category: 'Mid-Range', price_per_night: 3500, location: 'Jammu Road, Katra', phone: '+91 1991-233301', operator_type: 'SAROVAR_HOTELS' },
+    { name: 'The White Hotel, Katra', category: 'Mid-Range', price_per_night: 4200, location: 'Reasi Road, Katra', phone: '+91 1991 350100', operator_type: 'INDEPENDENT' },
+    { name: 'Hotel Asia Vaishno Devi', category: 'Mid-Range', price_per_night: 2200, location: 'Near Katra Bus Stand', phone: '+91 9070433364', operator_type: 'INDEPENDENT' },
+    { name: 'Hotel Subash International', category: 'Budget', price_per_night: 1200, location: 'Main Bazaar, Katra', phone: '01991-232100', operator_type: 'INDEPENDENT' },
+    { name: 'Hotel Shree Hari Niwas', category: 'Budget', price_per_night: 1200, location: 'Jammu Road, Katra', phone: '+91 1991-233601', operator_type: 'INDEPENDENT' },
+    { name: 'Zone Connect by The Park, Katra', category: 'Mid-Range', price_per_night: 2800, location: 'Railway Road, Katra', phone: '01991-233001', operator_type: 'THE_PARK_HOTELS' },
+    { name: 'Hotel The Vaishnavi', category: 'Budget', price_per_night: 1000, location: 'Jammu Road, Katra', phone: '+91 1991-233499', operator_type: 'INDEPENDENT' },
+  ];
+  const hotelList = (planData?.available_hotels && planData.available_hotels.length > 0)
+    ? planData.available_hotels
+    : verifiedHotelsCatalog;
+
+  const handleSelectHotel = (htl) => {
+    setCurrentHotel(htl);
+    if (planData) {
+      planData.hotel = htl;
+      planData.selected_hotel = htl;
+    }
+    setShowHotelSelector(false);
+  };
+
+  const handleApplyDates = (dates) => {
+    setCurrentTravelDate(dates.startDate);
+    setCurrentDurationDays(dates.durationDays);
+    if (tripRequest) {
+      tripRequest.start_date = dates.startDate;
+      tripRequest.end_date = dates.endDate;
+      tripRequest.duration_days = dates.durationDays;
+    }
+    setShowDatePicker(false);
+  };
 
   // Transport details
   const mode = (tr.mode || 'train').toUpperCase();
@@ -76,7 +128,7 @@ export default function RecommendedYatra({
   const darshanTotal = slotPricePerPerson * pax;
 
   // Accommodation details
-  const hotelPricePerNight = hotel?.price_per_night || 0;
+  const hotelPricePerNight = activeHotel?.price_per_night || 0;
   const hotelTotal = hotelPricePerNight * roomsCount * hotelNights;
 
   // Financial Summary from budgetEval or deterministic formula
@@ -205,7 +257,7 @@ export default function RecommendedYatra({
             <button
               type="button"
               data-testid="edit-cat-dates"
-              onClick={() => onEditCategory('dates')}
+              onClick={() => setShowDatePicker(!showDatePicker)}
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
@@ -256,8 +308,36 @@ export default function RecommendedYatra({
               <div>
                 <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.74rem' }}>Yatra Start Date</span>
                 <b>{travelDate}</b>
+                <button
+                  type="button"
+                  data-testid="change-dates-btn"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  style={{
+                    display: 'block',
+                    marginTop: '3px',
+                    fontSize: '0.72rem',
+                    color: 'var(--burgundy)',
+                    background: 'none',
+                    border: 'none',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  Change Dates
+                </button>
               </div>
             </div>
+            {showDatePicker && (
+              <div style={{ marginTop: '12px', borderTop: '1px solid var(--gold-border)', paddingTop: '10px' }}>
+                <InteractiveDatePicker
+                  initialDeparture={travelDate}
+                  onSelectDates={handleApplyDates}
+                  onClose={() => setShowDatePicker(false)}
+                />
+              </div>
+            )}
           </div>
 
           {/* 2. Selected Transport Service Card */}
@@ -371,24 +451,27 @@ export default function RecommendedYatra({
                     <Building2 size={12} /> HOTEL
                   </span>
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
-                    {hotel?.name || 'Katra Stay Reserved'}
+                    {activeHotel?.name || 'Katra Stay Reserved'}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {hotel?.location || 'Central Katra Base'} · {hotel?.category || 'Standard'} Category
+                  {activeHotel?.location || 'Central Katra Base'} · {activeHotel?.category || 'Standard'} Category
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => onEditCategory('accommodation')}
-                className="btn btn-outline"
-                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-              >
-                Change
-              </button>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  data-testid="change-hotel-btn"
+                  onClick={() => setShowHotelSelector(!showHotelSelector)}
+                  className="btn btn-outline"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  Select Another Hotel {showHotelSelector ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+              </div>
             </div>
 
-            {hotel ? (
+            {activeHotel ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.82rem', marginTop: '6px' }}>
                 <div>
                   <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Room Configuration</span>
@@ -406,6 +489,66 @@ export default function RecommendedYatra({
             ) : (
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
                 No Katra hotel reserved (day-excursion or self-arranged stay).
+              </div>
+            )}
+
+            {showHotelSelector && (
+              <div
+                data-testid="inline-hotel-selector"
+                style={{
+                  marginTop: '10px',
+                  borderTop: '1px solid var(--gold-border)',
+                  paddingTop: '10px',
+                }}
+              >
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '8px' }}>
+                  Select Katra Accommodation:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                  {hotelList.map((h, i) => {
+                    const isSelected = activeHotel?.name === h.name;
+                    return (
+                      <div
+                        key={i}
+                        data-testid={`hotel-option-${i}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: isSelected ? '1.5px solid var(--burgundy)' : '1px solid #E0E0E0',
+                          background: isSelected ? 'rgba(88, 17, 26, 0.04)' : '#FFFFFF',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.84rem', color: isSelected ? 'var(--burgundy)' : '#222' }}>
+                            {h.name}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {h.category} · ₹{(h.price_per_night || 1200).toLocaleString('en-IN')}/night · {h.location || 'Katra'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectHotel(h)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            borderRadius: '6px',
+                            background: isSelected ? 'var(--burgundy)' : 'rgba(88, 17, 26, 0.08)',
+                            color: isSelected ? '#FFFFFF' : 'var(--burgundy)',
+                            border: '1px solid var(--gold-border)',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {isSelected ? 'Selected' : 'Select'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
