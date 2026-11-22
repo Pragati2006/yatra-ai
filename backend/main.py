@@ -255,6 +255,13 @@ def health_ready():
         deps["auth_config"] = "missing_or_invalid"
         is_ready = False
 
+    # 3. Safe Email Provider Readiness Diagnostic
+    try:
+        from agents.auth_service import get_email_provider_readiness
+        deps["email_provider"] = get_email_provider_readiness()
+    except Exception:
+        deps["email_provider"] = "unconfigured"
+
     # 4. Optional: LLM Inference API Configuration
     if os.environ.get("GROQ_API_KEY"):
         deps["llm_provider"] = "configured"

@@ -30,6 +30,7 @@ import hashlib
 import hmac
 import logging
 import sqlite3
+import socket
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple
@@ -268,15 +269,207 @@ class SMTPEmailProvider(BaseEmailProvider):
             return False
 
 
-def validate_smtp_configuration() -> Dict[str, Any]:
+class BrevoEmailProvider(BaseEmailProvider):
+    """
+    Production HTTPS Transactional Email Provider via Brevo API.
+    Endpoint: POST https://api.brevo.com/v3/smtp/email
+    Authentication: api-key header
+    Bypasses cloud host outbound SMTP port restrictions (e.g. Render Free port 587/465 blocks).
+    """
+
+    DEFAULT_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
+    DEFAULT_TIMEOUT_SECONDS = 10.0
+
+    def __init__(self):
+        self.api_key = (os.getenv("BREVO_API_KEY") or "").strip()
+        self.from_email = (
+            os.getenv("BREVO_FROM_EMAIL")
+            or os.getenv("SMTP_FROM_EMAIL")
+            or os.getenv("DEFAULT_FROM_EMAIL")
+            or "noreply@yatra-ai.org"
+        ).strip()
+        self.from_name = (
+            os.getenv("BREVO_FROM_NAME")
+            or os.getenv("DEFAULT_FROM_NAME")
+            or "Yatra AI — Vaishno Devi Assistant"
+        ).strip()
+        self.endpoint = os.getenv("BREVO_API_URL") or self.DEFAULT_ENDPOINT
+        try:
+            self.timeout = float(os.getenv("BREVO_TIMEOUT_SECONDS", str(self.DEFAULT_TIMEOUT_SECONDS)))
+        except (ValueError, TypeError):
+            self.timeout = self.DEFAULT_TIMEOUT_SECONDS
+
+    @property
+    def provider_name(self) -> str:
+        return "brevo"
+
+    def is_configured(self) -> bool:
+        """Returns True if BREVO_API_KEY and valid from_email exist."""
+        return bool(self.api_key and self.from_email and "@" in self.from_email)
+
+    def get_diagnostics(self) -> Dict[str, Any]:
+        """Safe diagnostics dictionary disclosing zero credentials or keys."""
+        return {
+            "configured": self.is_configured(),
+            "provider": "brevo_https",
+            "endpoint": self.endpoint,
+            "has_api_key": bool(self.api_key),
+            "from_email": self.from_email,
+            "from_name": self.from_name,
+            "timeout_seconds": self.timeout,
+        }
+
+    def send_otp(self, to_email: str, otp_code: str) -> bool:
+        if not self.is_configured():
+            logger.warning("Brevo credentials not configured in environment (BREVO_API_KEY missing).")
+            return False
+
+        import urllib.request
+        import urllib.error
+
+        subject = "Your Vaishno Devi Yatra Verification Code"
+        text_content = (
+            f"Jai Mata Di!\n\n"
+            f"Your one-time verification code is: {otp_code}\n\n"
+            f"This code will expire in 5 minutes. Do not share this code with anyone.\n"
+            f"If you did not request this code, you can safely ignore this email.\n\n"
+            f"— Yatra AI (Shri Mata Vaishno Devi Assistant)\n"
+        )
+        html_content = (
+            f'<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; '
+            f'max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #E9DED6; '
+            f'border-radius: 12px; background-color: #FFFCF9; color: #4A3B32;">\n'
+            f'  <div style="text-align: center; margin-bottom: 20px;">\n'
+            f'    <h2 style="color: #54152D; margin: 0 0 6px 0; font-size: 22px;">Jai Mata Di! 🙏</h2>\n'
+            f'    <p style="color: #A3826C; font-size: 13px; margin: 0; font-weight: 500;">Yatra AI Devotee Sign In</p>\n'
+            f'  </div>\n'
+            f'  <p style="font-size: 15px; line-height: 1.5; margin: 0 0 16px 0;">'
+            f'Your one-time verification code for Shri Mata Vaishno Devi Yatra AI is:</p>\n'
+            f'  <div style="background-color: #F0E3E7; border: 1px solid #E9DED6; border-radius: 8px; '
+            f'padding: 16px; text-align: center; margin: 20px 0;">\n'
+            f'    <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #54152D; font-family: monospace;">'
+            f'{otp_code}</span>\n'
+            f'  </div>\n'
+            f'  <p style="font-size: 13px; color: #7D6B5D; line-height: 1.4; margin: 0 0 12px 0;">'
+            f'⏳ This code will expire in <strong>5 minutes</strong>. For your security, do not share this code with anyone.</p>\n'
+            f'  <p style="font-size: 12px; color: #A3826C; line-height: 1.4; margin: 16px 0 0 0; '
+            f'border-top: 1px solid #E9DED6; padding-top: 12px;">'
+            f'If you did not request this verification code, please ignore this email.</p>\n'
+            f'</div>'
+        )
+
+        payload = {
+            "sender": {
+                "name": self.from_name,
+                "email": self.from_email,
+            },
+            "to": [
+                {
+                    "email": to_email,
+                }
+            ],
+            "subject": subject,
+            "textContent": text_content,
+            "htmlContent": html_content,
+        }
+
+        data_bytes = json.dumps(payload).encode("utf-8")
+        headers = {
+            "api-key": self.api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "YatraAI-Backend/1.0",
+        }
+
+        req = urllib.request.Request(
+            self.endpoint,
+            data=data_bytes,
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                resp_bytes = resp.read()
+                try:
+                    resp_json = json.loads(resp_bytes.decode("utf-8"))
+                    message_id = resp_json.get("messageId", "ok")
+                except Exception:
+                    message_id = "accepted"
+
+                logger.info(
+                    "BrevoEmailProvider: Verification email accepted by Brevo for %s (status: %d, id: %s)",
+                    mask_email(to_email),
+                    resp.status,
+                    message_id,
+                )
+                return True
+        except urllib.error.HTTPError as http_err:
+            err_body = ""
+            try:
+                raw_body = http_err.read().decode("utf-8", errors="replace")
+                err_json = json.loads(raw_body)
+                err_code = err_json.get("code", "")
+                err_msg = err_json.get("message", "")
+                err_body = f"[{err_code}] {err_msg}" if err_code else err_msg[:120]
+            except Exception:
+                pass
+
+            logger.error(
+                "BrevoEmailProvider: HTTP %d (%s) from Brevo API for %s: %s",
+                http_err.code,
+                http_err.reason,
+                mask_email(to_email),
+                err_body or "(no detail)",
+            )
+            return False
+        except urllib.error.URLError as url_err:
+            logger.error(
+                "BrevoEmailProvider: Network error connecting to Brevo API for %s: %s",
+                mask_email(to_email),
+                type(url_err.reason).__name__,
+            )
+            return False
+        except (TimeoutError, socket.timeout):
+            logger.error(
+                "BrevoEmailProvider: Request timed out after %.1fs for %s",
+                self.timeout,
+                mask_email(to_email),
+            )
+            return False
+        except Exception as exc:
+            logger.error(
+                "BrevoEmailProvider: Unexpected error sending email to %s: %s",
+                mask_email(to_email),
+                type(exc).__name__,
+            )
+            return False
+
+
+def validate_email_configuration() -> Dict[str, Any]:
     """Safe configuration helper inspecting whether email dispatch is ready in this environment."""
     provider = get_email_provider()
-    if isinstance(provider, SMTPEmailProvider):
+    if hasattr(provider, "get_diagnostics"):
         return provider.get_diagnostics()
     return {
         "configured": True,
-        "provider_type": "mock_development",
+        "provider": "mock_development",
     }
+
+
+def validate_smtp_configuration() -> Dict[str, Any]:
+    """Backward-compatible alias for validate_email_configuration."""
+    return validate_email_configuration()
+
+
+def get_email_provider_readiness() -> str:
+    """Safe readiness string for health checks, disclosing zero secrets."""
+    provider = get_email_provider()
+    if hasattr(provider, "is_configured") and provider.is_configured():
+        return f"ready_{getattr(provider, 'provider_name', 'email')}"
+    if isinstance(provider, MockEmailProvider):
+        return "ready_mock_dev"
+    return "unconfigured"
 
 
 # Global email provider singleton (defaults to None; dynamically resolves if unset)
@@ -287,9 +480,25 @@ def get_email_provider() -> BaseEmailProvider:
     global _email_provider
     if _email_provider is not None:
         return _email_provider
-    if is_production_mode():
+
+    provider_choice = os.getenv("EMAIL_PROVIDER", "").strip().lower()
+    if provider_choice == "brevo":
+        _email_provider = BrevoEmailProvider()
+    elif provider_choice == "smtp":
         _email_provider = SMTPEmailProvider()
+    elif provider_choice == "mock":
+        _email_provider = MockEmailProvider()
+    elif is_production_mode():
+        # In production mode: Brevo HTTPS is the primary transactional email delivery mechanism
+        # SMTPEmailProvider is retained strictly if SMTP_HOST is explicitly configured and BREVO_API_KEY is not
+        if os.getenv("BREVO_API_KEY"):
+            _email_provider = BrevoEmailProvider()
+        elif os.getenv("SMTP_HOST"):
+            _email_provider = SMTPEmailProvider()
+        else:
+            _email_provider = BrevoEmailProvider()
     else:
+        # Development / test mode defaults to safe in-memory mock provider
         _email_provider = MockEmailProvider()
     return _email_provider
 
@@ -574,7 +783,7 @@ class AuthService:
         # In production mode: enforce that mock provider is NEVER silently used to leak OTPs
         if is_production_mode():
             if isinstance(provider, MockEmailProvider) or (hasattr(provider, "is_configured") and not provider.is_configured()):
-                logger.warning("Production email dispatch blocked: SMTP provider is not configured.")
+                logger.warning("Production email dispatch blocked: Email provider is not configured.")
                 return {
                     "status": "error",
                     "error_code": "EMAIL_SERVICE_UNAVAILABLE",
@@ -582,7 +791,7 @@ class AuthService:
                 }
             delivered = provider.send_otp(normalized, plain_otp)
             if not delivered:
-                logger.error("Production SMTP email dispatch failed for %s", mask_email(normalized))
+                logger.error("Production email dispatch failed for %s", mask_email(normalized))
                 return {
                     "status": "error",
                     "error_code": "EMAIL_SERVICE_UNAVAILABLE",
