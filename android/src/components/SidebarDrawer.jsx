@@ -8,11 +8,13 @@ import {
   ScrollView,
   Animated,
   useWindowDimensions,
+  Dimensions,
   Platform,
   BackHandler,
   ActivityIndicator,
   Modal,
   StatusBar,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
@@ -49,10 +51,13 @@ export default function SidebarDrawer({
   activeRoute = 'Assistant',
 }) {
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const screenDimensions = Dimensions.get('window');
+  const screenWidth = windowWidth || screenDimensions.width || 360;
+  const screenHeight = windowHeight || screenDimensions.height || 800;
 
   // Guarantee readable width on all Android screens (minimum 280dp, maximum 340dp, or 82% of width)
-  const drawerWidth = Math.min(Math.max((windowWidth || 360) * 0.82, 280), 340);
+  const drawerWidth = Math.min(Math.max(screenWidth * 0.82, 280), 340);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [conversations, setConversations] = useState([]);
@@ -82,6 +87,7 @@ export default function SidebarDrawer({
   // Trigger smooth slide in/out when isOpen toggles
   useEffect(() => {
     if (isOpen) {
+      Keyboard.dismiss();
       setIsRendered(true);
       loadHistory();
       Animated.parallel([
@@ -183,6 +189,7 @@ export default function SidebarDrawer({
       animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
+      hardwareAccelerated={true}
     >
       <View style={styles.modalOverlay}>
         {/* Semi-transparent Backdrop Overlay */}
@@ -208,6 +215,7 @@ export default function SidebarDrawer({
             styles.drawerContainer,
             {
               width: drawerWidth,
+              height: screenHeight,
               paddingTop: topPadding,
               transform: [{ translateX: slideAnim }],
             },
@@ -227,8 +235,9 @@ export default function SidebarDrawer({
               onPress={onClose}
               accessibilityLabel="Close drawer"
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <CloseIcon size={18} color={colors.royalPlum} strokeWidth={2.2} />
+              <CloseIcon size={18} color={colors.royalPlum} strokeWidth={2.4} />
             </TouchableOpacity>
           </View>
 
@@ -641,12 +650,16 @@ export default function SidebarDrawer({
 
 const styles = StyleSheet.create({
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+    overflow: 'hidden',
     zIndex: 9999,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(48, 39, 42, 0.45)',
+    backgroundColor: 'rgba(30, 20, 25, 0.55)',
     zIndex: 1,
   },
   drawerContainer: {
@@ -654,9 +667,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: colors.surfaceWhite,
-    borderRightWidth: 1,
-    borderRightColor: colors.borderDefault,
+    backgroundColor: '#FFFDFB',
+    borderRightWidth: 1.5,
+    borderRightColor: colors.borderDefault || '#E9DED6',
     paddingHorizontal: 16,
     zIndex: 10,
     ...Platform.select({
@@ -664,8 +677,8 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: '#54152D',
         shadowOffset: { width: 4, height: 0 },
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
+        shadowOpacity: 0.25,
+        shadowRadius: 14,
       },
     }),
   },
@@ -674,13 +687,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.borderSubtle || '#F0E8E2',
+    backgroundColor: '#FFFDFB',
   },
   brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   brandTextGroup: {
     justifyContent: 'center',
@@ -703,6 +718,7 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     flex: 1,
+    backgroundColor: '#FFFDFB',
   },
   scrollBodyContent: {
     paddingTop: 10,

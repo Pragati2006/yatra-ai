@@ -95,15 +95,38 @@ export default function ChatScreen({ navigation, route }) {
     }
   }, [route?.params?.sessionId, route?.params?.loadedAt]);
 
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const sub = Keyboard.addListener(showEvent, () => {
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
-    return () => sub.remove();
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      Keyboard.dismiss();
+    }
+  }, [drawerOpen]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      Keyboard.dismiss();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleStartNewChat = () => {
     chatManager.startNewChat();
@@ -177,6 +200,7 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   const handleBookingHandoff = (bookingData) => {
+    Keyboard.dismiss();
     navigation.navigate('Booking', {
       initialService: bookingData?.service || 'Yatra Parchi',
       origin: bookingData?.origin || activeTripRequest?.origin || 'Delhi',
@@ -199,7 +223,7 @@ export default function ChatScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* 1. Minimal Header with Hamburger Menu */}
@@ -209,7 +233,10 @@ export default function ChatScreen({ navigation, route }) {
         isConnected={isConnected}
         user={user}
         onMenuPress={() => setDrawerOpen(true)}
-        onOpenAuth={() => navigation.navigate('Auth')}
+        onOpenAuth={() => {
+          Keyboard.dismiss();
+          navigation.navigate('Auth');
+        }}
       />
 
       {/* 2. Non-intrusive Offline Notice (Only shown if disconnected) */}
@@ -230,8 +257,12 @@ export default function ChatScreen({ navigation, route }) {
       {!hasUserMessage ? (
         <ScrollView
           style={styles.welcomeScroll}
-          contentContainerStyle={styles.welcomeContentContainer}
+          contentContainerStyle={[
+            styles.welcomeContentContainer,
+            isKeyboardVisible && { justifyContent: 'flex-start' },
+          ]}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.welcomeHero}>
@@ -277,6 +308,7 @@ export default function ChatScreen({ navigation, route }) {
               onActionPress={handleBookingHandoff}
               onNavigateToBooking={handleBookingHandoff}
               onViewFullItinerary={(payload) => {
+                Keyboard.dismiss();
                 navigation.navigate('Itinerary', payload);
               }}
             />

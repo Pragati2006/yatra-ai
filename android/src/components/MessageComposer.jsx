@@ -211,25 +211,27 @@ export default function MessageComposer({ onSend, isLoading, disabled, suggestio
 
   return (
     <View style={[styles.container, { paddingBottom: bottomInsetPadding }]}>
-      {/* Quick Suggestion Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        {chipList.map((p, idx) => (
-          <TouchableOpacity
-            key={idx}
-            style={styles.chip}
-            onPress={() => handleSelectPrompt(p)}
-            disabled={isBusy}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.chipText}>{p}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Quick Suggestion Chips (hidden when keyboard is open to maximize chat view) */}
+      {!isKeyboardVisible && chipList.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {chipList.map((p, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.chip}
+              onPress={() => handleSelectPrompt(p)}
+              disabled={isBusy}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.chipText}>{p}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Voice Status & Guidance Banner */}
       {micStatus ? (

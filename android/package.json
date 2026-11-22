@@ -10,7 +10,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "oxlint",
-    "test": "node --test src/__tests__/api_service.test.mjs src/__tests__/auth_contract.test.mjs src/__tests__/ui_redesign_drawer.test.mjs src/__tests__/phase8_5_android_acceptance.test.mjs src/__tests__/phase8_7_3_usability_fixes.test.mjs src/__tests__/phase8_8_37_android_ux.test.mjs src/__tests__/phase8_8_40_sidebar_system_ui.test.mjs src/__tests__/phase8_8_41_unified_auth_booking.test.mjs"
+    "test": "node --test src/__tests__/api_service.test.mjs src/__tests__/auth_contract.test.mjs src/__tests__/ui_redesign_drawer.test.mjs src/__tests__/phase8_5_android_acceptance.test.mjs src/__tests__/phase8_7_3_usability_fixes.test.mjs src/__tests__/phase8_8_37_android_ux.test.mjs src/__tests__/phase8_8_40_sidebar_system_ui.test.mjs src/__tests__/phase8_8_41_unified_auth_booking.test.mjs src/__tests__/keyboard_composer_visibility.test.mjs src/__tests__/sidebar_drawer_visibility.test.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
