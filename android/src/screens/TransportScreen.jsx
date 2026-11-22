@@ -390,6 +390,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: spacing.md,
     gap: spacing.md,
+    paddingBottom: 40,
   },
   centerContainer: {
     flex: 1,

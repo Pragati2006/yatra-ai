@@ -22,14 +22,16 @@ export default function Header({
 }) {
   const insets = useSafeAreaInsets();
   const handleSettings = onOpenSettings || onSettingsPress;
-  const topPadding = Platform.OS === 'android' ? 6 : Math.max(insets.top, 8);
+  const statusBarHeight = StatusBar.currentHeight || 28;
+  const safeTop = insets.top > 0 ? insets.top : statusBarHeight;
+  const topPadding = Platform.OS === 'android' ? safeTop + 6 : Math.max(insets.top, 8);
 
   return (
     <View style={[styles.container, { paddingTop: topPadding }]}>
       <StatusBar
         barStyle="dark-content"
-        backgroundColor={colors.surfaceWhite}
-        translucent={false}
+        backgroundColor="transparent"
+        translucent={true}
       />
       <View style={styles.topRow}>
         {/* Left Action: Back button OR Hamburger Menu button */}

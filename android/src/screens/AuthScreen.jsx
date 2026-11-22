@@ -33,7 +33,7 @@ import {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function AuthScreen({ navigation }) {
+export default function AuthScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -134,7 +134,25 @@ export default function AuthScreen({ navigation }) {
       }
 
       setStep('authenticated');
-      Alert.alert('Welcome Devotee', 'You are now verified and signed in to Yatra AI.');
+      Alert.alert(
+        'Welcome Devotee',
+        'You are now verified and signed in to Yatra AI.',
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              if (route?.params?.returnScreen) {
+                navigation.navigate(route.params.returnScreen, {
+                  returnStep: route.params.returnStep || 1,
+                  ...route.params.returnParams,
+                });
+              } else if (navigation.canGoBack()) {
+                navigation.goBack();
+              }
+            },
+          },
+        ]
+      );
     } catch (err) {
       const errMsg =
         err?.data?.detail?.message ||
@@ -215,9 +233,20 @@ export default function AuthScreen({ navigation }) {
             <View style={styles.profileActions}>
               <TouchableOpacity
                 style={styles.continueBtn}
-                onPress={() => navigation.replace('MainTabs')}
+                onPress={() => {
+                  if (route?.params?.returnScreen) {
+                    navigation.navigate(route.params.returnScreen, {
+                      returnStep: route.params.returnStep || 1,
+                      ...route.params.returnParams,
+                    });
+                  } else {
+                    navigation.replace('MainTabs');
+                  }
+                }}
               >
-                <Text style={styles.continueBtnText}>Proceed to Yatra AI →</Text>
+                <Text style={styles.continueBtnText}>
+                  {route?.params?.returnScreen ? `Return to ${route.params.returnScreen} →` : 'Proceed to Yatra AI →'}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.logoutBtn}

@@ -37,8 +37,6 @@ import {
   saveBooking,
   getSavedBookings,
   getAuthMe,
-  requestOtp,
-  verifyOtp,
 } from '../services/api';
 import {
   getStoredUser,
@@ -342,7 +340,7 @@ export default function BookingScreen({ route, navigation }) {
   const [fullName, setFullName] = useState(route?.params?.fullName || 'Ramesh Sharma');
   const [age, setAge] = useState('38');
   const [gender, setGender] = useState('Male');
-  const [phone, setPhone] = useState('9876543210');
+  const [phone, setPhone] = useState(route?.params?.phone || '');
 
   // Selection State
   const [selectedTransport, setSelectedTransport] = useState(route?.params?.selectedTransport || REALISTIC_TRANSPORTS[0]);
@@ -385,23 +383,30 @@ export default function BookingScreen({ route, navigation }) {
   const [activeDraftPassId, setActiveDraftPassId] = useState(null);
   const [generatedPass, setGeneratedPass] = useState(null);
 
-  // Inline Auth Gate State
-  const [authMode, setAuthMode] = useState(false);
-  const [authIdentifier, setAuthIdentifier] = useState('9876543210');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-
   // My Bookings State
   const [savedBookings, setSavedBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [expandedBookingId, setExpandedBookingId] = useState(null);
 
-  // Check auth on mount
+  // Check auth and restore draft on mount and focus
   useEffect(() => {
     checkUserAuth();
     loadDraftIfAvailable();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      checkUserAuth();
+      loadDraftIfAvailable();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  useEffect(() => {
+    if (route?.params?.returnStep) {
+      setStep(Number(route.params.returnStep));
+    }
+  }, [route?.params?.returnStep]);
 
   const checkUserAuth = async () => {
     try {
@@ -419,6 +424,31 @@ export default function BookingScreen({ route, navigation }) {
     }
   };
 
+  const saveCurrentBookingDraft = async (targetStep = step) => {
+    try {
+      await saveBookingDraft({
+        step: targetStep,
+        origin,
+        destination,
+        startDate,
+        duration,
+        pax,
+        fullName,
+        age,
+        gender,
+        phone,
+        darshanCategory,
+        mobilityPref,
+        selectedTransport,
+        selectedHotel,
+        selectedAscent,
+        budgetAmount,
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   const loadDraftIfAvailable = async () => {
     try {
       const draft = await getBookingDraft();
@@ -428,11 +458,30 @@ export default function BookingScreen({ route, navigation }) {
         if (draft.duration) setDuration(draft.duration);
         if (draft.pax) setPax(draft.pax);
         if (draft.fullName) setFullName(draft.fullName);
+        if (draft.age) setAge(draft.age);
+        if (draft.gender) setGender(draft.gender);
         if (draft.phone) setPhone(draft.phone);
+        if (draft.darshanCategory) setDarshanCategory(draft.darshanCategory);
+        if (draft.mobilityPref) setMobilityPref(draft.mobilityPref);
+        if (draft.selectedTransport) setSelectedTransport(draft.selectedTransport);
+        if (draft.selectedHotel) setSelectedHotel(draft.selectedHotel);
+        if (draft.selectedAscent) setSelectedAscent(draft.selectedAscent);
+        if (draft.budgetAmount) setBudgetAmount(draft.budgetAmount);
+        if (draft.step && draft.step > 1 && !route?.params?.step && !route?.params?.returnStep) {
+          setStep(draft.step);
+        }
       }
     } catch {
       // ignore
     }
+  };
+
+  const handleOpenEmailAuth = async () => {
+    await saveCurrentBookingDraft(3);
+    navigation.navigate('Auth', {
+      returnScreen: 'Booking',
+      returnStep: 3,
+    });
   };
 
   // Auto-calculated Return Date & validation
@@ -508,68 +557,18 @@ export default function BookingScreen({ route, navigation }) {
     }
   }, [activeView, currentUser]);
 
-  // Handle Inline OTP Request
-  const handleRequestOtp = async () => {
-    if (!authIdentifier.trim()) {
-      Alert.alert('Required', 'Please enter your mobile number or email.');
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const res = await requestOtp({ identifier: authIdentifier.trim() });
-      setOtpSent(true);
-      Alert.alert(
-        'OTP Sent',
-        res?.demo_otp
-          ? `Devotee Demo OTP is: ${res.demo_otp}`
-          : 'Verification code sent to your mobile.'
-      );
-      if (res?.demo_otp) {
-        setOtpCode(res.demo_otp);
-      }
-    } catch (err) {
-      Alert.alert('Auth Error', err.message || 'Could not send verification code.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  // Handle Inline OTP Verification
-  const handleVerifyOtp = async () => {
-    if (!otpCode.trim()) {
-      Alert.alert('Required', 'Please enter the 6-digit verification code.');
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const res = await verifyOtp({
-        identifier: authIdentifier.trim(),
-        otp: otpCode.trim(),
-      });
-      if (res?.token) {
-        await saveAuthToken(res.token);
-      }
-      if (res?.user) {
-        setCurrentUser(res.user);
-        await setStoredUser(res.user);
-      }
-      setAuthMode(false);
-      Alert.alert('Verified', 'Authentication successful! You can now complete your booking.');
-    } catch (err) {
-      Alert.alert('Verification Failed', err.message || 'Invalid verification code.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   // Step 1 -> Step 2 validation
   const handleProceedToItinerary = () => {
     if (!origin.trim()) {
       Alert.alert('Missing Field', 'Please enter your departure city / origin.');
       return;
     }
-    if (!fullName.trim() || !phone.trim()) {
-      Alert.alert('Pilgrim Details', 'Please provide primary devotee name and mobile number.');
+    if (!fullName.trim()) {
+      Alert.alert('Pilgrim Details', 'Please provide primary devotee full name.');
+      return;
+    }
+    if (phone.trim() && !/^\d{10}$/.test(phone.trim().replace(/[\s+-]/g, ''))) {
+      Alert.alert('Contact Phone', 'Please enter a valid 10-digit mobile number for transit alerts, or leave blank.');
       return;
     }
     setStep(2);
@@ -590,12 +589,18 @@ export default function BookingScreen({ route, navigation }) {
       return;
     }
 
-    // Compulsory Authentication Gate (Requirement 6)
+    // Compulsory Email Authentication Gate (Requirement 6)
     if (!currentUser) {
-      setAuthMode(true);
       Alert.alert(
         'Authentication Required',
-        'To issue your verified demonstration pilgrimage pass and save it to your account, please verify your mobile number.'
+        'To issue your verified demonstration pilgrimage pass and link it to your account, please sign in with your email address.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In with Email OTP',
+            onPress: handleOpenEmailAuth,
+          },
+        ]
       );
       return;
     }
@@ -765,17 +770,15 @@ export default function BookingScreen({ route, navigation }) {
                 <UserIcon size={36} color={colors.gold} />
                 <Text style={styles.emptyStateTitle}>Sign In to View Saved Bookings</Text>
                 <Text style={styles.emptyStateSubtitle}>
-                  Please sign in with your mobile number to view and manage your pilgrimage passes across devices.
+                  Please sign in with your email address to view and manage your verified pilgrimage passes across devices.
                 </Text>
                 <TouchableOpacity
                   style={styles.primaryActionButton}
-                  onPress={() => {
-                    setActiveView('wizard');
-                    setStep(3);
-                    setAuthMode(true);
-                  }}
+                  onPress={handleOpenEmailAuth}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Sign In with Email OTP"
                 >
-                  <Text style={styles.primaryActionText}>Sign In / Verify OTP</Text>
+                  <Text style={styles.primaryActionText}>Sign In with Email OTP</Text>
                 </TouchableOpacity>
               </View>
             ) : loadingBookings ? (
@@ -1092,17 +1095,22 @@ export default function BookingScreen({ route, navigation }) {
                     />
                   </View>
                   <View style={styles.halfCol}>
-                    <Text style={styles.inputLabel}>Mobile (+91) *</Text>
+                    <Text style={styles.inputLabel}>Contact Phone (Optional)</Text>
                     <TextInput
                       style={styles.input}
                       value={phone}
                       onChangeText={setPhone}
-                      placeholder="9876543210"
+                      placeholder="10-digit mobile"
                       keyboardType="phone-pad"
                       placeholderTextColor={colors.textLight}
+                      accessibilityLabel="Contact Phone Number"
                     />
                   </View>
                 </View>
+
+                <Text style={styles.contactHelperText}>
+                  * Contact phone is optional and used solely for transit SMS updates and emergency coordination. Account authentication is strictly via passwordless Email OTP.
+                </Text>
 
                 <TouchableOpacity style={styles.primaryActionButton} onPress={handleProceedToItinerary}>
                   <Text style={styles.primaryActionText}>Continue to Recommended Itinerary →</Text>
@@ -1455,7 +1463,7 @@ export default function BookingScreen({ route, navigation }) {
                 {/* Pre-Booking Comprehensive Summary */}
                 <View style={styles.summaryBox}>
                   <Text style={styles.summaryTitle}>Pilgrimage Reservation Summary</Text>
-                  <Text style={styles.summaryLine}>• Primary Devotee: <Text style={styles.bold}>{fullName}</Text> ({age} yrs, {gender}, +91-{phone})</Text>
+                  <Text style={styles.summaryLine}>• Primary Devotee: <Text style={styles.bold}>{fullName}</Text> ({age} yrs, {gender}{phone ? `, Contact: +91-${phone}` : ''})</Text>
                   <Text style={styles.summaryLine}>• Route: <Text style={styles.bold}>{origin} → Katra</Text></Text>
                   <Text style={styles.summaryLine}>• Yatra Dates: <Text style={styles.bold}>{startDate}</Text> to <Text style={styles.bold}>{returnDate}</Text> ({duration} Days)</Text>
                   <Text style={styles.summaryLine}>• Pilgrims: <Text style={styles.bold}>{paxCount} Person(s)</Text></Text>
@@ -1499,7 +1507,7 @@ export default function BookingScreen({ route, navigation }) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.authSuccessTitle}>Authenticated User Account</Text>
                         <Text style={styles.authSuccessSub}>
-                          Linked to: {currentUser.name || currentUser.phone || currentUser.email || 'Verified Devotee'}
+                          Linked to: {currentUser.email || currentUser.name || 'Verified Devotee'}
                         </Text>
                       </View>
                     </View>
@@ -1510,54 +1518,16 @@ export default function BookingScreen({ route, navigation }) {
                         <Text style={styles.authGateTitle}>Sign In Required for Confirmation</Text>
                       </View>
                       <Text style={styles.authGateSub}>
-                        Please verify your mobile number. Your draft booking is preserved and will be linked to your account.
+                        Please sign in with your email address using passwordless 6-digit email OTP. Your draft booking, selected itinerary, and travel choices are preserved.
                       </Text>
-
-                      {!otpSent ? (
-                        <View style={{ marginTop: 8 }}>
-                          <TextInput
-                            style={styles.input}
-                            value={authIdentifier}
-                            onChangeText={setAuthIdentifier}
-                            placeholder="Mobile (+91) or Email"
-                            placeholderTextColor={colors.textLight}
-                          />
-                          <TouchableOpacity
-                            style={[styles.primaryActionButton, { marginTop: 6 }]}
-                            onPress={handleRequestOtp}
-                            disabled={authLoading}
-                          >
-                            {authLoading ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <Text style={styles.primaryActionText}>Send Verification Code (OTP)</Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={{ marginTop: 8 }}>
-                          <TextInput
-                            style={styles.input}
-                            value={otpCode}
-                            onChangeText={setOtpCode}
-                            placeholder="Enter 6-digit OTP"
-                            keyboardType="number-pad"
-                            maxLength={6}
-                            placeholderTextColor={colors.textLight}
-                          />
-                          <TouchableOpacity
-                            style={[styles.primaryActionButton, { marginTop: 6 }]}
-                            onPress={handleVerifyOtp}
-                            disabled={authLoading}
-                          >
-                            {authLoading ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <Text style={styles.primaryActionText}>Verify & Continue Booking</Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      )}
+                      <TouchableOpacity
+                        style={[styles.primaryActionButton, { marginTop: 10 }]}
+                        onPress={handleOpenEmailAuth}
+                        activeOpacity={0.8}
+                        accessibilityLabel="Sign In with Email OTP"
+                      >
+                        <Text style={styles.primaryActionText}>Sign In with Email OTP →</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -2317,6 +2287,14 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: colors.text,
     lineHeight: 16,
+  },
+  contactHelperText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: -4,
+    marginBottom: 12,
+    lineHeight: 15,
   },
   authGateBox: {
     backgroundColor: '#FAF5EB',
