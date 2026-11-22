@@ -1,9 +1,60 @@
 /**
  * android/src/utils/markdownParser.js
  * Pure AST-like Markdown parser for Yatra AI Android.
- * Supports GFM pipe tables, code blocks, headings, lists, horizontal rules, and paragraphs.
+ * Supports GFM pipe tables, code blocks, headings (H1-H6), blockquotes,
+ * lists (ordered and unordered), horizontal rules, and paragraphs.
  * Completely decoupled from React Native UI for 100% automated testability.
  */
+
+/**
+ * Completes unclosed streaming markdown delimiters at the end of content
+ * so partial tokens don't display raw dangling delimiters while streaming.
+ */
+export function completeIncompleteStreamingTokens(text) {
+  if (!text || typeof text !== 'string') return text || '';
+
+  let s = text;
+
+  // 1. Unclosed inline code `...
+  const backtickCount = (s.match(/`/g) || []).length;
+  if (backtickCount % 2 !== 0) {
+    s += '`';
+  }
+
+  // 2. Unclosed bold **...
+  const doubleAsteriskMatches = s.match(/\*\*/g) || [];
+  if (doubleAsteriskMatches.length % 2 !== 0) {
+    s += '**';
+  }
+
+  // 3. Unclosed bold __...
+  const doubleUnderscoreOpen = s.match(/(?<![a-zA-Z0-9])__(?!\s)/g) || [];
+  const doubleUnderscoreClose = s.match(/(?<!\s)__(?![a-zA-Z0-9])/g) || [];
+  if (doubleUnderscoreOpen.length > doubleUnderscoreClose.length) {
+    s += '__';
+  }
+
+  // 4. Unclosed italic *... (not part of **)
+  const singleAsteriskMatches = s.match(/(?<!\*)\*(?!\*)/g) || [];
+  if (singleAsteriskMatches.length % 2 !== 0) {
+    s += '*';
+  }
+
+  // 5. Unclosed italic _... (not part of intra-word identifier like booking_id)
+  const singleUnderscoreOpen = s.match(/(?<![a-zA-Z0-9_])_(?![_\s])/g) || [];
+  const singleUnderscoreClose = s.match(/(?<![\s_])_(?![a-zA-Z0-9_])/g) || [];
+  if (singleUnderscoreOpen.length > singleUnderscoreClose.length) {
+    s += '_';
+  }
+
+  // 6. Unclosed strikethrough ~~...
+  const tildeMatches = s.match(/~~/g) || [];
+  if (tildeMatches.length % 2 !== 0) {
+    s += '~~';
+  }
+
+  return s;
+}
 
 /**
  * Checks if a string is a valid GitHub-Flavored Markdown table delimiter row.
@@ -113,8 +164,8 @@ export function parseMarkdownStructure(content) {
       continue;
     }
 
-    // 2. Headings (# through ######)
-    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    // 2. Headings (H1 through H6: # to ######)
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+?)(?:\s+#+)?$/);
     if (headingMatch) {
       blocks.push({
         type: 'heading',
@@ -124,13 +175,27 @@ export function parseMarkdownStructure(content) {
       continue;
     }
 
-    // 3. Horizontal Rule
-    if (/^(---|___|\*\*\*)$/.test(trimmed)) {
+    // 3. Blockquotes (> ...)
+    if (trimmed.startsWith('>')) {
+      const quoteLines = [trimmed.replace(/^>\s?/, '')];
+      while (i + 1 < lines.length && lines[i + 1].trim().startsWith('>')) {
+        i++;
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
+      }
+      blocks.push({
+        type: 'quote',
+        text: quoteLines.join('\n'),
+      });
+      continue;
+    }
+
+    // 4. Horizontal Rule
+    if (/^(---|___|\*\*\*)\s*$/.test(trimmed)) {
       blocks.push({ type: 'hr' });
       continue;
     }
 
-    // 4. Tables (| col1 | col2 |)
+    // 5. Tables (| col1 | col2 |)
     if (trimmed.includes('|') && i + 1 < lines.length && isTableDelimiterRow(lines[i + 1])) {
       const headerRow = trimmed;
       const delimiterRow = lines[i + 1].trim();
@@ -143,7 +208,7 @@ export function parseMarkdownStructure(content) {
           !rowTrimmed.includes('|') ||
           rowTrimmed.startsWith('```') ||
           rowTrimmed.startsWith('#') ||
-          /^(---|___|\*\*\*)$/.test(rowTrimmed)
+          /^(---|___|\*\*\*)\s*$/.test(rowTrimmed)
         ) {
           break;
         }
@@ -177,20 +242,20 @@ export function parseMarkdownStructure(content) {
       continue;
     }
 
-    // 5. Bullet items (- or * or • or +)
+    // 6. Bullet items (- or * or • or +)
     if (/^[-*•+]\s+/.test(trimmed)) {
       blocks.push({ type: 'bullet', text: trimmed.replace(/^[-*•+]\s+/, '') });
       continue;
     }
 
-    // 6. Numbered items (1. or 1) )
+    // 7. Numbered items (1. or 1) )
     const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
     if (numMatch) {
       blocks.push({ type: 'numbered', num: numMatch[1], text: numMatch[2] });
       continue;
     }
 
-    // 7. Standard Paragraph
+    // 8. Standard Paragraph
     blocks.push({ type: 'paragraph', text: trimmed });
   }
 
@@ -203,4 +268,5 @@ export default {
   getAlignments,
   computeColumnWidths,
   parseMarkdownStructure,
+  completeIncompleteStreamingTokens,
 };

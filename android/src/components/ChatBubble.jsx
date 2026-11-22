@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Linking, M
 import * as Speech from 'expo-speech';
 import { colors } from '../theme/colors';
 import MarkdownView from './MarkdownView';
+import ItineraryPreviewCard from './ItineraryPreviewCard';
 import YatraLogo from './YatraLogo';
 import { VolumeIcon, SquareIcon, TicketIcon, MountainIcon, CloseIcon } from './Icons';
 
-export default function ChatBubble({ message, onNavigateToBooking, onActionPress }) {
+export default function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullItinerary }) {
   const isUser = message.role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activePhoto, setActivePhoto] = useState(null);
@@ -83,6 +84,22 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
           content={message.content}
           textColor={colors.textPrimary}
         />
+
+        {/* Minimal Itinerary Preview Card when AI response contains a pilgrimage plan */}
+        {!isUser && (message.recommendation || message.itinerary || message.plan) && (
+          <ItineraryPreviewCard
+            recommendation={message.recommendation}
+            itinerary={message.itinerary}
+            plan={message.plan}
+            request={message.request}
+            onViewFullItinerary={onViewFullItinerary}
+            onProceedBooking={(payload) => {
+              if (handleBookingHandoff) {
+                handleBookingHandoff(payload);
+              }
+            }}
+          />
+        )}
 
         {/* Verified Destination Photographs Gallery */}
         {!isUser && message.destination_images && message.destination_images.length > 0 && (

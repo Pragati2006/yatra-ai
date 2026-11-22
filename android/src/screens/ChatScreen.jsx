@@ -20,6 +20,7 @@ import ConnectionModal from '../components/ConnectionModal';
 import SidebarDrawer from '../components/SidebarDrawer';
 import YatraLogo from '../components/YatraLogo';
 import * as Speech from 'expo-speech';
+import { chatManager } from '../services/chatManager';
 import {
   sendChatMessage,
   checkBackendHealth,
@@ -53,61 +54,44 @@ const INITIAL_WELCOME_MESSAGE = {
 };
 
 export default function ChatScreen({ navigation, route }) {
-  const [messages, setMessages] = useState([INITIAL_WELCOME_MESSAGE]);
-  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState(() => chatManager.getState().messages);
+  const [loading, setLoading] = useState(() => chatManager.getState().isGenerating);
   const [backendUrl, setBackendUrl] = useState('');
   const [isConnected, setIsConnected] = useState(true);
   const [latency, setLatency] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [sessionId, setSessionId] = useState(
-    () => route?.params?.sessionId || `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-  );
-  const [activeTripRequest, setActiveTripRequest] = useState(null);
+  const [sessionId, setSessionId] = useState(() => chatManager.getState().activeSessionId);
+  const [activeTripRequest, setActiveTripRequest] = useState(() => chatManager.getState().activeTripRequest);
   const flatListRef = useRef(null);
 
   const formatIncomingMessages = (rawList) => {
-    if (!Array.isArray(rawList) || rawList.length === 0) return [INITIAL_WELCOME_MESSAGE];
-    return rawList.map((m, idx) => ({
-      id: m.id || `msg-${idx}-${Date.now()}`,
-      role: m.role || 'assistant',
-      content: m.content || '',
-      destination_images: m.destination_images || null,
-      matched_destination: m.matched_destination || null,
-      timestamp:
-        m.timestamp ||
-        (m.created_at
-          ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-    }));
+    return chatManager.formatIncomingMessages(rawList);
   };
 
   useEffect(() => {
     checkHealth();
     loadUser();
+
+    // Subscribe to singleton chatManager for persistent generation across navigation
+    const unsubscribe = chatManager.subscribe((state) => {
+      setMessages(state.messages);
+      setLoading(state.isGenerating);
+      setSessionId(state.activeSessionId);
+      if (state.activeTripRequest) {
+        setActiveTripRequest(state.activeTripRequest);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     if (route?.params?.sessionId) {
-      const incomingSid = route.params.sessionId;
-      setSessionId(incomingSid);
-      if (route?.params?.messages && Array.isArray(route.params.messages) && route.params.messages.length > 0) {
-        setMessages(formatIncomingMessages(route.params.messages));
-      } else {
-        getChatHistory(incomingSid)
-          .then((data) => {
-            if (data && data.messages && data.messages.length > 0) {
-              setMessages(formatIncomingMessages(data.messages));
-            }
-          })
-          .catch(() => {});
-      }
-      if (route?.params?.tripRequest) {
-        setActiveTripRequest(route.params.tripRequest);
-      }
+      chatManager.loadConversation(route.params.sessionId, route.params.messages, route.params.tripRequest);
     } else if (route?.params?.loadedAt) {
-      handleStartNewChat();
+      chatManager.startNewChat();
     }
   }, [route?.params?.sessionId, route?.params?.loadedAt]);
 
@@ -122,30 +106,13 @@ export default function ChatScreen({ navigation, route }) {
   }, []);
 
   const handleStartNewChat = () => {
-    const freshSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setSessionId(freshSid);
-    setMessages([INITIAL_WELCOME_MESSAGE]);
-    setActiveTripRequest(null);
+    chatManager.startNewChat();
   };
 
   const handleSelectConversation = (conv) => {
     const convId = conv.conversation_id || conv.session_id;
     if (!convId) return;
-    setSessionId(convId);
-    if (conv.messages && Array.isArray(conv.messages) && conv.messages.length > 0) {
-      setMessages(formatIncomingMessages(conv.messages));
-    } else {
-      getChatHistory(convId)
-        .then((data) => {
-          if (data && data.messages && data.messages.length > 0) {
-            setMessages(formatIncomingMessages(data.messages));
-          }
-        })
-        .catch(() => {});
-    }
-    if (conv.trip_request) {
-      setActiveTripRequest(conv.trip_request);
-    }
+    chatManager.loadConversation(convId, conv.messages, conv.trip_request);
   };
 
   const handleLogout = async () => {
@@ -206,80 +173,24 @@ export default function ChatScreen({ navigation, route }) {
       // ignore
     }
 
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: text.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setLoading(true);
-
-    try {
-      const response = await sendChatMessage(text.trim(), sessionId);
-      if (response && response.response) {
-        if (response.session_id) {
-          setSessionId(response.session_id);
-        }
-        if (response.request) {
-          setActiveTripRequest(response.request);
-        }
-
-        const hasBooking =
-          text.toLowerCase().includes('book') ||
-          text.toLowerCase().includes('parchi') ||
-          text.toLowerCase().includes('ticket') ||
-          text.toLowerCase().includes('helicopter') ||
-          response.response.toLowerCase().includes('booking handoff') ||
-          response.response.toLowerCase().includes('parchi');
-
-        const aiMessage = {
-          id: `ai-${Date.now()}`,
-          role: 'assistant',
-          content: response.response,
-          destination_images: response.destination_images || null,
-          matched_destination: response.matched_destination || null,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          bookingHandoff: hasBooking
-            ? {
-                title: 'Ready to proceed with Parchi / Service Booking?',
-                service: 'Vaishno Devi Yatra Registration',
-              }
-            : null,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-      } else {
-        throw new Error('Empty response received from assistant');
-      }
-    } catch (err) {
-      const isNetworkIssue =
-        err.name === 'AbortError' ||
-        (err.message &&
-          (err.message.includes('Network') ||
-            err.message.includes('timed out') ||
-            err.message.includes('Failed to fetch') ||
-            err.message.includes('Network request failed')));
-
-      const errorMessage = {
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        content: isNetworkIssue
-          ? `Connection Notice: Unable to reach Yatra AI server at \`${backendUrl}\`.\n\n*Error: ${err.message}*\n\nPlease check backend connectivity or configure the server URL in Settings.`
-          : `🙏 **Jai Mata Di!**\n\nI encountered a temporary processing issue while retrieving that information (*${err.message}*). Please try again or ask about Katra weather, darshan registration, or train schedules.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      if (isNetworkIssue) {
-        setIsConnected(false);
-      }
-    } finally {
-      setLoading(false);
-    }
+    await chatManager.sendMessage(text);
   };
 
   const handleBookingHandoff = (bookingData) => {
-    navigation.navigate('Booking', { initialService: bookingData?.service || 'Yatra Parchi' });
+    navigation.navigate('Booking', {
+      initialService: bookingData?.service || 'Yatra Parchi',
+      origin: bookingData?.origin || activeTripRequest?.origin || 'Delhi',
+      destination: bookingData?.destination || activeTripRequest?.destination || 'Katra (Shri Mata Vaishno Devi)',
+      startDate: bookingData?.startDate || activeTripRequest?.start_date || '2026-11-10',
+      duration: bookingData?.duration || activeTripRequest?.duration_days || 4,
+      pax: bookingData?.pax || activeTripRequest?.pax || 2,
+      budget: bookingData?.grandTotal || 15000,
+      step: 2,
+      overrideDraft: true,
+      selectedTransport: bookingData?.selectedTransport,
+      selectedHotel: bookingData?.selectedHotel,
+      itinerary: bookingData?.itinerary,
+    });
   };
 
   // Check if there are active user messages in the chat
@@ -365,6 +276,9 @@ export default function ChatScreen({ navigation, route }) {
               message={item}
               onActionPress={handleBookingHandoff}
               onNavigateToBooking={handleBookingHandoff}
+              onViewFullItinerary={(payload) => {
+                navigation.navigate('Itinerary', payload);
+              }}
             />
           )}
           contentContainerStyle={styles.messageList}

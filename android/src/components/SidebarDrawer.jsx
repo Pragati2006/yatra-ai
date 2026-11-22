@@ -570,7 +570,7 @@ export default function SidebarDrawer({
             </Text>
           </TouchableOpacity>
 
-          {user && onLogout && (
+          {onLogout && (
             <TouchableOpacity
               style={styles.logoutItem}
               onPress={() => {
@@ -578,9 +578,10 @@ export default function SidebarDrawer({
                 onLogout();
               }}
               activeOpacity={0.7}
+              accessibilityLabel="Sign Out"
             >
-              <LogOutIcon size={16} color={colors.danger || '#EF4444'} strokeWidth={2} />
-              <Text style={styles.logoutText}>Sign Out</Text>
+              <LogOutIcon size={16} color={user ? (colors.danger || '#EF4444') : colors.textSecondary} strokeWidth={2} />
+              <Text style={[styles.logoutText, !user && { color: colors.textSecondary }]}>Sign Out</Text>
             </TouchableOpacity>
           )}
         </View>

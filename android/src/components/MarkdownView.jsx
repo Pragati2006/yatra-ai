@@ -7,6 +7,7 @@ import {
   getAlignments,
   computeColumnWidths,
   parseMarkdownStructure,
+  completeIncompleteStreamingTokens,
 } from '../utils/markdownParser';
 
 // Re-export parser utilities for backwards compatibility
@@ -16,6 +17,7 @@ export {
   getAlignments,
   computeColumnWidths,
   parseMarkdownStructure,
+  completeIncompleteStreamingTokens,
 };
 
 /**
@@ -75,7 +77,7 @@ function MarkdownTable({ headers, alignments, dataRows, columnWidths, numCols, t
                       },
                     ]}
                   >
-                    {renderInlineSpans(h, colors.textWhite)}
+                    {renderInlineSpans(h, colors.textWhite || '#FFFFFF')}
                   </Text>
                 </View>
               );
@@ -142,7 +144,9 @@ function MarkdownTable({ headers, alignments, dataRows, columnWidths, numCols, t
 export default function MarkdownView({ content = '', textColor = colors.textPrimary }) {
   if (!content || typeof content !== 'string') return null;
 
-  const blocks = parseMarkdownStructure(content);
+  // Complete any dangling streaming tokens before parsing structure
+  const safeContent = completeIncompleteStreamingTokens(content);
+  const blocks = parseMarkdownStructure(safeContent);
 
   return (
     <View style={styles.container}>
@@ -166,13 +170,27 @@ export default function MarkdownView({ content = '', textColor = colors.textPrim
                 ? styles.h2
                 : block.level === 3
                 ? styles.h3
-                : styles.h4;
+                : block.level === 4
+                ? styles.h4
+                : block.level === 5
+                ? styles.h5
+                : styles.h6;
+            const headingColor = block.level === 6 ? (colors.champagneTaupe || '#A3826C') : (colors.royalPlum || '#54152D');
             return (
-              <Text key={`h-${idx}`} style={[hStyle, { color: textColor }]}>
-                {renderInlineSpans(block.text, textColor)}
+              <Text key={`h-${idx}`} style={[hStyle, { color: headingColor }]}>
+                {renderInlineSpans(block.text, headingColor)}
               </Text>
             );
           }
+
+          case 'quote':
+            return (
+              <View key={`quote-${idx}`} style={styles.quoteBlock}>
+                <Text style={styles.quoteText}>
+                  {renderInlineSpans(block.text, colors.royalPlum || '#54152D')}
+                </Text>
+              </View>
+            );
 
           case 'hr':
             return <View key={`hr-${idx}`} style={styles.hr} />;
@@ -224,60 +242,76 @@ export default function MarkdownView({ content = '', textColor = colors.textPrim
 }
 
 /**
- * Tokenizes bold, italic, inline code, and sanitized links
+ * Tokenizes bold, italic, inline code, strikethrough, and sanitized links.
+ *
+ * Identifier safety: Uses negative lookahead and lookbehind so intra-word underscores
+ * (e.g. `booking_id`, `pax_count`, `session_123_abc`) and URL parameters are never
+ * converted to italic or bold spans.
  */
-export function renderInlineSpans(text, defaultColor) {
+export function renderInlineSpans(text, defaultColor = colors.textPrimary) {
   if (!text) return null;
 
-  // Regex matches `code`, **bold**, __bold__, [label](url), *italic*, _italic_
-  const regex = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|_[^_]+_)/g;
-  const parts = text.split(regex);
+  // 1. Protect escaped characters
+  const ESC_BACKSLASH = '\uE000';
+  const ESC_ASTERISK = '\uE001';
+  const ESC_UNDERSCORE = '\uE002';
+  const ESC_HASH = '\uE003';
+  const ESC_BACKTICK = '\uE004';
+  const ESC_BRACKET_L = '\uE005';
+  const ESC_BRACKET_R = '\uE006';
+
+  let s = String(text)
+    .replace(/\\\\/g, ESC_BACKSLASH)
+    .replace(/\\\*/g, ESC_ASTERISK)
+    .replace(/\\_/g, ESC_UNDERSCORE)
+    .replace(/\\#/g, ESC_HASH)
+    .replace(/\\`/g, ESC_BACKTICK)
+    .replace(/\\\[/g, ESC_BRACKET_L)
+    .replace(/\\\]/g, ESC_BRACKET_R);
+
+  // Complete any trailing incomplete token
+  s = completeIncompleteStreamingTokens(s);
+
+  const restoreEscapes = (str) => {
+    if (typeof str !== 'string') return str;
+    return str
+      .replace(new RegExp(ESC_BACKSLASH, 'g'), '\\')
+      .replace(new RegExp(ESC_ASTERISK, 'g'), '*')
+      .replace(new RegExp(ESC_UNDERSCORE, 'g'), '_')
+      .replace(new RegExp(ESC_HASH, 'g'), '#')
+      .replace(new RegExp(ESC_BACKTICK, 'g'), '`')
+      .replace(new RegExp(ESC_BRACKET_L, 'g'), '[')
+      .replace(new RegExp(ESC_BRACKET_R, 'g'), ']');
+  };
+
+  // Comprehensive tokenizer regex
+  const INLINE_TOKEN_REGEX = /(`[^`]+`|\[[^\]]+\]\([^\s)]+\)|https?:\/\/[^\s<]+[^<.,:;"')\]\s]|\*\*\*[^*\n]+?\*\*\*|___[^_\n]+?___|\*\*_[^*_\n]+?_\*\*|\*\*[^*\n]+?\*\*|(?<![a-zA-Z0-9])__(?:[^\s_][^_\n]*?[^\s_]|[^_\s\n])__(?![a-zA-Z0-9])|(?<!\*)\*(?!\s)[^*\n]+?(?<!\s)\*(?!\*)|(?<![a-zA-Z0-9])_(?!\s)[^_\n]+?(?<!\s)_(?![a-zA-Z0-9])|~~[^~\n]+?~~)/g;
+
+  const parts = s.split(INLINE_TOKEN_REGEX);
 
   return parts.map((part, idx) => {
     if (!part) return null;
 
-    // Inline code `code`
-    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+    // 1. Inline code `code`
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
       return (
         <Text key={idx} style={styles.inlineCode}>
-          {part.slice(1, -1)}
+          {restoreEscapes(part.slice(1, -1))}
         </Text>
       );
     }
 
-    // Bold **text** or __text__
-    if (
-      ((part.startsWith('**') && part.endsWith('**')) ||
-        (part.startsWith('__') && part.endsWith('__'))) &&
-      part.length > 4
-    ) {
-      return (
-        <Text key={idx} style={[styles.bold, { color: defaultColor }]}>
-          {renderInlineSpans(part.slice(2, -2), defaultColor)}
-        </Text>
-      );
-    }
-
-    // Italic *text* or _text_
-    if (
-      ((part.startsWith('*') && part.endsWith('*')) ||
-        (part.startsWith('_') && part.endsWith('_'))) &&
-      part.length > 2
-    ) {
-      return (
-        <Text key={idx} style={[styles.italic, { color: defaultColor }]}>
-          {part.slice(1, -1)}
-        </Text>
-      );
-    }
-
-    // Link [label](url)
+    // 2. Markdown link [label](url)
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
       const rawUrl = (linkMatch[2] || '').trim();
       const isSafe = /^(https?:|mailto:|tel:)/i.test(rawUrl);
       if (!isSafe) {
-        return <Text key={idx} style={{ color: defaultColor }}>{linkMatch[1]}</Text>;
+        return (
+          <Text key={idx} style={{ color: defaultColor }}>
+            {renderInlineSpans(linkMatch[1], defaultColor)}
+          </Text>
+        );
       }
       return (
         <Text
@@ -285,12 +319,77 @@ export function renderInlineSpans(text, defaultColor) {
           style={styles.link}
           onPress={() => Linking.openURL(rawUrl).catch(() => {})}
         >
-          {linkMatch[1]}
+          {renderInlineSpans(linkMatch[1], colors.royalPlum || '#54152D')}
         </Text>
       );
     }
 
-    return <Text key={idx}>{part}</Text>;
+    // 3. Raw URL https://... (preserving underscores and hashes)
+    if (/^https?:\/\//i.test(part)) {
+      const cleanUrl = restoreEscapes(part);
+      return (
+        <Text
+          key={idx}
+          style={styles.link}
+          onPress={() => Linking.openURL(cleanUrl).catch(() => {})}
+        >
+          {cleanUrl}
+        </Text>
+      );
+    }
+
+    // 4. Bold + Italic (***text*** or ___text___ or **_text_**)
+    if (
+      (part.startsWith('***') && part.endsWith('***') && part.length > 6) ||
+      (part.startsWith('___') && part.endsWith('___') && part.length > 6) ||
+      (part.startsWith('**_') && part.endsWith('_**') && part.length > 6)
+    ) {
+      const inner = part.slice(3, -3);
+      return (
+        <Text key={idx} style={[styles.bold, styles.italic, { color: colors.royalPlum || '#54152D' }]}>
+          {renderInlineSpans(inner, colors.royalPlum || '#54152D')}
+        </Text>
+      );
+    }
+
+    // 5. Bold (**text** or __text__)
+    if (
+      (part.startsWith('**') && part.endsWith('**') && part.length > 4) ||
+      (part.startsWith('__') && part.endsWith('__') && part.length > 4)
+    ) {
+      const inner = part.slice(2, -2);
+      return (
+        <Text key={idx} style={[styles.bold, { color: colors.royalPlum || '#54152D' }]}>
+          {renderInlineSpans(inner, colors.royalPlum || '#54152D')}
+        </Text>
+      );
+    }
+
+    // 6. Italic (*text* or _text_)
+    if (
+      (part.startsWith('*') && part.endsWith('*') && part.length > 2) ||
+      (part.startsWith('_') && part.endsWith('_') && part.length > 2)
+    ) {
+      const inner = part.slice(1, -1);
+      return (
+        <Text key={idx} style={[styles.italic, { color: defaultColor }]}>
+          {renderInlineSpans(inner, defaultColor)}
+        </Text>
+      );
+    }
+
+    // 7. Strikethrough (~~text~~)
+    if (part.startsWith('~~') && part.endsWith('~~') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return (
+        <Text key={idx} style={styles.strikethrough}>
+          {renderInlineSpans(inner, defaultColor)}
+        </Text>
+      );
+    }
+
+    // 8. Plain text node
+    return <Text key={idx}>{restoreEscapes(part)}</Text>;
   });
 }
 
@@ -300,32 +399,47 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     fontSize: 14.5,
-    lineHeight: 21,
+    lineHeight: 22,
     marginBottom: 6,
   },
   h1: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
     marginBottom: 6,
-    marginTop: 4,
+    marginTop: 6,
+    letterSpacing: 0.2,
   },
   h2: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    marginBottom: 4,
-    marginTop: 4,
+    marginBottom: 5,
+    marginTop: 5,
+    letterSpacing: 0.2,
   },
   h3: {
-    fontSize: 14.5,
+    fontSize: 15.5,
     fontWeight: '700',
     marginBottom: 4,
-    marginTop: 2,
+    marginTop: 3,
   },
   h4: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
     marginBottom: 3,
     marginTop: 2,
+  },
+  h5: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 3,
+    marginTop: 2,
+  },
+  h6: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   bold: {
     fontWeight: '700',
@@ -333,17 +447,37 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
   },
+  strikethrough: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted || '#A39994',
+  },
   inlineCode: {
     fontFamily: 'monospace',
-    backgroundColor: 'rgba(184, 134, 11, 0.15)',
-    paddingHorizontal: 4,
-    borderRadius: 3,
+    backgroundColor: 'rgba(84, 21, 45, 0.08)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
     fontSize: 13,
+    color: colors.royalPlum || '#54152D',
   },
   link: {
-    color: colors.gold,
+    color: colors.royalPlum || '#54152D',
     textDecorationLine: 'underline',
     fontWeight: '600',
+  },
+  quoteBlock: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.champagneTaupe || '#A3826C',
+    backgroundColor: colors.softPlum || '#F0E3E7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginVertical: 6,
+  },
+  quoteText: {
+    fontStyle: 'italic',
+    fontSize: 13.5,
+    lineHeight: 20,
   },
   codeBlock: {
     backgroundColor: '#1E0408',
@@ -365,13 +499,14 @@ const styles = StyleSheet.create({
   bulletDot: {
     fontSize: 14,
     marginRight: 6,
-    color: colors.gold,
+    color: colors.champagneTaupe || '#A3826C',
+    fontWeight: '800',
   },
   numDot: {
     fontSize: 13,
     fontWeight: '700',
     marginRight: 6,
-    color: colors.gold,
+    color: colors.champagneTaupe || '#A3826C',
   },
   bulletText: {
     fontSize: 14,
@@ -380,7 +515,7 @@ const styles = StyleSheet.create({
   },
   hr: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderDefault || '#E9DED6',
     marginVertical: 8,
   },
 
@@ -389,19 +524,19 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 8,
     borderWidth: 1.2,
-    borderColor: colors.goldBorder,
-    backgroundColor: colors.bgCard,
+    borderColor: colors.goldBorder || '#E5D2AD',
+    backgroundColor: colors.surfaceWhite || '#FFFFFF',
     overflow: 'hidden',
-    shadowColor: colors.burgundy,
+    shadowColor: '#54152D',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
   },
   scrollHintBar: {
-    backgroundColor: 'rgba(184, 134, 11, 0.08)',
+    backgroundColor: 'rgba(163, 130, 108, 0.1)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: colors.borderSubtle || '#F5ECE6',
     paddingVertical: 3.5,
     paddingHorizontal: 8,
     alignItems: 'center',
@@ -410,7 +545,7 @@ const styles = StyleSheet.create({
   scrollHintText: {
     fontSize: 10.5,
     fontWeight: '600',
-    color: colors.gold,
+    color: colors.champagneTaupe || '#A3826C',
     letterSpacing: 0.3,
   },
   tableScrollContent: {
@@ -421,18 +556,18 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: colors.burgundy,
+    backgroundColor: colors.burgundy || '#54152D',
     borderBottomWidth: 2,
-    borderBottomColor: colors.gold,
+    borderBottomColor: colors.champagneTaupe || '#A3826C',
   },
   thCell: {
     paddingVertical: 9,
     paddingHorizontal: 8,
-    borderRightColor: 'rgba(229, 210, 173, 0.3)',
+    borderRightColor: 'rgba(247, 241, 235, 0.25)',
     justifyContent: 'center',
   },
   thText: {
-    color: colors.textWhite,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -440,18 +575,18 @@ const styles = StyleSheet.create({
   tableDataRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: colors.borderSubtle || '#F5ECE6',
   },
   tableRowEven: {
     backgroundColor: '#FFFFFF',
   },
   tableRowOdd: {
-    backgroundColor: colors.bgSubtle,
+    backgroundColor: colors.softPlum || '#FBF8F5',
   },
   tdCell: {
     paddingVertical: 8,
     paddingHorizontal: 8,
-    borderRightColor: 'rgba(232, 222, 201, 0.45)',
+    borderRightColor: 'rgba(233, 222, 214, 0.45)',
     justifyContent: 'center',
   },
   tdText: {

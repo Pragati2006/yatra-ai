@@ -324,7 +324,7 @@ export default function BookingScreen({ route, navigation }) {
   const [activeView, setActiveView] = useState('wizard');
 
   // Step state: 1: Intake & Details, 2: Itinerary & Selections, 3: Review & Auth Gate, 4: Pass Generated
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(route?.params?.step ? Number(route.params.step) : (route?.params?.initialStep ? Number(route.params.initialStep) : 1));
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -345,9 +345,40 @@ export default function BookingScreen({ route, navigation }) {
   const [phone, setPhone] = useState('9876543210');
 
   // Selection State
-  const [selectedTransport, setSelectedTransport] = useState(REALISTIC_TRANSPORTS[0]);
-  const [selectedAscent, setSelectedAscent] = useState(ASCENT_MODES[0]);
-  const [selectedHotel, setSelectedHotel] = useState(ACCOMMODATION_CATALOGUE[2]); // Hotel Asia
+  const [selectedTransport, setSelectedTransport] = useState(route?.params?.selectedTransport || REALISTIC_TRANSPORTS[0]);
+  const [selectedAscent, setSelectedAscent] = useState(route?.params?.selectedAscent || ASCENT_MODES[0]);
+  const [selectedHotel, setSelectedHotel] = useState(route?.params?.selectedHotel || ACCOMMODATION_CATALOGUE[2]); // Hotel Asia
+
+  // Update form and selections if route params change during navigation
+  useEffect(() => {
+    if (route?.params?.step) {
+      setStep(Number(route.params.step));
+    }
+    if (route?.params?.selectedTransport) {
+      setSelectedTransport(route.params.selectedTransport);
+    }
+    if (route?.params?.selectedHotel) {
+      setSelectedHotel(route.params.selectedHotel);
+    }
+    if (route?.params?.selectedAscent) {
+      setSelectedAscent(route.params.selectedAscent);
+    }
+    if (route?.params?.budget) {
+      setBudgetAmount(String(route.params.budget));
+    }
+    if (route?.params?.pax) {
+      setPax(parseInt(route.params.pax, 10));
+    }
+    if (route?.params?.duration) {
+      setDuration(parseInt(route.params.duration, 10));
+    }
+    if (route?.params?.startDate || route?.params?.travelDate) {
+      setStartDate(route.params.startDate || route.params.travelDate);
+    }
+    if (route?.params?.origin) {
+      setOrigin(route.params.origin);
+    }
+  }, [route?.params]);
 
   // Step 3 Guardrails & Auth
   const [authorized, setAuthorized] = useState(false);

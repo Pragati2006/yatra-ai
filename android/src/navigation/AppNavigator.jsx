@@ -26,6 +26,7 @@ import WeatherScreen from '../screens/WeatherScreen';
 import AccommodationScreen from '../screens/AccommodationScreen';
 import BookingScreen from '../screens/BookingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ItineraryScreen from '../screens/ItineraryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -138,6 +139,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="History"
           component={HistoryScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Itinerary"
+          component={ItineraryScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
