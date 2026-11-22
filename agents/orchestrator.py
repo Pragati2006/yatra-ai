@@ -2571,6 +2571,619 @@ def handle_live_train_status_intent(
     }
 
 
+def get_india_today() -> date:
+    """Returns current date in Indian Standard Time (Asia/Kolkata, UTC+05:30)."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    except Exception:
+        from datetime import timezone, timedelta
+        return datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+
+
+def _is_leap_year(year: int) -> bool:
+    """Returns True if year is a leap year in the Gregorian calendar."""
+    return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
+
+
+def _resolve_next_feb_29(today: date) -> date:
+    """Finds the next valid February 29 on or after today."""
+    y = today.year
+    while True:
+        if _is_leap_year(y):
+            candidate = date(y, 2, 29)
+            if candidate >= today:
+                return candidate
+        y += 1
+
+
+MONTHS_REGEX = (
+    r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+)
+
+INFINITIVE_VERBS = (
+    r"^(?:stay|visit|pray|worship|travel|go|spend|relax|explore|attend|see|reach|celebrate|enjoy|book|check|do|get|take)\b"
+)
+
+
+def _parse_numeric_date(d_str: str) -> Tuple[Optional[str], Optional[date], Optional[str]]:
+    """
+    Parses a numeric date string in either ISO (YYYY-MM-DD, YYYY/MM/DD) or DMY (DD-MM-YYYY, DD/MM/YYYY) format.
+    Returns: (iso_str, dt_val, error_message)
+    """
+    sep = '-' if '-' in d_str else '/'
+    parts = d_str.split(sep)
+    if len(parts[0]) == 4:
+        fmt = f"%Y{sep}%m{sep}%d"
+        fmt_name = "YYYY-MM-DD"
+    else:
+        fmt = f"%d{sep}%m{sep}%Y"
+        fmt_name = "DD-MM-YYYY"
+    try:
+        dt = datetime.strptime(d_str, fmt).date()
+        return dt.isoformat(), dt, None
+    except ValueError:
+        return None, None, f"The date '{d_str}' is invalid. Please provide a valid calendar date in {fmt_name} format."
+
+
+def _clean_date_fragment(text: str) -> str:
+    text = re.sub(r"^[.,;:\-\s]+|[.,;:\-\s]+$", "", text or "")
+    text = re.sub(r"^(?:\b(?:date|on|for|is|from|to|at|by)\b|[:\-,;])+\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^[.,;:\-\s]+|[.,;:\-\s]+$", "", text)
+    return text.strip()
+
+
+def _find_all_dates_in_text(text: str) -> list:
+    """Finds all explicit date occurrences (numeric, natural language, relative, Feb 29) in text."""
+    if not text:
+        return []
+    found = []
+    # 1. Numeric dates (ISO or DMY)
+    for m in re.finditer(r"\b(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b", text):
+        found.append((m.span(), m.group(1), "numeric"))
+
+    # 2. Month name + day or day + Month name
+    nl_pat = rf"\b(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?[\s\-]+{MONTHS_REGEX}(?:[,\s\-]+(?:\d{{4}}))?\b|\b{MONTHS_REGEX}[\s\-]+(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?(?:[,\s\-]+(?:\d{{4}}))?\b"
+    for m in re.finditer(nl_pat, text, re.IGNORECASE):
+        if not any(f[0][0] <= m.start() and f[0][1] >= m.end() for f in found):
+            found.append((m.span(), m.group(0), "nl"))
+
+    # 3. Relative
+    for m in re.finditer(r"\b(?:day after tomorrow|tomorrow|tonight|today)\b", text, re.IGNORECASE):
+        found.append((m.span(), m.group(0), "rel"))
+
+    # 4. Feb 29
+    for m in re.finditer(r"\b(?:29(?:th)?\s+feb(?:ruary)?|feb(?:ruary)?\s+29(?:th)?)\b", text, re.IGNORECASE):
+        if not any(f[0][0] <= m.start() and f[0][1] >= m.end() for f in found):
+            found.append((m.span(), m.group(0), "feb29"))
+
+    found.sort(key=lambda x: x[0][0])
+    return found
+
+
+def _parse_single_date_fragment(
+    text: str,
+    today: date,
+    ci_dt_for_ref: Optional[date] = None,
+) -> Tuple[Optional[str], Optional[date], Optional[str]]:
+    raw = _clean_date_fragment(text)
+    if not raw:
+        return None, None, "Check-out date was not specified after the range keyword. Please provide a valid check-out date."
+
+    tl = raw.lower()
+
+    # 1. Numeric date (ISO or DMY)
+    m_num = re.search(r"\b(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b", raw)
+    if m_num:
+        iso_str, dt, err = _parse_numeric_date(m_num.group(1))
+        return iso_str, dt, err
+
+    # 2. Relative dates
+    if "day after tomorrow" in tl:
+        dt = today + timedelta(days=2)
+        return dt.isoformat(), dt, None
+    elif "tomorrow" in tl:
+        dt = today + timedelta(days=1)
+        return dt.isoformat(), dt, None
+    elif "tonight" in tl or "today" in tl:
+        dt = today
+        return dt.isoformat(), dt, None
+
+    # 3. February 29
+    if re.search(r"\b(?:29(?:th)?\s+feb(?:ruary)?|feb(?:ruary)?\s+29(?:th)?)\b", raw, re.IGNORECASE):
+        exp_year = _extract_explicit_date_year(raw)
+        if exp_year is not None:
+            if not _is_leap_year(exp_year):
+                return None, None, f"February 29 is not a valid date in {exp_year} as it is not a leap year. Please provide a valid calendar date."
+            dt = date(exp_year, 2, 29)
+        else:
+            if ci_dt_for_ref is not None:
+                dt = _resolve_next_feb_29(ci_dt_for_ref + timedelta(days=1))
+            else:
+                dt = _resolve_next_feb_29(today)
+        return dt.isoformat(), dt, None
+
+    # 4. Natural language date
+    if legacy_agent.has_explicit_date(raw):
+        st_date, _ = legacy_agent._extract_date_range(raw)
+        if not st_date:
+            return None, None, f"Could not parse check-out date from '{raw}'. Please provide a valid check-out date (e.g., YYYY-MM-DD)."
+        try:
+            dt = datetime.strptime(st_date, "%Y-%m-%d").date()
+        except ValueError:
+            return None, None, f"Check-out date '{st_date}' is invalid. Please provide a valid calendar date."
+        exp_year = _extract_explicit_date_year(raw)
+        if exp_year is None:
+            if ci_dt_for_ref is not None:
+                try:
+                    dt = dt.replace(year=ci_dt_for_ref.year)
+                except ValueError:
+                    dt = _resolve_next_feb_29(ci_dt_for_ref + timedelta(days=1))
+                if dt <= ci_dt_for_ref:
+                    try:
+                        dt = dt.replace(year=ci_dt_for_ref.year + 1)
+                    except ValueError:
+                        dt = _resolve_next_feb_29(date(ci_dt_for_ref.year + 1, 1, 1))
+            else:
+                dt = _normalize_natural_date_year(dt, today)
+        return dt.isoformat(), dt, None
+
+    return None, None, f"Could not parse check-out date from '{raw}'. Please provide a valid check-out date (e.g., YYYY-MM-DD)."
+
+
+def _extract_explicit_date_year(text: str) -> Optional[int]:
+    """
+    Extracts an explicit four-digit year that is directly part of a date expression.
+    Ensures unrelated four-digit numbers elsewhere in the query (flight numbers like 6448,
+    budgets like 2500, pin codes) are not falsely interpreted as the date's year.
+    """
+    if not text:
+        return None
+
+    # 1. DD Month YYYY (e.g., "15 Dec 2026", "15th December, 2026", "15-Dec-2026")
+    m = re.search(rf"\b(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?[\s\-]+{MONTHS_REGEX}[,\s\-]+(\d{{4}})\b", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # 2. Month DD, YYYY (e.g., "Dec 15 2026", "December 15, 2026")
+    m = re.search(rf"\b{MONTHS_REGEX}[\s\-]+(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?[,\s\-]+(\d{{4}})\b", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # 3. YYYY-MM-DD or YYYY/MM/DD (e.g., "2026-12-15", "2026/12/15")
+    m = re.search(r"\b(\d{4})[-/](?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12][0-9]|3[01])\b", text)
+    if m:
+        return int(m.group(1))
+
+    # 4. DD-MM-YYYY or DD/MM/YYYY (e.g., "15-12-2026", "15/12/2026", "10-12-2026")
+    m = re.search(r"\b(?:0?[1-9]|[12][0-9]|3[01])[-/](?:0?[1-9]|1[0-2])[-/](\d{4})\b", text)
+    if m:
+        return int(m.group(1))
+
+    # 5. Month in/of/for YYYY (e.g., "December of 2026")
+    m = re.search(rf"\b{MONTHS_REGEX}\s+(?:in|of|for)\s+(\d{{4}})\b", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    return None
+
+
+def _normalize_natural_date_year(d: date, today: date) -> date:
+    """
+    Normalizes a date parsed without an explicit year to follow the Asia/Kolkata calendar:
+    1. Sets year to today.year (in IST).
+    2. If the date in today.year is already in the past, rolls over to today.year + 1.
+    Handles leap-year/leap-day safely without unhandled ValueError.
+    """
+    target_year = today.year
+    try:
+        candidate = d.replace(year=target_year)
+    except ValueError:
+        return _resolve_next_feb_29(today)
+
+    if candidate < today:
+        try:
+            candidate = candidate.replace(year=target_year + 1)
+        except ValueError:
+            return _resolve_next_feb_29(today)
+
+    return candidate
+
+
+def _detect_checkout_text(user_text: str, ci_span: Optional[Tuple[int, int]]) -> Tuple[bool, Optional[str]]:
+    """
+    Determines whether user_text contains an explicit check-out specification or date range.
+    Returns (is_range_specified, checkout_text).
+    - (True, checkout_text): A genuine range or check-out keyword was detected. If checkout_text is empty,
+      it signals an incomplete range (e.g. 'from 15 Dec to', '15 Dec until', 'checkout').
+    - (False, None): No genuine check-out expression was found (e.g. ordinary sentences like
+      'I want to book...', 'travel to Katra on...', or 'to stay in Katra').
+    """
+    if not user_text:
+        return False, None
+
+    # 1. Explicit check-out keyword anywhere in query
+    m_co = re.search(r"\b(?:check-?out|checkout)\s*(?:date|on|for|is|:)?\s*(.*?)(?=\bcheck-?in\b|$)", user_text, re.IGNORECASE)
+    if m_co:
+        raw_co = m_co.group(1).strip()
+        raw_co = re.sub(r"^[.,;:\-]+|[.,;:\-]+$", "", raw_co).strip()
+        return True, raw_co
+
+    if not ci_span:
+        return False, None
+
+    before_ci = user_text[:ci_span[0]]
+    after_ci = user_text[ci_span[1]:]
+
+    # 2. until / till / through after check-in date
+    m_until = re.search(r"^\s*[,-]?\s*(?:until|till|through)\s*(.*)$", after_ci, re.IGNORECASE)
+    if m_until:
+        raw_co = m_until.group(1).strip()
+        raw_co = re.sub(r"^[.,;:\-]+|[.,;:\-]+$", "", raw_co).strip()
+        return True, raw_co
+
+    # 3. 'to' after check-in date
+    m_to = re.search(r"^\s*[,-]?\s*to\s*(.*)$", after_ci, re.IGNORECASE)
+    if not m_to:
+        # Check if 'from' was before check-in and 'to' appears in after_ci
+        if re.search(r"\bfrom\b", before_ci, re.IGNORECASE):
+            m_to = re.search(r"\bto\s*(.*)$", after_ci, re.IGNORECASE)
+
+    if m_to:
+        raw_co = m_to.group(1).strip()
+        raw_co = re.sub(r"^[.,;:\-]+|[.,;:\-]+$", "", raw_co).strip()
+        if not raw_co:
+            return True, ""
+        # Do not mistake infinitive verbs ('to stay', 'to visit') for checkout dates
+        if re.match(INFINITIVE_VERBS, raw_co, re.IGNORECASE):
+            return False, None
+        return True, raw_co
+
+    return False, None
+
+
+def _parse_explicit_checkout_date(
+    co_text: str,
+    ci_dt: date,
+    st_date: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Parses and validates a check-out date from text following a check-out keyword
+    (e.g., 'to', 'until', 'checkout', 'through').
+    Returns (co_iso_str, error_message).
+    """
+    co_str, co_dt, co_err = _parse_single_date_fragment(co_text, get_india_today(), ci_dt)
+    if co_err:
+        return None, co_err
+    if co_dt <= ci_dt:
+        return None, f"Check-out date ({co_dt.isoformat()}) must be after check-in date ({st_date}). Please provide a valid date range."
+    return co_str, None
+
+
+def _extract_hotel_search_dates(
+    user_text: str,
+    req_data: Dict[str, Any],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Extracts check-in and check-out dates for hotel search.
+    Returns: (check_in, check_out, error_message)
+    Priority:
+    1. Explicit dates in user_text (ISO YYYY-MM-DD, DD-MM-YYYY, relative phrases, February 29, or natural language)
+    2. req_data.get("start_date") / req_data.get("end_date")
+    3. None, None (signals live adapter to use its sensible default)
+    """
+    today = get_india_today()
+    tl = (user_text or "").lower()
+
+    # 0. Label handling & multiple date label detection
+    ci_matches = list(re.finditer(r"\b(?:check-?in|checkin)\b", user_text or "", re.IGNORECASE))
+    co_matches = list(re.finditer(r"\b(?:check-?out|checkout)\b", user_text or "", re.IGNORECASE))
+
+    # 0a. Multiple repeated labels
+    if len(ci_matches) > 1:
+        return None, None, "Multiple check-in dates were specified in your request. Please specify a single check-in date."
+    if len(co_matches) > 1:
+        return None, None, "Multiple check-out dates were specified in your request. Please specify a single check-out date."
+
+    # 0b. Both check-in and checkout labels present
+    if ci_matches and co_matches:
+        m_ci = ci_matches[0]
+        m_co = co_matches[0]
+
+        if m_ci.start() < m_co.start():
+            before_text = user_text[:m_ci.start()]
+            ci_raw = user_text[m_ci.end():m_co.start()]
+            co_raw = user_text[m_co.end():]
+        else:
+            before_text = user_text[:m_co.start()]
+            co_raw = user_text[m_co.end():m_ci.start()]
+            ci_raw = user_text[m_ci.end():]
+
+        # Extra conflicting date detection
+        if _find_all_dates_in_text(before_text):
+            return None, None, "Multiple conflicting dates were detected in your request. Please specify clear check-in and check-out dates."
+        if len(_find_all_dates_in_text(ci_raw)) > 1 or len(_find_all_dates_in_text(co_raw)) > 1:
+            return None, None, "Multiple conflicting dates were detected in your request. Please specify clear check-in and check-out dates."
+
+        clean_ci = _clean_date_fragment(ci_raw)
+        clean_co = _clean_date_fragment(co_raw)
+
+        if not clean_ci:
+            return None, None, "Check-in date was not specified after the check-in keyword. Please provide a valid check-in date."
+        if not clean_co:
+            return None, None, "Check-out date was not specified after the range keyword. Please provide a valid check-out date."
+
+        ci_str, ci_dt, ci_err = _parse_single_date_fragment(clean_ci, today)
+        if ci_err:
+            return None, None, ci_err
+        if ci_dt < today:
+            return None, None, f"Check-in date ({ci_str}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future date."
+
+        co_str, co_dt, co_err = _parse_single_date_fragment(clean_co, today, ci_dt)
+        if co_err:
+            return None, None, co_err
+        if co_dt <= ci_dt:
+            return None, None, f"Check-out date ({co_str}) must be after check-in date ({ci_str}). Please provide a valid date range."
+
+        return ci_str, co_str, None
+
+    # 0c. Standalone checkout label (checkout present, NO check-in label)
+    if co_matches and not ci_matches:
+        m_co = co_matches[0]
+        before_co = user_text[:m_co.start()]
+        after_co = user_text[m_co.end():]
+        dates_before = _find_all_dates_in_text(before_co)
+        if not dates_before:
+            # Standalone checkout label without preceding check-in date!
+            session_ci = req_data.get("start_date")
+            clean_co = _clean_date_fragment(after_co)
+            if not clean_co:
+                return None, None, "Check-out date was not specified after the range keyword. Please provide a valid check-out date."
+
+            if not session_ci:
+                return None, None, "Check-out date was specified without a check-in date. A check-in date is required. Please provide a check-in date."
+
+            try:
+                ci_dt = datetime.strptime(session_ci, "%Y-%m-%d").date()
+            except ValueError:
+                return None, None, f"Invalid session check-in date: '{session_ci}'. Expected YYYY-MM-DD format."
+            if ci_dt < today:
+                return None, None, f"Saved trip check-in date ({session_ci}) is in the past (today is {today.isoformat()} IST). Please specify an upcoming date in your query."
+
+            co_str, co_dt, co_err = _parse_single_date_fragment(clean_co, today, ci_dt)
+            if co_err:
+                return None, None, co_err
+            if co_dt <= ci_dt:
+                return None, None, f"Check-out date ({co_str}) must be after check-in date ({session_ci}). Please provide a valid date range."
+            return session_ci, co_str, None
+
+    # 1. Direct explicit numeric calendar formats in user_text (unified ISO and DMY in textual order):
+    raw_num_matches = list(re.finditer(r"\b(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b", user_text or ""))
+    if raw_num_matches:
+        if len(raw_num_matches) > 2:
+            return None, None, "Multiple conflicting dates were detected in your request. Please specify clear check-in and check-out dates."
+
+        validated_dates = []
+        for m in raw_num_matches:
+            d = m.group(1)
+            iso_str, dt_val, err = _parse_numeric_date(d)
+            if err:
+                return None, None, err
+            validated_dates.append((iso_str, dt_val, m.span()))
+
+        if validated_dates[0][1] < today:
+            return None, None, f"Check-in date ({validated_dates[0][0]}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future date."
+
+        if len(validated_dates) >= 2:
+            ci_str, ci_dt, _ = validated_dates[0]
+            co_str, co_dt, _ = validated_dates[1]
+            if co_dt <= ci_dt:
+                return None, None, f"Check-out date ({co_str}) must be after check-in date ({ci_str}). Please provide a valid date range."
+            return ci_str, co_str, None
+        else:
+            ci_str, ci_dt, ci_span = validated_dates[0]
+            is_rng, co_text = _detect_checkout_text(user_text, ci_span)
+            if is_rng:
+                co_str, co_err = _parse_explicit_checkout_date(co_text, ci_dt, ci_str)
+                if co_err:
+                    return None, None, co_err
+                return ci_str, co_str, None
+            return ci_str, (ci_dt + timedelta(days=1)).isoformat(), None
+
+    # 2. Relative dates evaluated in India Standard Time
+    rel_match = None
+    st_date_val = None
+    if "day after tomorrow" in tl:
+        st_date_val = today + timedelta(days=2)
+        rel_match = re.search(r"\bday after tomorrow\b", user_text or "", re.IGNORECASE)
+    elif "tomorrow" in tl:
+        st_date_val = today + timedelta(days=1)
+        rel_match = re.search(r"\btomorrow\b", user_text or "", re.IGNORECASE)
+    elif "tonight" in tl or "today" in tl:
+        st_date_val = today
+        rel_match = re.search(r"\b(?:tonight|today)\b", user_text or "", re.IGNORECASE)
+
+    if st_date_val is not None:
+        rel_span = rel_match.span() if rel_match else None
+        is_rng, co_text = _detect_checkout_text(user_text, rel_span)
+        if is_rng:
+            co_str, co_err = _parse_explicit_checkout_date(co_text, st_date_val, st_date_val.isoformat())
+            if co_err:
+                return None, None, co_err
+            return st_date_val.isoformat(), co_str, None
+        return st_date_val.isoformat(), (st_date_val + timedelta(days=1)).isoformat(), None
+
+    # 3. Explicit February 29 handling
+    m_feb = re.search(r"\b(?:29(?:th)?\s+feb(?:ruary)?|feb(?:ruary)?\s+29(?:th)?)\b", user_text or "", re.IGNORECASE)
+    if m_feb:
+        exp_year = _extract_explicit_date_year(user_text)
+        if exp_year is not None:
+            if not _is_leap_year(exp_year):
+                return None, None, f"February 29 is not a valid date in {exp_year} as it is not a leap year. Please provide a valid calendar date."
+            ci_dt = date(exp_year, 2, 29)
+            if ci_dt < today:
+                return None, None, f"Check-in date ({ci_dt.isoformat()}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future date."
+        else:
+            ci_dt = _resolve_next_feb_29(today)
+
+        st_date = ci_dt.isoformat()
+        is_rng, co_text = _detect_checkout_text(user_text, m_feb.span())
+        if is_rng:
+            co_str, co_err = _parse_explicit_checkout_date(co_text, ci_dt, st_date)
+            if co_err:
+                return None, None, co_err
+            return st_date, co_str, None
+        return st_date, (ci_dt + timedelta(days=1)).isoformat(), None
+
+    # 4. Natural language dates in user_text (e.g., "15 December 2026", "next week")
+    if legacy_agent.has_explicit_date(user_text):
+        st_date, _ = legacy_agent._extract_date_range(user_text)
+        if not st_date:
+            return None, None, "Could not parse the date specified in your request. Please provide a valid date (e.g., YYYY-MM-DD)."
+
+        try:
+            ci_dt = datetime.strptime(st_date, "%Y-%m-%d").date()
+        except ValueError:
+            return None, None, f"The date '{st_date}' is invalid. Please provide a valid calendar date in YYYY-MM-DD format."
+
+        exp_year = _extract_explicit_date_year(user_text)
+
+        # Date-aware year normalization
+        if exp_year is None:
+            ci_dt = _normalize_natural_date_year(ci_dt, today)
+            st_date = ci_dt.isoformat()
+
+        if ci_dt < today:
+            return None, None, f"Check-in date ({st_date}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future date."
+
+        m_nl = re.search(rf"\b(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?[\s\-]+{MONTHS_REGEX}(?:[,\s\-]+(?:\d{{4}}))?\b", user_text, re.IGNORECASE)
+        if not m_nl:
+            m_nl = re.search(rf"\b{MONTHS_REGEX}[\s\-]+(?:0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?(?:[,\s\-]+(?:\d{{4}}))?\b", user_text, re.IGNORECASE)
+        ci_span = m_nl.span() if m_nl else None
+
+        is_rng, co_text = _detect_checkout_text(user_text, ci_span)
+        if is_rng:
+            co_str, co_err = _parse_explicit_checkout_date(co_text, ci_dt, st_date)
+            if co_err:
+                return None, None, co_err
+            return st_date, co_str, None
+        else:
+            return st_date, (ci_dt + timedelta(days=1)).isoformat(), None
+
+    # 5. Session requirements (validate both check-in and check-out independently and check past dates)
+    check_in = req_data.get("start_date")
+    check_out = req_data.get("end_date")
+    if check_in:
+        try:
+            ci_dt = datetime.strptime(check_in, "%Y-%m-%d").date()
+        except ValueError:
+            return None, None, f"Invalid session check-in date: '{check_in}'. Expected YYYY-MM-DD format."
+
+        if ci_dt < today:
+            return None, None, f"Saved trip check-in date ({check_in}) is in the past (today is {today.isoformat()} IST). Please specify an upcoming date in your query."
+
+        if check_out:
+            try:
+                co_dt = datetime.strptime(check_out, "%Y-%m-%d").date()
+            except ValueError:
+                return None, None, f"Invalid session check-out date: '{check_out}'. Expected YYYY-MM-DD format."
+
+            if co_dt <= ci_dt:
+                return None, None, f"Check-out date ({check_out}) must be after check-in date ({check_in})."
+            return check_in, check_out, None
+        else:
+            return check_in, (ci_dt + timedelta(days=1)).isoformat(), None
+    elif check_out:
+        return None, None, f"Invalid session date configuration: saved check-out date ({check_out}) is present without a check-in date. Please specify your check-in date in your query."
+
+    return None, None, None
+
+
+def _extract_flight_search_date(
+    user_text: str,
+    req_data: Dict[str, Any],
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extracts travel date for flight search.
+    Returns: (travel_date, error_message)
+    Priority:
+    1. Explicit date in user_text (ISO YYYY-MM-DD, DD-MM-YYYY, relative phrases, February 29, or natural language)
+    2. req_data.get("start_date")
+    3. None (signals live flight adapter to use its sensible default)
+    """
+    today = get_india_today()
+    tl = (user_text or "").lower()
+
+    # 1. Direct explicit numeric calendar formats in user_text (unified ISO and DMY in textual order):
+    raw_num_matches = re.findall(r"\b(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b", user_text or "")
+    if raw_num_matches:
+        d = raw_num_matches[0]
+        iso_str, dt_val, err = _parse_numeric_date(d)
+        if err:
+            return None, err.replace("The date", "The travel date")
+
+        if dt_val < today:
+            return None, f"Travel date ({iso_str}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future departure date."
+        return iso_str, None
+
+    # 2. Relative dates evaluated in India Standard Time
+    if "day after tomorrow" in tl:
+        return (today + timedelta(days=2)).isoformat(), None
+    elif "tomorrow" in tl:
+        return (today + timedelta(days=1)).isoformat(), None
+    elif "tonight" in tl or "today" in tl:
+        return today.isoformat(), None
+
+    # 3. Explicit February 29 handling
+    is_feb_29 = bool(re.search(r"\b(?:29(?:th)?\s+feb(?:ruary)?|feb(?:ruary)?\s+29(?:th)?)\b", user_text or "", re.IGNORECASE))
+    if is_feb_29:
+        exp_year = _extract_explicit_date_year(user_text)
+        if exp_year is not None:
+            if not _is_leap_year(exp_year):
+                return None, f"February 29 is not a valid date in {exp_year} as it is not a leap year. Please provide a valid calendar date."
+            dt_val = date(exp_year, 2, 29)
+            if dt_val < today:
+                return None, f"Travel date ({dt_val.isoformat()}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future departure date."
+        else:
+            dt_val = _resolve_next_feb_29(today)
+        return dt_val.isoformat(), None
+
+    # 4. Natural language dates in user_text
+    if legacy_agent.has_explicit_date(user_text):
+        st_date, _ = legacy_agent._extract_date_range(user_text)
+        if not st_date:
+            return None, "Could not parse the departure date specified in your request. Please use YYYY-MM-DD format."
+        try:
+            dt_val = datetime.strptime(st_date, "%Y-%m-%d").date()
+        except ValueError:
+            return None, f"The travel date '{st_date}' is invalid. Please provide a valid calendar date in YYYY-MM-DD format."
+
+        exp_year = _extract_explicit_date_year(user_text)
+
+        # Date-aware year normalization
+        if exp_year is None:
+            dt_val = _normalize_natural_date_year(dt_val, today)
+            st_date = dt_val.isoformat()
+
+        if dt_val < today:
+            return None, f"Travel date ({st_date}) cannot be in the past (today is {today.isoformat()} IST). Please provide a current or future departure date."
+        return st_date, None
+
+    # 5. Session requirements (validate and check past dates)
+    travel_date = req_data.get("start_date")
+    if travel_date:
+        try:
+            dt_val = datetime.strptime(travel_date, "%Y-%m-%d").date()
+        except ValueError:
+            return None, f"Invalid session travel date: '{travel_date}'. Expected YYYY-MM-DD format."
+
+        if dt_val < today:
+            return None, f"Saved trip departure date ({travel_date}) is in the past (today is {today.isoformat()} IST). Please specify an upcoming departure date in your query."
+        return travel_date, None
+
+    return None, None
+
+
 def handle_hotel_search_intent(
     user_text: str,
     session: Dict[str, Any],
@@ -2585,8 +3198,19 @@ def handle_hotel_search_intent(
     guests = int(pax_match.group(1)) if pax_match else 2
 
     req_data = current_request or session.get("state", {}).get("requirements", {}) or {}
-    check_in = req_data.get("start_date")
-    check_out = req_data.get("end_date")
+    check_in, check_out, date_err = _extract_hotel_search_dates(user_text, req_data)
+
+    if date_err:
+        return {
+            "intent": "HOTEL_SEARCH",
+            "status": "INVALID_DATE_RANGE",
+            "reply": (
+                f"⚠️ **Invalid Date Selection for Hotel Search**\n\n"
+                f"{date_err} Please specify a valid date range for your Katra accommodation."
+            ),
+            "session_id": session.get("session_id"),
+            "request": current_request or session.get("state", {}).get("requirements", {}),
+        }
 
     mgr = get_live_data_manager()
     req = ProviderRequest(
@@ -2694,7 +3318,17 @@ def handle_flight_search_intent(
             "session_id": session.get("session_id"),
         }
 
-    travel_date = req_data.get("start_date")
+    travel_date, date_err = _extract_flight_search_date(user_text, req_data)
+    if date_err:
+        return {
+            "intent": "FLIGHT_SEARCH",
+            "status": "INVALID_DATE",
+            "reply": (
+                f"✈️ **Invalid Travel Date for Flight Search**\n\n"
+                f"{date_err} Please specify a valid departure date."
+            ),
+            "session_id": session.get("session_id"),
+        }
 
     mgr = get_live_data_manager()
     req = ProviderRequest(
