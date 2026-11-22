@@ -186,7 +186,9 @@ class TestPhase98122TransportPresentationRemediation(unittest.TestCase):
         # Must branch on option.is_live_status for green indicator
         self.assertIn("option.is_live_status ?", code)
         self.assertIn("<span style={{ color: '#28A745', fontWeight: 700 }}>● {status}</span>", code)
-        self.assertIn("<span style={{ color: '#8A5D00', fontWeight: 600 }}>ℹ️ {status}</span>", code)
+        self.assertIn("color: '#8A5D00', fontWeight: 600", code)
+        self.assertIn("<Info size={11} />", code)
+        self.assertIn("<span>{status}</span>", code)
 
 
 if __name__ == "__main__":

@@ -174,7 +174,7 @@ export default function Authorization({
   const hotelTotal = hotel ? hotelNightlyRate * hotelNights * roomsCount : 0;
 
   // Direct verified costs
-  const totalVerified = transportFareTotal + slotTotal + hotelTotal;
+  const totalVerified = (transportFareTotal || 0) + slotTotal + hotelTotal;
 
   // Estimated discretionary costs
   const roadTransferEst = tr.mode === 'flight' ? 1500 : 500;
@@ -184,7 +184,7 @@ export default function Authorization({
 
   // Grand Total & Per Person
   const grandTotal = totalVerified + totalEstimated;
-  const perPersonCost = Math.round(grandTotal / pax);
+  const perPersonCost = !isFareUnavailable && grandTotal && pax > 0 ? Math.round(grandTotal / pax) : null;
 
   // Target Budget comparison
   const targetBudget = tripRequest?.total_budget || null;
@@ -458,7 +458,7 @@ export default function Authorization({
               {durationStr && <span> ({durationStr})</span>}
             </div>
             <div style={{ fontSize: '0.8rem', color: isFareUnavailable ? '#856404' : 'var(--burgundy)', fontWeight: 700, marginTop: '2px' }}>
-              {isFareUnavailable
+              {isFareUnavailable || transportFareTotal === null
                 ? `Transport Tariff: ${isFlight ? 'Payable directly on airline portal (dynamic)' : (isTrain ? 'Payable directly on IRCTC portal (dynamic)' : 'Payable directly at bus terminal counter')}`
                 : `Transport Fare: ₹${transportFareTotal.toLocaleString('en-IN')} (₹${farePerPerson}/person)`}
             </div>
@@ -558,19 +558,19 @@ export default function Authorization({
             <div style={{ fontSize: '0.76rem', color: 'var(--text-dark)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Verified Transport ({pax}x fare):</span>
-                <b>₹{transportFareTotal.toLocaleString('en-IN')}</b>
+                <b>{transportFareTotal !== null ? `₹${transportFareTotal.toLocaleString('en-IN')}` : 'Direct at counter / dynamic'}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Verified Darshan Slot ({pax}x fee):</span>
-                <b>₹{slotTotal.toLocaleString('en-IN')}</b>
+                <b>₹{(slotTotal || 0).toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Verified Hotel ({roomsCount} rm, {hotelNights} n):</span>
-                <b>₹{hotelTotal.toLocaleString('en-IN')}</b>
+                <b>₹{(hotelTotal || 0).toLocaleString('en-IN')}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E8C874', paddingTop: '3px', marginTop: '2px' }}>
                 <span style={{ fontWeight: 700 }}>Total Verified Direct Costs:</span>
-                <span style={{ fontWeight: 800, color: '#155724' }}>₹{totalVerified.toLocaleString('en-IN')}</span>
+                <span style={{ fontWeight: 800, color: '#155724' }}>₹{(totalVerified || 0).toLocaleString('en-IN')}</span>
               </div>
             </div>
 
@@ -579,15 +579,15 @@ export default function Authorization({
               <div style={{ fontWeight: 700, marginBottom: '2px' }}>Estimated Discretionary Expenses (Not pre-charged):</div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>• Road Transfers (Katra/Jammu taxi/auto):</span>
-                <span>₹{roadTransferEst.toLocaleString('en-IN')}</span>
+                <span>₹{(roadTransferEst || 0).toLocaleString('en-IN')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>• Estimated Meals ({pax} pax, {durationDays} days):</span>
-                <span>₹{mealsEst.toLocaleString('en-IN')}</span>
+                <span>₹{(mealsEst || 0).toLocaleString('en-IN')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: '2px' }}>
                 <span>Subtotal Estimates:</span>
-                <span>₹{totalEstimated.toLocaleString('en-IN')}</span>
+                <span>₹{(totalEstimated || 0).toLocaleString('en-IN')}</span>
               </div>
             </div>
 
@@ -600,13 +600,17 @@ export default function Authorization({
             <div style={{ borderTop: '2px solid var(--gold-border)', paddingTop: '8px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Total Estimated Trip Cost ({pax} {pax === 1 ? 'pilgrim' : 'pilgrims'})
+                  {isFareUnavailable ? `Total Package (${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'} · Excl. Dynamic Transport)` : `Total Estimated Trip Cost (${pax} ${pax === 1 ? 'pilgrim' : 'pilgrims'})`}
                 </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--burgundy)' }}>
-                  ₹{grandTotal.toLocaleString('en-IN')}
+                <div style={{ fontSize: isFareUnavailable ? '1.25rem' : '1.45rem', fontWeight: 800, color: 'var(--burgundy)' }}>
+                  {isFareUnavailable ? `₹${(grandTotal || 0).toLocaleString('en-IN')} + Transport` : `₹${(grandTotal || 0).toLocaleString('en-IN')}`}
                 </div>
                 <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                  Approx. <b>₹{perPersonCost.toLocaleString('en-IN')}</b> per person
+                  {perPersonCost ? (
+                    <>Approx. <b>₹{perPersonCost.toLocaleString('en-IN')}</b> per person</>
+                  ) : (
+                    <span style={{ color: '#856404', fontWeight: 600 }}>Transport: Dynamic / At Counter · Pending Fare</span>
+                  )}
                 </div>
               </div>
 

@@ -1,22 +1,61 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { colors } from '../theme/colors';
+import { MountainIcon } from './Icons';
 
 export default function TourismCard({ place, spot, onAskAssistant }) {
   const [expanded, setExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const target = place || spot || {};
 
   const name = target.name || 'Holy Pilgrimage Site';
-  const category = target.category || 'Holy Shrine';
-  const altitude = target.altitude || target.elevation || 'Katra Region';
+  const categoryType = target.category_type || null;
+  const isReligious = categoryType === 'religious_site' || (!categoryType && !['Nature', 'Hill station', 'Hill station / adventure', 'Kashmir', 'nature_destination', 'historical_site', 'tourist_attraction'].includes(target.category));
+  const category = target.category || (isReligious ? 'Holy Shrine' : 'Tourist Attraction');
+  const altitude = target.altitude_m ? `~${target.altitude_m} m` : (target.altitude || target.elevation || 'Katra Region');
   const description = target.description || '';
   const distance = target.distance || null;
-  const timings = target.darshan_timings || target.timings || null;
-  const significance = target.significance || null;
+
+  const gallery = target.image_gallery || [];
+  const imageUrl = target.image_url || (target.image && target.image.startsWith('http') ? target.image : null) || gallery[0]?.thumbnail_url || gallery[0]?.image_url || null;
+  const photoMeta = gallery[0] || null;
+  const timings = isReligious
+    ? (target.darshan_timings || target.timings || null)
+    : (target.visiting_hours || (target.visiting_hours_verified ? target.timings : 'Daytime access (weather permitting)'));
+  const timingsLabel = isReligious ? 'Darshan Timings:' : 'Visiting Hours:';
+  const significance = isReligious ? (target.religious_information || target.significance || null) : (target.historical_background || target.significance || null);
+  const significanceLabel = isReligious ? 'Sacred Significance:' : 'Historical / Cultural Background:';
+  const bestTime = !isReligious ? target.best_time_to_visit : null;
+  const entryFee = target.entry_fee || null;
+  const accessibility = !isReligious ? target.accessibility : null;
+  const seasonalRestrictions = !isReligious ? target.seasonal_restrictions : null;
   const tips = target.travel_tips || target.darshanTips || null;
 
   return (
     <View style={styles.card}>
+      {imageUrl && !imageError ? (
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.cardImage}
+            onError={() => setImageError(true)}
+            resizeMode="cover"
+          />
+          {gallery.length > 1 && (
+            <View style={styles.photoCountBadge}>
+              <Text style={styles.photoCountText}>📷 {gallery.length} photos</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.fallbackNoticeBox}>
+          <MountainIcon size={18} color={colors.goldDark} />
+          <Text style={styles.fallbackNoticeText}>
+            {target.image_notice || 'Verified photograph in archival curation'}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.headerRow}>
         <View style={styles.titleContainer}>
           <Text style={styles.placeName}>{name}</Text>
@@ -40,20 +79,50 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
           )}
           {timings && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Darshan Timings:</Text>
+              <Text style={styles.detailLabel}>{timingsLabel}</Text>
               <Text style={styles.detailValue}>{timings}</Text>
+            </View>
+          )}
+          {bestTime && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Best Time to Visit:</Text>
+              <Text style={styles.detailValue}>{bestTime}</Text>
+            </View>
+          )}
+          {entryFee && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Entry Fee:</Text>
+              <Text style={styles.detailValue}>{entryFee}</Text>
+            </View>
+          )}
+          {accessibility && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Accessibility:</Text>
+              <Text style={styles.detailValue}>{accessibility}</Text>
+            </View>
+          )}
+          {seasonalRestrictions && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Seasonal Restrictions:</Text>
+              <Text style={styles.detailValue}>{seasonalRestrictions}</Text>
             </View>
           )}
           {significance && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Sacred Significance:</Text>
+              <Text style={styles.detailLabel}>{significanceLabel}</Text>
               <Text style={styles.detailValue}>{significance}</Text>
             </View>
           )}
           {tips && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Pilgrim Advisory:</Text>
+              <Text style={styles.detailLabel}>{isReligious ? 'Pilgrim Advisory:' : 'Traveler Advisory:'}</Text>
               <Text style={styles.detailValue}>{tips}</Text>
+            </View>
+          )}
+          {photoMeta?.attribution && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Photograph:</Text>
+              <Text style={styles.detailValue}>{photoMeta.attribution}</Text>
             </View>
           )}
         </View>
@@ -174,5 +243,49 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: colors.burgundy,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 140,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 10,
+    backgroundColor: '#3D0810',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  photoCountText: {
+    color: '#F4E5BE',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  fallbackNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.goldSubtle,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  fallbackNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });

@@ -145,6 +145,20 @@ def get_verified_images_map() -> Dict[str, Any]:
                 if d_name:
                     result[d_name] = d
                     result[d_name.lower().strip()] = d
+
+            # Also index aliases from knowledge_agent to guarantee instant O(1) resolution
+            try:
+                from agents.knowledge_agent import _PLACE_ALIASES
+                for alias_k, canon_n in _PLACE_ALIASES.items():
+                    target_rec = result.get(canon_n) or result.get(canon_n.lower().strip())
+                    if target_rec:
+                        if alias_k not in result:
+                            result[alias_k] = target_rec
+                        clean_k = alias_k.lower().strip()
+                        if clean_k not in result:
+                            result[clean_k] = target_rec
+            except Exception:
+                pass
         except Exception as exc:
             logger.warning("Error reading verified destination images: %s", exc)
 

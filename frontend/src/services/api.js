@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+// Standard production backend shared across Web and Android
+export const DEFAULT_PRODUCTION_BACKEND = 'https://yatra-ai-smap.onrender.com';
+
 // Resolve, normalize, and validate API_BASE_URL
 export const normalizeApiUrl = (url) => {
   if (!url || typeof url !== 'string') return '';
@@ -128,11 +131,11 @@ export const resolveApiConfig = (rawUrl, { isDev = false, isProd = false, allowe
     };
   }
 
-  // 3. Production missing explicit URL
+  // 3. Production default fallback (shared with Android)
   return {
-    baseUrl: '',
-    isMisconfigured: true,
-    errorMessage: 'Production API URL is not configured. Please build with VITE_API_URL pointing to your backend (e.g. https://api.yatra.com).',
+    baseUrl: DEFAULT_PRODUCTION_BACKEND,
+    isMisconfigured: false,
+    errorMessage: '',
   };
 };
 
@@ -316,7 +319,14 @@ export const streamChat = async (messageData, { onStart, onToken, onDone, onErro
         pending_options: messageData.pending_options || null,
       };
 
-  const baseUrl = getRuntimeApiUrl();
+  if (isApiMisconfigured) {
+    const misconfigErr = new Error(configErrorMessage || 'Backend API is misconfigured.');
+    if (onError) onError(misconfigErr);
+    throw misconfigErr;
+  }
+
+  const resolvedBase = getApiBaseUrl();
+  const baseUrl = resolvedBase ? resolvedBase.replace(/\/+$/, '') : '';
   const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -326,50 +336,55 @@ export const streamChat = async (messageData, { onStart, onToken, onDone, onErro
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}/api/chat/stream`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal,
-  });
+  try {
+    const response = await fetch(`${baseUrl}/api/chat/stream`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal,
+    });
 
-  if (!response.ok) {
-    throw new Error(`Streaming failed: HTTP ${response.status}`);
-  }
+    if (!response.ok) {
+      throw new Error(`Streaming failed: HTTP ${response.status}`);
+    }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
-  let finalResponse = null;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let finalResponse = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith('data:')) continue;
-      const jsonStr = trimmed.slice(5).trim();
-      try {
-        const event = JSON.parse(jsonStr);
-        if (event.type === 'start') {
-          if (onStart) onStart(event);
-        } else if (event.type === 'token') {
-          if (onToken) onToken(event.content);
-        } else if (event.type === 'done') {
-          finalResponse = event.response;
-          if (onDone) onDone(event.response);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const jsonStr = trimmed.slice(5).trim();
+        try {
+          const event = JSON.parse(jsonStr);
+          if (event.type === 'start') {
+            if (onStart) onStart(event);
+          } else if (event.type === 'token') {
+            if (onToken) onToken(event.content);
+          } else if (event.type === 'done') {
+            finalResponse = event.response;
+            if (onDone) onDone(event.response);
+          }
+        } catch {
+          // Ignore partial chunks
         }
-      } catch (err) {
-        // Ignore partial chunks
       }
     }
-  }
 
-  return finalResponse;
+    return finalResponse;
+  } catch (err) {
+    if (onError) onError(err);
+    throw err;
+  }
 };
 
 export const sendChat = async (messageData) => {
@@ -715,6 +730,23 @@ export const getUserProfile = async () => {
   return response.data;
 };
 
+/**
+ * Downloads the authentic pilgrim pass PDF generated on the backend.
+ * Returns Blob of application/pdf bytes.
+ * Requires authenticated session token for non-test bookings.
+ */
+export const fetchBookingPdf = async (bookingId) => {
+  if (!bookingId) {
+    throw new Error('Missing booking_id for PDF download');
+  }
+  const cleanId = encodeURIComponent(String(bookingId).trim());
+  const response = await client.get(`/api/yatra/booking/${cleanId}/pdf`, {
+    responseType: 'blob',
+    timeout: 15000,
+  });
+  return response.data;
+};
+
 export default {
   sendChat,
   streamChat,
@@ -755,6 +787,7 @@ export default {
   transferTrip,
   transferBooking,
   getUserProfile,
+  fetchBookingPdf,
   setAuthToken,
   getAuthToken,
 };

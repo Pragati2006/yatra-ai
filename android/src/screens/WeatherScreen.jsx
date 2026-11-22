@@ -118,6 +118,8 @@ export default function WeatherScreen({ navigation }) {
       <Header
         title="Microclimate & Weather"
         subtitle="Elevation-Aware Pilgrim Advisory"
+        showBack={true}
+        onBackPress={() => navigation.navigate('Assistant')}
       />
 
       <View style={styles.elevationInfoBanner}>

@@ -117,7 +117,7 @@ def _extract_origin(text):
         re.IGNORECASE,
     )
     stop_words = {
-        "the", "a", "an", "my", "our", "here", "there", "home", "katra",
+        "the", "a", "an", "my", "our", "here", "there", "home", "katra", "vaishno", "devi", "mata", "bhawan", "patnitop", "srinagar", "shrine", "temple",
         "next", "this", "that", "it", "them", "these", "those", "last", "for", "with", "by", "in", "during", "and", "to", "or",
         "on", "at", "around",
         "travelling", "traveling", "visiting", "going", "planning", "train", "flight", "bus", "is",
@@ -139,11 +139,11 @@ def _extract_origin(text):
             clean_words.append(w.capitalize())
         if clean_words:
             res = " ".join(clean_words)
-            if res.lower() not in ["katra"] and len(res) >= 3:
+            if res.lower() not in ["katra", "vaishno", "devi", "vaishno devi", "bhawan", "patnitop", "srinagar"] and len(res) >= 3:
                 return res
 
     words = [w for w in re.findall(r"\b[A-Za-z]+\b", t) if w.lower() not in stop_words]
-    if len(words) == 1 and len(words[0]) >= 3 and words[0].lower() not in ["katra"]:
+    if len(words) == 1 and len(words[0]) >= 3 and words[0].lower() not in ["katra", "vaishno", "devi", "vaishno devi", "bhawan", "patnitop", "srinagar"]:
         return words[0].capitalize()
 
     return None
@@ -402,7 +402,16 @@ def merge_requests(old_req, new_req, text=""):
         if res.get("pax") is None:
             res["pax"] = 1
         if not res.get("destination"):
-            res["destination"] = "Katra"
+            pilgrim_terms = (
+                "vaishno", "devi", "katra", "bhawan", "darshan", "parchi", "yatra",
+                "pilgrim", "pilgrims", "shrine", "temple", "ardhkuwari", "bhairon",
+                "mata rani", "mata", "sanctum"
+            )
+            has_pilgrim = any(w in (text or "").lower() for w in pilgrim_terms)
+            if not has_pilgrim and res.get("origin"):
+                res["destination"] = None
+            else:
+                res["destination"] = "Katra"
         return res
 
     merged = dict(old_req)

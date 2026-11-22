@@ -113,17 +113,14 @@ export function parseMarkdownStructure(content) {
       continue;
     }
 
-    // 2. Headings
-    if (trimmed.startsWith('### ')) {
-      blocks.push({ type: 'heading', level: 3, text: trimmed.slice(4) });
-      continue;
-    }
-    if (trimmed.startsWith('## ')) {
-      blocks.push({ type: 'heading', level: 2, text: trimmed.slice(3) });
-      continue;
-    }
-    if (trimmed.startsWith('# ')) {
-      blocks.push({ type: 'heading', level: 1, text: trimmed.slice(2) });
+    // 2. Headings (# through ######)
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      blocks.push({
+        type: 'heading',
+        level: headingMatch[1].length,
+        text: headingMatch[2].trim(),
+      });
       continue;
     }
 
@@ -180,14 +177,14 @@ export function parseMarkdownStructure(content) {
       continue;
     }
 
-    // 5. Bullet items (- or *)
-    if (/^[-*]\s+/.test(trimmed)) {
-      blocks.push({ type: 'bullet', text: trimmed.replace(/^[-*]\s+/, '') });
+    // 5. Bullet items (- or * or • or +)
+    if (/^[-*•+]\s+/.test(trimmed)) {
+      blocks.push({ type: 'bullet', text: trimmed.replace(/^[-*•+]\s+/, '') });
       continue;
     }
 
-    // 6. Numbered items (1. )
-    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    // 6. Numbered items (1. or 1) )
+    const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
     if (numMatch) {
       blocks.push({ type: 'numbered', num: numMatch[1], text: numMatch[2] });
       continue;

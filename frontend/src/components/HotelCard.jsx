@@ -18,8 +18,9 @@ export default function HotelCard({ hotel, isSelected, onSelect }) {
     <div
       className="card card-hover"
       style={{
-        border: isSelected ? '2px solid var(--gold-primary)' : '1px solid var(--gold-border)',
-        background: isSelected ? '#FFFCF7' : '#FFFFFF',
+        border: isSelected ? '2px solid var(--royal-plum, #54152D)' : '1px solid var(--border-default, #E9DED6)',
+        background: isSelected ? 'var(--soft-plum-surface, #F0E3E7)' : 'var(--surface-white, #FFFCF9)',
+        borderRadius: '14px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -30,28 +31,28 @@ export default function HotelCard({ hotel, isSelected, onSelect }) {
       <div>
         {/* Category Pill & Availability Status */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span className="pill" style={{ background: 'var(--secondary-bg, #F2EAE4)', color: 'var(--royal-plum, #54152D)', border: '1px solid var(--border-default, #E9DED6)', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
             <Building2 size={12} />
             <span>{category}</span>
           </span>
           {hasRoomsCount ? (
-            <span style={{ fontSize: '0.74rem', color: rooms <= 3 ? '#C0392B' : '#27AE60', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.74rem', color: rooms <= 3 ? '#C75A60' : '#3E876C', fontWeight: 700 }}>
               {rooms} {rooms === 1 ? 'room' : 'rooms'} left
             </span>
           ) : (
-            <span style={{ fontSize: '0.70rem', color: '#718096', fontWeight: 500, fontStyle: 'italic' }}>
+            <span style={{ fontSize: '0.70rem', color: 'var(--text-muted, #A39994)', fontWeight: 500, fontStyle: 'italic' }}>
               Live Availability: Not Checked (Unverified)
             </span>
           )}
         </div>
 
         {/* Hotel Name */}
-        <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--burgundy)', lineHeight: 1.25 }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--royal-plum, #54152D)', lineHeight: 1.25 }}>
           {name}
         </div>
 
         {/* Location */}
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #796D69)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <MapPin size={12} style={{ flexShrink: 0 }} />
           <span>{location}</span>
         </div>
@@ -60,7 +61,7 @@ export default function HotelCard({ hotel, isSelected, onSelect }) {
         {(phone || officialWebsite) && (
           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem', marginTop: '6px', flexWrap: 'wrap' }}>
             {phone && (
-              <span style={{ color: 'var(--burgundy)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: 'var(--royal-plum, #54152D)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <Phone size={11} />
                 <span>{phone}</span>
               </span>
@@ -70,7 +71,7 @@ export default function HotelCard({ hotel, isSelected, onSelect }) {
                 href={officialWebsite}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#0066CC', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                style={{ color: 'var(--royal-plum, #54152D)', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
                 <Globe size={11} />
                 <span>Official Link</span>
@@ -85,12 +86,12 @@ export default function HotelCard({ hotel, isSelected, onSelect }) {
             <span
               key={i}
               style={{
-                background: 'var(--bg-subtle)',
-                border: '1px solid var(--border-subtle)',
+                background: 'var(--secondary-bg, #F2EAE4)',
+                border: '1px solid var(--border-subtle, #F0E8E2)',
                 borderRadius: '6px',
                 padding: '2px 8px',
                 fontSize: '0.72rem',
-                color: 'var(--text-dark)',
+                color: 'var(--text-primary, #30272A)',
               }}
             >
               {am.trim()}

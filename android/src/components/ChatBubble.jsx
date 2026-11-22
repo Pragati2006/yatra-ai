@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Linking, Modal } from 'react-native';
 import * as Speech from 'expo-speech';
 import { colors } from '../theme/colors';
 import MarkdownView from './MarkdownView';
 import YatraLogo from './YatraLogo';
-import { VolumeIcon, SquareIcon, TicketIcon } from './Icons';
+import { VolumeIcon, SquareIcon, TicketIcon, MountainIcon, CloseIcon } from './Icons';
 
 export default function ChatBubble({ message, onNavigateToBooking, onActionPress }) {
   const isUser = message.role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(null);
+  const [failedImages, setFailedImages] = useState({});
 
   useEffect(() => {
     return () => {
@@ -60,16 +62,16 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
       <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
         {!isUser && (
           <View style={styles.assistantHeader}>
-            <Text style={styles.assistantLabel}>Yatra AI Companion</Text>
+            <Text style={styles.assistantLabel}>Yatra AI</Text>
             <TouchableOpacity onPress={toggleSpeech} style={styles.ttsButton} activeOpacity={0.7}>
               {isSpeaking ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <SquareIcon size={12} color={colors.primary} />
+                  <SquareIcon size={12} color={colors.royalPlum} />
                   <Text style={styles.ttsText}>Stop</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <VolumeIcon size={13} color={colors.primary} />
+                  <VolumeIcon size={13} color={colors.royalPlum} />
                   <Text style={styles.ttsText}>Listen</Text>
                 </View>
               )}
@@ -79,8 +81,102 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
 
         <MarkdownView
           content={message.content}
-          textColor={isUser ? colors.textWhite : colors.textPrimary}
+          textColor={colors.textPrimary}
         />
+
+        {/* Verified Destination Photographs Gallery */}
+        {!isUser && message.destination_images && message.destination_images.length > 0 && (
+          <View style={styles.galleryContainer}>
+            <View style={styles.galleryHeader}>
+              <Text style={styles.galleryTitle}>
+                📷 Verified Photos: {message.matched_destination?.name || 'Sightseeing'}
+              </Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
+              {message.destination_images.map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.galleryCard}
+                  onPress={() => setActivePhoto(item)}
+                  activeOpacity={0.85}
+                  accessibilityLabel={`View full photo: ${item.title || 'Destination'}`}
+                >
+                  {!failedImages[idx] ? (
+                    <Image
+                      source={{ uri: item.thumbnail_url || item.image_url }}
+                      style={styles.galleryImage}
+                      resizeMode="cover"
+                      onError={() => setFailedImages((prev) => ({ ...prev, [idx]: true }))}
+                    />
+                  ) : (
+                    <View style={styles.imageFallbackBox}>
+                      <MountainIcon size={20} color={colors.goldLight} />
+                      <Text style={styles.imageFallbackText}>Photo unavailable</Text>
+                    </View>
+                  )}
+                  <View style={styles.galleryCaption}>
+                    <Text style={styles.photoTitle} numberOfLines={1}>
+                      {item.title || 'Destination Photograph'}
+                    </Text>
+                    <Text style={styles.photoAttribution} numberOfLines={1}>
+                      {item.photographer ? `By ${item.photographer}` : 'Wikimedia Commons'} · {item.license || 'CC'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Lightbox Image Magnification Modal */}
+        {activePhoto && (
+          <Modal
+            visible={Boolean(activePhoto)}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setActivePhoto(null)}
+          >
+            <View style={styles.lightboxBackdrop}>
+              <View style={styles.lightboxCard}>
+                <View style={styles.lightboxTopBar}>
+                  <Text style={styles.lightboxTitle} numberOfLines={1}>
+                    {activePhoto.title || 'Destination Photograph'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.lightboxCloseBtn}
+                    onPress={() => setActivePhoto(null)}
+                    activeOpacity={0.7}
+                  >
+                    <CloseIcon size={18} color="#FFFFFF" strokeWidth={2.2} />
+                  </TouchableOpacity>
+                </View>
+
+                <Image
+                  source={{ uri: activePhoto.image_url || activePhoto.thumbnail_url }}
+                  style={styles.lightboxFullImage}
+                  resizeMode="contain"
+                />
+
+                <View style={styles.lightboxMetaRow}>
+                  <Text style={styles.lightboxAttribution}>
+                    {activePhoto.photographer ? `Photo by ${activePhoto.photographer}` : 'Wikimedia Commons'}
+                  </Text>
+                  {activePhoto.license && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const url = activePhoto.license_url || activePhoto.source_page_url;
+                        if (url) Linking.openURL(url).catch(() => {});
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.lightboxLicenseLink}>{activePhoto.license} ↗</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* Booking Handoff Card CTA if action indicates booking */}
         {hasBookingHandoff && handleBookingHandoff && (
@@ -114,8 +210,8 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
 const styles = StyleSheet.create({
   bubbleContainer: {
     flexDirection: 'row',
-    marginVertical: 6,
-    paddingHorizontal: 12,
+    marginVertical: 4,
+    paddingHorizontal: 8,
   },
   userContainer: {
     justifyContent: 'flex-end',
@@ -125,78 +221,86 @@ const styles = StyleSheet.create({
   },
   avatar: {
     marginRight: 8,
-    marginTop: 4,
+    marginTop: 2,
   },
   bubble: {
-    maxWidth: '84%',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    maxWidth: '85%',
+    borderRadius: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
   },
   userBubble: {
-    backgroundColor: colors.burgundy,
-    borderBottomRightRadius: 2,
+    backgroundColor: colors.softPlum,
+    borderBottomRightRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
   },
   assistantBubble: {
-    maxWidth: '88%',
-    backgroundColor: colors.bgCard,
-    borderWidth: 1.2,
-    borderColor: colors.goldBorder,
-    borderBottomLeftRadius: 2,
-    shadowColor: '#58111A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    maxWidth: '92%',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   assistantHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
     paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
   assistantLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: colors.burgundy,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+    color: colors.royalPlum,
+    letterSpacing: 0.3,
   },
   ttsButton: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    backgroundColor: colors.goldSubtle,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    backgroundColor: colors.surfaceWhite,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: colors.borderDefault,
   },
   ttsText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.burgundy,
+    color: colors.royalPlum,
   },
   handoffCard: {
-    marginTop: 8,
-    backgroundColor: colors.goldSubtle,
-    borderWidth: 1.5,
-    borderColor: colors.gold,
-    borderRadius: 10,
-    padding: 10,
+    marginTop: 10,
+    backgroundColor: colors.surfaceWhite,
+    borderWidth: 1.2,
+    borderColor: colors.borderDefault,
+    borderRadius: 12,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    elevation: 1,
+    shadowColor: '#54152D',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
   },
   handoffRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  handoffIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  handoffIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.softPlum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   handoffInfo: {
     flex: 1,
@@ -204,17 +308,137 @@ const styles = StyleSheet.create({
   handoffTitle: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: colors.burgundy,
+    color: colors.royalPlum,
   },
   handoffSub: {
     fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   handoffArrow: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    color: colors.burgundy,
+    color: colors.royalPlum,
     marginLeft: 6,
+  },
+  galleryContainer: {
+    marginTop: 10,
+    backgroundColor: colors.surfaceWhite,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    padding: 10,
+    overflow: 'hidden',
+  },
+  galleryHeader: {
+    marginBottom: 8,
+  },
+  galleryTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.royalPlum,
+  },
+  galleryScroll: {
+    flexDirection: 'row',
+  },
+  galleryCard: {
+    width: 175,
+    marginRight: 10,
+    backgroundColor: colors.surfaceWhite,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    overflow: 'hidden',
+  },
+  galleryImage: {
+    width: '100%',
+    height: 110,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  galleryCaption: {
+    padding: 7,
+  },
+  photoTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.royalPlum,
+  },
+  photoAttribution: {
+    fontSize: 9.5,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  imageFallbackBox: {
+    width: '100%',
+    height: 110,
+    backgroundColor: colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  imageFallbackText: {
+    color: colors.champagneTaupe,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(26, 12, 18, 0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  lightboxCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#240B15',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: colors.champagneTaupe,
+  },
+  lightboxTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(163, 130, 108, 0.3)',
+  },
+  lightboxTitle: {
+    color: colors.softChampagne,
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  lightboxCloseBtn: {
+    padding: 4,
+  },
+  lightboxFullImage: {
+    width: '100%',
+    height: 260,
+    backgroundColor: '#15050C',
+  },
+  lightboxMetaRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lightboxAttribution: {
+    color: colors.warmBeige,
+    fontSize: 11,
+    flex: 1,
+    marginRight: 8,
+  },
+  lightboxLicenseLink: {
+    color: colors.softChampagne,
+    fontSize: 11,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

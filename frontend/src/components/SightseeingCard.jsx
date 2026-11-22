@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Landmark, Check, Plus, MapPin, Clock, Ticket, BookOpen, Car, Navigation, Globe, MessageSquare } from 'lucide-react';
+import { Landmark, Check, Plus, MapPin, Clock, Ticket, BookOpen, Car, Navigation, Globe, MessageSquare, Camera, ExternalLink, X, Maximize2 } from 'lucide-react';
 
 const TRAVEL_NOTES = {
   'On the trek route': 'Trek on foot; battery car, pony & ropeway available along the route.',
@@ -15,11 +15,23 @@ const TRAVEL_NOTES = {
 
 export default function SightseeingCard({ place, isSelected, onToggleSelect, onExplorePlace = null }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   if (!place) return null;
 
   const cardId = place.name ? place.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'destination';
   const travelRequirement = TRAVEL_NOTES[place.category] || null;
+  const isReligious = place.category_type === 'religious_site' || (!place.category_type && !['Nature', 'Hill station', 'Hill station / adventure', 'Kashmir', 'nature_destination', 'historical_site', 'tourist_attraction', 'trekking_destination'].includes(place.category));
+
+  // Resolve primary image URL: prefers verified external HTTPS image_url, then local image, then gallery first item
+  const gallery = place.image_gallery || [];
+  const primaryImage = place.image_url
+    ? place.image_url
+    : place.image
+      ? (place.image.startsWith('http') ? place.image : '/' + place.image)
+      : (gallery[0]?.thumbnail_url || gallery[0]?.image_url || null);
+  const primaryPhotoMeta = gallery[0] || null;
 
   return (
     <div
@@ -41,37 +53,72 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
       }}
     >
       {/* Top Image & Selection Indicator */}
-      <div style={{ position: 'relative', height: '150px', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
-        {place.image ? (
+      <div
+        style={{
+          position: 'relative',
+          height: '150px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          marginBottom: '12px',
+          cursor: primaryImage && !imageFailed ? 'pointer' : 'default',
+        }}
+        onClick={() => primaryImage && !imageFailed && setShowLightbox(true)}
+      >
+        {primaryImage && !imageFailed ? (
           <img
-            src={'/' + place.image}
+            src={primaryImage}
             alt={place.name}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              if (e.currentTarget.nextSibling) {
-                e.currentTarget.nextSibling.style.display = 'flex';
-              }
-            }}
+            loading="lazy"
+            onError={() => setImageFailed(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
-        ) : null}
-        <div
-          style={{
-            display: place.image ? 'none' : 'flex',
-            width: '100%',
-            height: '100%',
-            background: 'linear-gradient(135deg, #58111A, #3D0810)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#E5D2AD',
-          }}
-        >
-          <Landmark size={36} color="#E5D2AD" />
-        </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(135deg, #58111A, #3D0810)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#E5D2AD',
+            }}
+          >
+            <Landmark size={36} color="#E5D2AD" />
+          </div>
+        )}
+
+        {/* Gallery count indicator badge */}
+        {gallery.length > 1 && !imageFailed && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              background: 'rgba(0, 0, 0, 0.65)',
+              color: '#F4E5BE',
+              borderRadius: '10px',
+              padding: '2px 8px',
+              fontSize: '0.68rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backdropFilter: 'blur(3px)',
+            }}
+          >
+            <Camera size={11} color="#D4AF37" />
+            <span>{gallery.length} photos</span>
+          </div>
+        )}
 
         {/* Selection Toggle Button */}
         <button
           type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect && onToggleSelect();
+          }}
           data-testid={`toggle-place-${cardId}`}
           onClick={onToggleSelect}
           style={{
@@ -181,12 +228,17 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
           )}
         </div>
 
-        {/* Distance & Timings */}
+        {/* Distance, Altitude & Timings */}
         <div style={{ fontSize: '0.78rem', color: 'var(--gold-primary)', fontWeight: 600, margin: '2px 0 6px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <Clock size={12} /> {place.distance || 'Katra Region'}
+            <Clock size={12} /> {place.distance || (place.district ? `District ${place.district}` : (place.region ? `${place.region} Region` : 'Jammu & Kashmir'))}
           </span>
-          {place.timings && <span>• {place.timings}</span>}
+          {place.altitude_m && <span>• ~{place.altitude_m} m</span>}
+          {isReligious ? (
+            (place.darshan_timings || place.timings) && <span>• Darshan: {place.darshan_timings || place.timings}</span>
+          ) : (
+            (place.visiting_hours || place.timings) && <span>• Hours: {place.visiting_hours || place.timings}</span>
+          )}
         </div>
 
         {/* Entry Fee (if available & not strictly free) */}
@@ -222,8 +274,50 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                 lineHeight: 1.45,
               }}>
                 <b style={{ color: 'var(--burgundy)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
-                  <BookOpen size={12} /> Heritage Context:
+                  <BookOpen size={12} /> {isReligious ? 'Sacred Context:' : 'Heritage Context:'}
                 </b> {place.historical_background}
+              </div>
+            )}
+
+            {!isReligious && place.best_time_to_visit && (
+              <div style={{
+                background: '#F0FDF4',
+                border: '1px solid #BBF7D0',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '0.74rem',
+                color: '#166534',
+                lineHeight: 1.4,
+              }}>
+                <b>Best Time to Visit:</b> {place.best_time_to_visit}
+              </div>
+            )}
+
+            {!isReligious && place.accessibility && (
+              <div style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '0.74rem',
+                color: '#334155',
+                lineHeight: 1.4,
+              }}>
+                <b>Accessibility:</b> {place.accessibility}
+              </div>
+            )}
+
+            {!isReligious && place.seasonal_restrictions && (
+              <div style={{
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '0.74rem',
+                color: '#92400E',
+                lineHeight: 1.4,
+              }}>
+                <b>Seasonal Advisory:</b> {place.seasonal_restrictions}
               </div>
             )}
 
@@ -273,6 +367,32 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
                   <Globe size={11} /> <b>GPS:</b> {place.latitude.toFixed(4)}°N, {place.longitude.toFixed(4)}°E
                 </span>
                 {place.district && <span>• <b>District:</b> {place.district}</span>}
+              </div>
+            )}
+            {primaryPhotoMeta?.attribution && (
+              <div style={{
+                fontSize: '0.69rem',
+                color: '#786C6C',
+                borderTop: '1px dashed #E5D2AD',
+                paddingTop: '6px',
+                marginTop: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span title={primaryPhotoMeta.attribution}>
+                  📷 {primaryPhotoMeta.attribution}
+                </span>
+                {primaryPhotoMeta.source_page_url && (
+                  <a
+                    href={primaryPhotoMeta.source_page_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#8A5D00', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                  >
+                    Commons <ExternalLink size={9} />
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -346,6 +466,135 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
           )}
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {showLightbox && primaryImage && (
+        <div
+          data-testid={`place-lightbox-${cardId}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowLightbox(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(20, 10, 12, 0.88)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '850px',
+              width: '100%',
+              maxHeight: '90vh',
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <button
+              type="button"
+              data-testid="lightbox-close-btn"
+              onClick={() => setShowLightbox(false)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'rgba(0, 0, 0, 0.65)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div
+              style={{
+                width: '100%',
+                maxHeight: '68vh',
+                background: '#1A0E10',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src={primaryImage}
+                alt={place.name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '68vh',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                padding: '14px 18px',
+                background: '#FAF6EE',
+                borderTop: '1px solid #E5D2AD',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
+              <div>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: '0.94rem', color: 'var(--burgundy, #58111A)', fontWeight: 700 }}>
+                  {place.name}
+                </h4>
+                <div style={{ fontSize: '0.76rem', color: '#6A5C5C' }}>
+                  {primaryPhotoMeta?.attribution || 'Verified Tourism Photograph'}
+                </div>
+              </div>
+
+              {primaryPhotoMeta?.source_page_url && (
+                <a
+                  href={primaryPhotoMeta.source_page_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.76rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>Wikimedia Commons</span>
+                  <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

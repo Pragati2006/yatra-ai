@@ -12,6 +12,7 @@ const BACKEND_URL_KEY = 'yatra_configured_backend_url';
 const CHAT_HISTORY_KEY = 'yatra_local_chat_history';
 const GUEST_CONVERSATIONS_KEY = 'yatra_guest_conversations';
 const USER_PROFILE_KEY = 'yatra_user_profile';
+const BOOKING_DRAFT_KEY = 'yatra_booking_draft';
 
 // Safe wrapper checking whether SecureStore is available
 const isSecureStoreAvailable = async () => {
@@ -216,6 +217,35 @@ export const saveLocalGuestConversation = async (conv) => {
     }
   } catch (e) {
     console.warn('[Storage] Could not save guest conversation:', e.message);
+  }
+};
+
+export const saveBookingDraft = async (draft) => {
+  try {
+    if (draft) {
+      await AsyncStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify(draft));
+    } else {
+      await AsyncStorage.removeItem(BOOKING_DRAFT_KEY);
+    }
+  } catch (e) {
+    console.warn('[Storage] Could not save booking draft:', e.message);
+  }
+};
+
+export const getBookingDraft = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(BOOKING_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const clearBookingDraft = async () => {
+  try {
+    await AsyncStorage.removeItem(BOOKING_DRAFT_KEY);
+  } catch {
+    // ignore
   }
 };
 

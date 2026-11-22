@@ -17,6 +17,29 @@ export default function TransportCard({ option, isSelected, onSelect, pax = 1 })
   const isTrainTimetableUnverified = mode === 'TRAIN' && (tr.timetable_verification?.status === 'unverified' || !tr.timetable_verification);
   const depTime = isTrainTimetableUnverified ? 'Check NTES (139)' : (tr.departure_time || 'Check schedule');
 
+  const resolveDataTier = () => {
+    if (tr.data_tier) return tr.data_tier;
+    if (tr.dataTier) return tr.dataTier;
+    if (tr.is_live_telemetry || tr.live_tracking_status === 'ACTIVE') return 'Live Availability';
+    if (tr.is_simulated || tr.is_demonstration || tr.is_synthetic_test_fare || mode === 'HELICOPTER') return 'Demonstration Data';
+    if (isTrainTimetableUnverified || tr.timetable_verification?.status === 'unverified' || tr.is_unverified) return 'Unavailable / Unverified';
+    return 'Indicative Estimate';
+  };
+
+  const getDataTierPillStyle = (tier) => {
+    switch (tier) {
+      case 'Live Availability':
+        return { background: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
+      case 'Indicative Estimate':
+        return { background: '#FFF3CD', color: '#856404', border: '1px solid #FFEEBA' };
+      case 'Demonstration Data':
+        return { background: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
+      case 'Unavailable / Unverified':
+      default:
+        return { background: '#E2E3E5', color: '#383D41', border: '1px solid #D6D8DB' };
+    }
+  };
+
   // Calculate arrival time or display safe fallback
   let calculatedArrTime = tr.arrival_time;
   if (!calculatedArrTime && tr.departure_time && tr.duration_hours && !isTrainTimetableUnverified) {
@@ -70,8 +93,9 @@ export default function TransportCard({ option, isSelected, onSelect, pax = 1 })
       className="card card-hover transport-card"
       data-testid="transport-card"
       style={{
-        border: isSelected ? '2px solid var(--gold-primary)' : '1px solid var(--gold-border)',
-        background: isSelected ? '#FFFCF7' : '#FFFFFF',
+        border: isSelected ? '2px solid var(--royal-plum, #54152D)' : '1px solid var(--border-default, #E9DED6)',
+        background: isSelected ? 'var(--soft-plum-surface, #F0E3E7)' : 'var(--surface-white, #FFFCF9)',
+        borderRadius: '14px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -83,22 +107,22 @@ export default function TransportCard({ option, isSelected, onSelect, pax = 1 })
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="pill pill-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span className="pill" style={{ background: 'var(--secondary-bg, #F2EAE4)', color: 'var(--royal-plum, #54152D)', border: '1px solid var(--border-default, #E9DED6)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>
               {isFlight ? <Plane size={12} /> : (isBus ? <Bus size={12} /> : <Train size={12} />)}
               <span>{isFlight ? 'FLIGHT' : (isBus ? 'BUS' : 'TRAIN')}</span>
             </span>
-            <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--burgundy)' }}>
+            <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--royal-plum, #54152D)' }}>
               {operator}
             </span>
             {serviceNo && (
-              <span className="pill" style={{ background: '#F0EAE1', color: 'var(--burgundy)', fontSize: '0.74rem', fontWeight: 700 }}>
+              <span className="pill" style={{ background: 'var(--soft-plum-surface, #F0E3E7)', color: 'var(--royal-plum, #54152D)', fontSize: '0.74rem', fontWeight: 700, padding: '2px 7px', borderRadius: '6px' }}>
                 {serviceNo}
               </span>
             )}
           </div>
         </div>
-        <span className="pill pill-success" style={{ fontSize: '0.72rem' }}>
-          {isFareUnavailable ? (isTrain ? 'IRCTC Route' : (isFlight ? 'DGCA Corridor' : 'Stage Carriage')) : 'Verified Schedule'}
+        <span className="pill" style={{ ...getDataTierPillStyle(resolveDataTier()), fontSize: '0.72rem', fontWeight: 700 }}>
+          ● {resolveDataTier()}
         </span>
       </div>
 
@@ -246,6 +270,12 @@ export default function TransportCard({ option, isSelected, onSelect, pax = 1 })
             <div style={{ marginTop: '5px', fontSize: '0.68rem', color: '#666', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Info size={11} />
               <span>{tr.booking_advice}</span>
+            </div>
+          )}
+          {Boolean(tr.is_connecting || (Array.isArray(tr.legs) && tr.legs.length > 1)) && (
+            <div style={{ marginTop: '6px', fontSize: '0.70rem', color: '#92400E', background: '#FEF3C7', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+              <AlertCircle size={12} color="#92400E" style={{ flexShrink: 0 }} />
+              <span>Transfer Buffer Notice: Allow 45–60 min at {tr.primary_hub || 'Jammu GBS'} transfer hub. Non-interline self-connection.</span>
             </div>
           )}
         </div>

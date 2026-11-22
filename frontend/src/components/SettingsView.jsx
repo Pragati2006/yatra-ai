@@ -85,7 +85,7 @@ export default function SettingsView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1.5px solid var(--gold-border, #E5D2AD)',
+          borderBottom: '1px solid var(--border-default, #E9DED6)',
           paddingBottom: '1rem',
           flexWrap: 'wrap',
           gap: '10px',
@@ -97,12 +97,12 @@ export default function SettingsView({
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'var(--gold-subtle, #F5ECDA)',
-              border: '1.5px solid var(--gold-border, #E5D2AD)',
+              background: 'var(--soft-plum-surface, #F0E3E7)',
+              border: '1px solid var(--border-default, #E9DED6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--burgundy, #58111A)',
+              color: 'var(--royal-plum, #54152D)',
             }}
           >
             <Settings size={22} strokeWidth={2} />
@@ -110,17 +110,17 @@ export default function SettingsView({
           <div>
             <h1
               style={{
-                fontFamily: 'var(--font-serif, Cinzel, serif)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: '1.45rem',
                 fontWeight: 800,
-                color: 'var(--burgundy, #58111A)',
+                color: 'var(--royal-plum, #54152D)',
                 margin: 0,
                 lineHeight: 1.2,
               }}
             >
               Settings &amp; Preferences
             </h1>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted, #6B5C5C)' }}>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary, #796D69)' }}>
               Manage your devotee account, voice recognition, preferences, and privacy.
             </p>
           </div>

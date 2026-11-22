@@ -644,8 +644,370 @@ PLACES = [
 
 CATEGORIES = ["On the trek route", "Nearby temple", "Nature", "Hill station", "Hill station / adventure", "Nature / heritage", "Jammu city", "Kashmir", "Pilgrimage Base"]
 
-# Ensure canonical coordinates dict is available on all items for API/client compatibility
+DESTINATION_CATEGORIES = [
+    "religious_site",
+    "tourist_attraction",
+    "nature_destination",
+    "trekking_destination",
+    "historical_site"
+]
+
+DESTINATION_METADATA = {
+    'Bhairavnath Temple': {
+        'category_type': 'religious_site',
+        'altitude_m': 2011,
+        'darshan_timings': '5:00 AM–12:00 PM & 4:00 PM–9:00 PM (Ropeway: 8:00 AM–5:00 PM)',
+        'aarti_timings': 'Morning: ~5:30 AM, Evening: ~6:30 PM',
+        'religious_information': 'Shrine dedicated to Tantric sage Bhairavnath; local tradition holds the Vaishno Devi pilgrimage is complete only after visiting this shrine.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round; early morning or right after Bhawan Darshan',
+        'accessibility': 'Steep ~1.5–2 km trek uphill from Bhawan or via passenger ropeway (₹100 one-way, ~5-minute ride).',
+        'seasonal_restrictions': 'Exposed high-altitude point (~6,600 ft) with sub-zero night chills in winter; heavy woollens and windproof jackets required.'
+    },
+    'Ardhkuwari Cave': {
+        'category_type': 'religious_site',
+        'altitude_m': 1400,
+        'darshan_timings': 'Open 24/7 (Garbh Joon cave queue managed by computerized slip/waiting numbers)',
+        'aarti_timings': 'Morning: 5:00 AM, Evening: 7:00 PM',
+        'religious_information': 'Sacred cave where Mata Vaishnavi meditated for nine months (Garbh Joon) before proceeding to Bhawan.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Midway milestone (~6 km from Katra on traditional route); battery car and palki options available.',
+        'seasonal_restrictions': 'Runs colder than Katra town; keep a light jacket accessible while waiting for Garbh Joon entry.'
+    },
+    'Charan Paduka': {
+        'category_type': 'religious_site',
+        'altitude_m': 1050,
+        'darshan_timings': 'Open 24/7 along the illuminated pilgrimage trek',
+        'aarti_timings': 'Daily morning and evening prayers',
+        'religious_information': 'Enshrines the sacred rock footprints of Mata Vaishno Devi imprinted when She paused during Her journey.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Approx. 1.5 km into the trek from Banganga checkpost on foot or pony/palki.',
+        'seasonal_restrictions': 'Open year-round along the paved track.'
+    },
+    'Nau Devi Cave Temple': {
+        'category_type': 'religious_site',
+        'altitude_m': 800,
+        'darshan_timings': '5:00 AM–8:00 PM',
+        'aarti_timings': 'Morning: 6:00 AM, Evening: 7:00 PM',
+        'religious_information': 'Natural subterranean cave temple enshrining holy pindies representing the nine manifestations of Durga.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Approx. 10 km from Katra town by local taxi or auto-rickshaw; short river crossing.',
+        'seasonal_restrictions': 'Cave requires crawling; elderly pilgrims with knee issues should exercise care.'
+    },
+    'Baba Dhansar': {
+        'category_type': 'nature_destination',
+        'altitude_m': 820,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '6:00 AM–6:00 PM (Daytime access)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'March to October',
+        'accessibility': 'Approx. 15 km from Katra by road; requires descending ~100 stone steps through lush forest.',
+        'seasonal_restrictions': 'Caution advised near water bodies during peak monsoon rains (July–August).'
+    },
+    'Jhajjar Kotli': {
+        'category_type': 'nature_destination',
+        'altitude_m': 650,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '7:00 AM–6:00 PM (Daytime access)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Summer and autumn (April–June, September–November)',
+        'accessibility': 'Located on NH-44 highway, ~18 km from Katra and ~35 km from Jammu; vehicle parking available.',
+        'seasonal_restrictions': 'River bed currents swell rapidly during monsoon rains; avoid deep water.'
+    },
+    'Patnitop': {
+        'category_type': 'nature_destination',
+        'altitude_m': 2024,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access (Town accessible 24/7)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'May–June for green meadows; December–February for snowfall and winter sports',
+        'accessibility': 'Approx. 80 km from Katra / 112 km from Jammu via NH-44 through Chenani-Nashri Tunnel (~2.5 hrs).',
+        'seasonal_restrictions': 'Heavy winter snow may require snow chains on local access roads.'
+    },
+    'Sanasar': {
+        'category_type': 'nature_destination',
+        'altitude_m': 2050,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '7:00 AM–6:00 PM (Daylight hours)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'May to October for paragliding, golf, and camping; winter for snow',
+        'accessibility': '19 km scenic mountain road from Patnitop (~45 mins by taxi).',
+        'seasonal_restrictions': 'Heavy winter snow may block connecting road temporarily.'
+    },
+    'Mansar Lake': {
+        'category_type': 'nature_destination',
+        'altitude_m': 665,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '7:00 AM–5:00 PM',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'October to April',
+        'accessibility': 'Approx. 62 km from Jammu / 85 km from Katra via Samba bypass; paved highway access.',
+        'seasonal_restrictions': 'Summer afternoons can be hot and humid.'
+    },
+    'Raghunath Temple, Jammu': {
+        'category_type': 'religious_site',
+        'altitude_m': 327,
+        'darshan_timings': '6:00 AM–8:00 PM (Afternoon break: 1:00 PM–3:00 PM)',
+        'aarti_timings': 'Morning Aarti: 7:00 AM, Evening Aarti: 7:00 PM',
+        'religious_information': 'Historic temple complex commissioned by Maharaja Gulab Singh; houses millions of Saligrams representing every Hindu deity.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Centrally located in the heart of Jammu old city, easily reached by auto or taxi.',
+        'seasonal_restrictions': 'Strict security checks at entry; electronics and bags must be deposited in lockers.'
+    },
+    'Bahu Fort & Bagh-e-Bahu': {
+        'category_type': 'historical_site',
+        'altitude_m': 350,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '10:00 AM–5:00 PM (Gardens open till 7:00 PM; Bawe Wali Mata temple within fort 5 AM-12 PM & 4 PM-9 PM)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'October to March',
+        'accessibility': 'Approx. 5 km from Jammu railway station overlooking the Tawi River.',
+        'seasonal_restrictions': 'Open year-round.'
+    },
+    'Amar Mahal Palace': {
+        'category_type': 'historical_site',
+        'altitude_m': 340,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '9:00 AM–1:00 PM & 2:00 PM–5:00 PM (Closed Mondays and National Holidays)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'October to March',
+        'accessibility': 'Palace Road, Jammu; paved approach with vehicle parking.',
+        'seasonal_restrictions': 'Closed on Mondays and national holidays.'
+    },
+    'Ban Ganga': {
+        'category_type': 'religious_site',
+        'altitude_m': 780,
+        'darshan_timings': 'Open 24/7 (Holy river ghat and primary trek gate)',
+        'aarti_timings': 'Daily morning and evening prayers along the ghat',
+        'religious_information': 'Holy river created by an arrow shot by Mata Vaishno Devi; pilgrims take a holy dip before trekking.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Approx. 1.5 km from Katra bus stand; start of the traditional 13 km yatra trek.',
+        'seasonal_restrictions': 'Ghat steps can be slippery during heavy monsoon rain.'
+    },
+    'Himkoti': {
+        'category_type': 'trekking_destination',
+        'altitude_m': 1500,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '5:00 AM–10:00 PM (Battery cars operate 6:30 AM–10:00 PM)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Year-round; panoramic resting point on the alternate track',
+        'accessibility': 'Midpoint on the alternate battery car track between Ardhkuwari and Bhawan.',
+        'seasonal_restrictions': 'High-altitude viewpoint; colder in evening.'
+    },
+    'Dera Baba Banda Bahadur': {
+        'category_type': 'historical_site',
+        'altitude_m': 700,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': 'Historic Sikh pilgrimage site established by Baba Banda Singh Bahadur on the banks of River Chenab.',
+        'visiting_hours': '5:00 AM–12:00 PM & 4:00 PM–9:00 PM',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Year-round (especially during Baisakhi mela in April)',
+        'accessibility': 'Approx. 28 km from Katra on the banks of Chenab river.',
+        'seasonal_restrictions': 'Open year-round.'
+    },
+    'Shiv Khori': {
+        'category_type': 'religious_site',
+        'altitude_m': 1200,
+        'darshan_timings': '7:00 AM–5:00 PM (Cave closes by late afternoon)',
+        'aarti_timings': 'Morning: 7:30 AM, Evening: 6:30 PM',
+        'religious_information': 'Kilometre-long natural limestone cave housing a 4-foot natural Svayambhu Shivalinga.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round, especially Maha Shivratri',
+        'accessibility': 'In Ransoo, ~75 km from Katra by road; followed by a 3 km trek or pony ride.',
+        'seasonal_restrictions': 'Inside cave path is narrow and requires ducking.'
+    },
+    'Peer Kho Cave Temple': {
+        'category_type': 'religious_site',
+        'altitude_m': 330,
+        'darshan_timings': '5:00 AM–7:00 PM',
+        'aarti_timings': 'Morning: 6:00 AM, Evening: 6:30 PM',
+        'religious_information': 'Ancient cave temple dedicated to Lord Shiva, legendarily associated with Jamvant from the Ramayana.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Circular Road, Jammu city, easily accessible by road.',
+        'seasonal_restrictions': 'Open year-round.'
+    },
+    'Srinagar (Dal Lake & Gardens)': {
+        'category_type': 'tourist_attraction',
+        'altitude_m': 1585,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access; Shikara rides 6:00 AM–8:00 PM; Mughal Gardens 9:00 AM–7:00 PM',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'April to October for gardens; December to February for snow',
+        'accessibility': 'State capital with Srinagar Airport (SXR); NH-44 connects to Jammu.',
+        'seasonal_restrictions': 'Winter temperatures frequently drop below freezing.'
+    },
+    'Gulmarg (Snow Meadow)': {
+        'category_type': 'nature_destination',
+        'altitude_m': 2650,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access town; Gulmarg Gondola operates 9:00 AM–4:00 PM (weather permitting)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Dec–Mar for skiing & snow; May–Sep for lush alpine meadows and golf',
+        'accessibility': '50 km west of Srinagar (~1.5–2 hrs by taxi); snow chains required in peak winter.',
+        'seasonal_restrictions': 'Gondola tickets must be booked online in advance; operations weather-dependent.'
+    },
+    'Pahalgam (Valley of Shepherds)': {
+        'category_type': 'nature_destination',
+        'altitude_m': 2130,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access mountain town (24/7)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'April to October; also starting point for annual Amarnath Yatra',
+        'accessibility': '90 km southeast of Srinagar on the Lidder River (~2.5 hrs by road).',
+        'seasonal_restrictions': 'Deep winter snow can close side valleys to normal vehicles.'
+    },
+    'Sonamarg (Meadow of Gold)': {
+        'category_type': 'nature_destination',
+        'altitude_m': 2730,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access; best during daylight hours (7:00 AM–6:00 PM)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'May to October for Thajiwas Glacier trek and flowering meadows',
+        'accessibility': '80 km northeast of Srinagar along Srinagar-Leh Highway (NH-1).',
+        'seasonal_restrictions': 'Heavy snow accumulation closes highway in deep winter (Nov–April).'
+    },
+    'Shankaracharya Temple, Srinagar': {
+        'category_type': 'religious_site',
+        'altitude_m': 1800,
+        'darshan_timings': '6:00 AM–8:00 PM (Security gate closes to vehicles at 5:00 PM)',
+        'aarti_timings': 'Morning: 7:00 AM, Evening: 7:00 PM',
+        'religious_information': 'Ancient 9th-century Shiva temple situated atop Gopadari Hill where Adi Shankaracharya meditated.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'April to November',
+        'accessibility': 'Vehicle road up to base parking, followed by ~240 stone stairs to the sanctum.',
+        'seasonal_restrictions': 'Strict security checks; electronics and cameras prohibited inside.'
+    },
+    'Kheer Bhawani Temple, Tulmulla': {
+        'category_type': 'religious_site',
+        'altitude_m': 1590,
+        'darshan_timings': '6:00 AM–8:00 PM',
+        'aarti_timings': 'Morning: 7:00 AM, Evening: 7:00 PM',
+        'religious_information': 'Historic Kashmiri Hindu spring shrine dedicated to Goddess Ragnya Devi; spring waters change color.',
+        'visiting_hours': None,
+        'visiting_hours_verified': None,
+        'best_time_to_visit': 'May to October; annual Jyeshtha Ashtami festival',
+        'accessibility': 'Approx. 25 km north of Srinagar in Ganderbal district.',
+        'seasonal_restrictions': 'Open year-round.'
+    },
+    'Verinag Spring and Mughal Garden': {
+        'category_type': 'historical_site',
+        'altitude_m': 1876,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '9:00 AM–7:00 PM (Summer) / 9:00 AM–5:00 PM (Winter)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'April to October',
+        'accessibility': 'Near Jawahar Tunnel on NH-44, approx. 80 km south of Srinagar.',
+        'seasonal_restrictions': 'Winter cold and occasional snowfall.'
+    },
+    'Achabal Mughal Garden': {
+        'category_type': 'historical_site',
+        'altitude_m': 1670,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '9:00 AM–7:00 PM',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'May to October',
+        'accessibility': '8 km from Anantnag, ~65 km from Srinagar.',
+        'seasonal_restrictions': 'Fountains operate primarily during summer.'
+    },
+    'Martand Sun Temple, Mattan': {
+        'category_type': 'historical_site',
+        'altitude_m': 1650,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': '6:00 AM–7:00 PM (Sunrise to Sunset, ASI Monitored)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'March to November',
+        'accessibility': '8 km from Anantnag on a plateau with panoramic views of the valley.',
+        'seasonal_restrictions': 'Open year-round.'
+    },
+    'Sinthan Top': {
+        'category_type': 'nature_destination',
+        'altitude_m': 3748,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Daytime access only (9:00 AM–5:00 PM, strictly weather permitting)',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'May to October',
+        'accessibility': 'High-altitude pass on NH-244, roughly 105 km from Srinagar and 140 km from Katra via Kishtwar road.',
+        'seasonal_restrictions': 'Heavy snow closes the pass during winter (late November to April). Always verify road status with traffic control.'
+    },
+    'Katra': {
+        'category_type': 'tourist_attraction',
+        'altitude_m': 750,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Town open 24/7; Yatra registration counters open 24 hours',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Year-round',
+        'accessibility': 'Direct railhead SVDK, road highway NH-144; base town for all pilgrimage tracks.',
+        'seasonal_restrictions': 'Peak rush during Navratris and summer vacations; advance booking recommended.'
+    },
+    'Kashmir Valley': {
+        'category_type': 'nature_destination',
+        'altitude_m': 1600,
+        'darshan_timings': None,
+        'aarti_timings': None,
+        'religious_information': None,
+        'visiting_hours': 'Open access region',
+        'visiting_hours_verified': True,
+        'best_time_to_visit': 'Spring (April–May), Autumn (Sep–Oct), Winter (Dec–Feb for snow)',
+        'accessibility': 'Accessed via Srinagar Airport (SXR) or NH-44 highway from Jammu.',
+        'seasonal_restrictions': 'Winter snow can affect highway transit.'
+    }
+}
+
+# Ensure canonical coordinates and category enrichments are available on all items
 for _p in PLACES:
+    _meta = DESTINATION_METADATA.get(_p["name"], {})
+    for _k, _v in _meta.items():
+        _p[_k] = _v
     if "coordinates" not in _p or _p["coordinates"] is None:
         if "latitude" in _p and "longitude" in _p:
             _p["coordinates"] = {"lat": _p["latitude"], "lng": _p["longitude"]}
@@ -654,6 +1016,13 @@ for _p in PLACES:
 def get_places(category=None):
     if category:
         return [p for p in PLACES if p["category"] == category]
+    return PLACES
+
+
+def get_places_by_category_type(category_type=None):
+    """Filters places by standardized category_type (religious_site, nature_destination, etc.)."""
+    if category_type:
+        return [p for p in PLACES if p.get("category_type") == category_type]
     return PLACES
 
 

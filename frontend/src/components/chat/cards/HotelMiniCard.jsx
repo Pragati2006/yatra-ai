@@ -11,7 +11,8 @@ export default function HotelMiniCard({ hotel }) {
 
   const name = hotel.name || 'Katra Accommodation';
   const category = (hotel.category || 'Standard').toUpperCase();
-  const price = hotel.price_per_night || hotel.price || 1200;
+  const priceVal = hotel.price_per_night != null ? hotel.price_per_night : (hotel.price != null ? hotel.price : null);
+  const priceDisplay = priceVal != null && Number(priceVal) > 0 ? `₹${Number(priceVal).toLocaleString('en-IN')}/night` : 'Tariff on enquiry';
   const address = hotel.address || hotel.location || 'Katra, Jammu & Kashmir';
   const phone = hotel.phone;
   const officialWebsite = hotel.official_website;
@@ -23,18 +24,18 @@ export default function HotelMiniCard({ hotel }) {
       data-testid="chat-hotel-card"
       style={{
         marginTop: '0.65rem',
-        background: '#FFFFFF',
-        border: '1px solid var(--gold-border, #E5D2AD)',
+        background: 'var(--surface-white, #FFFCF9)',
+        border: '1px solid var(--border-default, #E9DED6)',
         borderRadius: '12px',
         padding: '12px 14px',
-        boxShadow: '0 2px 6px rgba(88, 17, 26, 0.04)',
+        boxShadow: '0 1px 4px rgba(84, 21, 45, 0.04)',
       }}
     >
       {/* Header: Name, Category, Price */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <Building2 size={15} color="var(--burgundy)" />
-          <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--burgundy)' }}>{name}</span>
+          <Building2 size={15} color="var(--royal-plum, #54152D)" />
+          <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--royal-plum, #54152D)' }}>{name}</span>
           <span
             className={isSmvdsb ? 'pill pill-gold' : 'pill pill-gray'}
             style={{ fontSize: '0.68rem', padding: '1px 6px' }}
@@ -50,8 +51,8 @@ export default function HotelMiniCard({ hotel }) {
             </span>
           )}
         </div>
-        <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#8A5D00' }}>
-          ₹{price}/night
+        <span style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--royal-plum, #54152D)' }}>
+          {priceDisplay}
         </span>
       </div>
 

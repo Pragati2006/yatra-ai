@@ -24,6 +24,26 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
   const [travelStyle, setTravelStyle] = useState(initialValues.travel_style || 'balanced');
   const [accommodationPreference, setAccommodationPreference] = useState(initialValues.accommodation_preference || 'Standard');
   const [sightseeingChoice, setSightseeingChoice] = useState(initialValues.sightseeing_choice || 'recommend');
+  const [mobilityPreference, setMobilityPreference] = useState(initialValues.mobility_preference || 'Standard Walking Trek');
+
+  const calculateReturnDate = (start, dur) => {
+    try {
+      const parts = String(start).split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        d.setDate(d.getDate() + Math.max(1, parseInt(dur, 10) - 1));
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+    } catch {
+      // fallback
+    }
+    return '';
+  };
+
+  const returnDate = calculateReturnDate(startDate, duration);
 
   const prevValuesRef = useRef(initialValues);
 
@@ -83,12 +103,14 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
       budgetStr = bType === 'per_person' ? ` with budget of ₹${bAmt} per person` : ` with total budget of ₹${bAmt}`;
     }
 
-    const queryText = `${pax} people from ${origin} travelling to Katra on ${startDate} for ${duration} days with ${category}${mode !== 'any' ? ' by ' + mode : ''}${budgetStr}, ${travelStyle} pace, ${accommodationPreference} stay`;
+    const queryText = `Plan a trip for ${pax} people from ${origin} travelling to Katra on ${startDate} for ${duration} days with ${category}${mode !== 'any' ? ' by ' + mode : ''}${budgetStr}, ${travelStyle} pace, ${accommodationPreference} stay, mobility: ${mobilityPreference}`;
     
     onSearch({
       queryText,
       origin,
       startDate,
+      returnDate,
+      return_date: returnDate,
       pax: parseInt(pax, 10),
       mode,
       category,
@@ -99,6 +121,7 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
       travel_style: travelStyle,
       accommodation_preference: accommodationPreference,
       sightseeing_choice: sightseeingChoice,
+      mobility_preference: mobilityPreference,
     });
   };
 
@@ -319,7 +342,47 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
               <option value="later">Decide Later in Katra</option>
             </select>
           </div>
+
+          {/* Mobility & Accessibility Preference */}
+          <div>
+            <label htmlFor="travel-mobility" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
+              <Footprints size={14} /> Mobility Support
+            </label>
+            <select
+              id="travel-mobility"
+              value={mobilityPreference}
+              onChange={(e) => setMobilityPreference(e.target.value)}
+              style={{ padding: '0.55rem 0.75rem' }}
+            >
+              <option value="Standard Walking Trek">Standard Walking Trek</option>
+              <option value="Senior Citizen (Battery Car)">Senior Citizen (Battery Car)</option>
+              <option value="Palki / Pony Support">Palki / Pony Support</option>
+              <option value="Helicopter Priority">Helicopter Priority</option>
+            </select>
+          </div>
         </div>
+
+        {/* Calculated Return Date Banner */}
+        {returnDate && (
+          <div style={{
+            background: '#FAF5EE',
+            border: '1px solid var(--gold-border)',
+            borderRadius: '10px',
+            padding: '8px 14px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.82rem',
+            color: 'var(--burgundy)',
+            fontWeight: 600,
+          }}>
+            <Clock size={15} color="var(--burgundy)" />
+            <span>
+              Calculated Return: <b>{returnDate}</b> ({duration} Days / {Math.max(1, duration - 1)} Nights) • Destination: <b>Katra (Shri Mata Vaishno Devi)</b>
+            </span>
+          </div>
+        )}
 
         {/* Action Button */}
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

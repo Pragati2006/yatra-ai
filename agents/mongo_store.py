@@ -28,8 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 def is_mongodb_mode() -> bool:
-    """Returns True if MongoDB persistence is explicitly configured."""
-    return os.getenv("PERSISTENCE_BACKEND", "sqlite").lower() == "mongodb"
+    """Returns True if MongoDB persistence is explicitly configured or running in production with MONGO_URI."""
+    explicit = os.getenv("PERSISTENCE_BACKEND", "").strip().lower()
+    if explicit == "mongodb":
+        return True
+    if explicit == "sqlite":
+        return False
+    is_prod = os.getenv("APP_ENV", os.getenv("ENV", "")).lower() in ("production", "prod", "live")
+    return bool(is_prod and os.getenv("MONGO_URI"))
 
 
 def _get_coll(name: str):
@@ -425,11 +431,12 @@ def save_booking(user_id: str, booking_data: Dict[str, Any]) -> Dict[str, Any]:
     bid = str(booking_data.get("booking_id")).strip()
 
     # Ownership check if booking already exists
-    existing = coll.find_one({"booking_id": bid})
+    existing = coll.find_one({"$or": [{"booking_id": bid}, {"_id": bid}]})
     if existing and existing.get("user_id") != user_id:
         raise PermissionError(f"Booking {bid} does not belong to user {user_id}")
 
     now_iso = datetime.now(timezone.utc).isoformat()
+    created_at = (existing.get("created_at") if existing else None) or booking_data.get("created_at") or now_iso
     doc = {
         "_id": bid,
         "booking_id": bid,
@@ -447,7 +454,8 @@ def save_booking(user_id: str, booking_data: Dict[str, Any]) -> Dict[str, Any]:
         "total_price": float(booking_data.get("total_price") or 0.0),
         "payment_status": str(booking_data.get("payment_status") or "COMPLETED_SANDBOX"),
         "status": "SIMULATED_CONFIRMED",
-        "created_at": booking_data.get("created_at") or now_iso,
+        "created_at": created_at,
+        "updated_at": now_iso,
         "receipt": booking_data.get("receipt") or {},
     }
 

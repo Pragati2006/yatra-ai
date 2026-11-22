@@ -49,6 +49,7 @@ export default function SidebarDrawer({
   onLogout,
   user = null,
   currentSessionId = null,
+  activeRoute = 'Assistant',
 }) {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,7 +225,12 @@ export default function SidebarDrawer({
           </TouchableOpacity>
         </View>
 
-        {/* 2. New Chat Action Button */}
+        {/* 2. CHAT Section Header & Actions */}
+        <View style={styles.chatSectionHeader}>
+          <Text style={styles.sectionTitle}>CHAT</Text>
+        </View>
+
+        {/* New Chat Action Button */}
         <TouchableOpacity
           style={styles.newChatButton}
           onPress={() => {
@@ -240,7 +246,37 @@ export default function SidebarDrawer({
           <Text style={styles.newChatText}>New Chat</Text>
         </TouchableOpacity>
 
-        {/* 3. Search Conversations Input */}
+        {/* Chat History Item */}
+        <TouchableOpacity
+          style={[
+            styles.navItem,
+            styles.chatHistoryItem,
+            activeRoute === 'History' && styles.navItemActive,
+          ]}
+          onPress={() => {
+            onClose();
+            onNavigate('History');
+          }}
+          activeOpacity={0.7}
+          accessibilityLabel="View Chat History"
+        >
+          <ClockIcon
+            size={17}
+            color={colors.royalPlum}
+            strokeWidth={activeRoute === 'History' ? 2.4 : 2}
+          />
+          <Text
+            style={[
+              styles.navItemLabel,
+              activeRoute === 'History' && styles.navItemLabelActive,
+            ]}
+          >
+            Chat History
+          </Text>
+          {activeRoute === 'History' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+
+        {/* Search Conversations Input */}
         <View style={styles.searchContainer}>
           <SearchIcon size={15} color={colors.textSecondary} strokeWidth={2} />
           <TextInput
@@ -318,68 +354,188 @@ export default function SidebarDrawer({
             )}
           </View>
 
-          {/* 5. Explore Section */}
+          {/* 5. Yatra Services Section */}
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>EXPLORE</Text>
+            <Text style={styles.sectionTitle} accessibilityLabel="Explore Yatra Services">
+              YATRA SERVICES & EXPLORE
+            </Text>
 
+            {/* 1. Assistant */}
             <TouchableOpacity
-              style={styles.navItem}
+              style={[
+                styles.navItem,
+                activeRoute === 'Assistant' && styles.navItemActive,
+              ]}
               onPress={() => {
                 onClose();
-                onNavigate('Destinations');
+                onNavigate('Assistant');
               }}
               activeOpacity={0.7}
             >
-              <MountainIcon size={17} color={colors.royalPlum} strokeWidth={2} />
-              <Text style={styles.navItemLabel}>Holy Sites & Shrines</Text>
+              <MessageSquareIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Assistant' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  activeRoute === 'Assistant' && styles.navItemLabelActive,
+                ]}
+              >
+                Assistant
+              </Text>
+              {activeRoute === 'Assistant' && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
 
+            {/* 2. Guided Booking & Parchi */}
             <TouchableOpacity
-              style={styles.navItem}
+              style={[
+                styles.navItem,
+                activeRoute === 'Booking' && styles.navItemActive,
+              ]}
+              onPress={() => {
+                onClose();
+                onNavigate('Booking');
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="Booking / Parchi (Pilgrimage & Parchi Booking)"
+            >
+              <TicketIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Booking' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  activeRoute === 'Booking' && styles.navItemLabelActive,
+                ]}
+              >
+                Booking / Parchi
+              </Text>
+              {activeRoute === 'Booking' && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+
+            {/* 3. Accommodation & Bhawans */}
+            <TouchableOpacity
+              style={[
+                styles.navItem,
+                (activeRoute === 'Stay' || activeRoute === 'Accommodation') && styles.navItemActive,
+              ]}
+              onPress={() => {
+                onClose();
+                onNavigate('Stay');
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="Accommodation / Bhawans (Shrine Board Bhawans & Stay)"
+            >
+              <BuildingIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Stay' || activeRoute === 'Accommodation' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  (activeRoute === 'Stay' || activeRoute === 'Accommodation') &&
+                    styles.navItemLabelActive,
+                ]}
+              >
+                Accommodation / Bhawans
+              </Text>
+              {(activeRoute === 'Stay' || activeRoute === 'Accommodation') && (
+                <View style={styles.activeIndicator} />
+              )}
+            </TouchableOpacity>
+
+            {/* 4. Transport & Schedules */}
+            <TouchableOpacity
+              style={[
+                styles.navItem,
+                activeRoute === 'Transport' && styles.navItemActive,
+              ]}
               onPress={() => {
                 onClose();
                 onNavigate('Transport');
               }}
               activeOpacity={0.7}
+              accessibilityLabel="Transport & Schedules"
             >
-              <TrainIcon size={17} color={colors.royalPlum} strokeWidth={2} />
-              <Text style={styles.navItemLabel}>Transport & Schedules</Text>
+              <TrainIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Transport' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  activeRoute === 'Transport' && styles.navItemLabelActive,
+                ]}
+              >
+                Transport / Schedules
+              </Text>
+              {activeRoute === 'Transport' && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
 
+            {/* 5. Sightseeing & Holy Sites */}
             <TouchableOpacity
-              style={styles.navItem}
+              style={[
+                styles.navItem,
+                (activeRoute === 'Destinations' || activeRoute === 'Tourism') && styles.navItemActive,
+              ]}
+              onPress={() => {
+                onClose();
+                onNavigate('Destinations');
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="Sightseeing / Destinations (Holy Sites & Shrines)"
+            >
+              <MountainIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Destinations' || activeRoute === 'Tourism' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  (activeRoute === 'Destinations' || activeRoute === 'Tourism') &&
+                    styles.navItemLabelActive,
+                ]}
+              >
+                Sightseeing / Destinations
+              </Text>
+              {(activeRoute === 'Destinations' || activeRoute === 'Tourism') && (
+                <View style={styles.activeIndicator} />
+              )}
+            </TouchableOpacity>
+
+            {/* 6. Weather Guidance */}
+            <TouchableOpacity
+              style={[
+                styles.navItem,
+                activeRoute === 'Weather' && styles.navItemActive,
+              ]}
               onPress={() => {
                 onClose();
                 onNavigate('Weather');
               }}
               activeOpacity={0.7}
             >
-              <CloudSunIcon size={17} color={colors.royalPlum} strokeWidth={2} />
-              <Text style={styles.navItemLabel}>Weather Guidance</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                onNavigate('Booking');
-              }}
-              activeOpacity={0.7}
-            >
-              <TicketIcon size={17} color={colors.royalPlum} strokeWidth={2} />
-              <Text style={styles.navItemLabel}>Pilgrimage & Parchi Booking</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                onNavigate('Stay');
-              }}
-              activeOpacity={0.7}
-            >
-              <BuildingIcon size={17} color={colors.royalPlum} strokeWidth={2} />
-              <Text style={styles.navItemLabel}>Shrine Board Bhawans</Text>
+              <CloudSunIcon
+                size={17}
+                color={colors.royalPlum}
+                strokeWidth={activeRoute === 'Weather' ? 2.4 : 2}
+              />
+              <Text
+                style={[
+                  styles.navItemLabel,
+                  activeRoute === 'Weather' && styles.navItemLabelActive,
+                ]}
+              >
+                Weather Guidance
+              </Text>
+              {activeRoute === 'Weather' && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -393,9 +549,10 @@ export default function SidebarDrawer({
               onOpenSettings();
             }}
             activeOpacity={0.7}
+            accessibilityLabel="Settings & Server"
           >
             <SettingsIcon size={17} color={colors.textSecondary} strokeWidth={2} />
-            <Text style={styles.footerItemText}>Settings & Server</Text>
+            <Text style={styles.footerItemText}>Settings / Server</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -405,10 +562,11 @@ export default function SidebarDrawer({
               onOpenAuth();
             }}
             activeOpacity={0.7}
+            accessibilityLabel="User Profile / Devotee Sign In"
           >
             <UserIcon size={17} color={colors.textSecondary} strokeWidth={2} />
             <Text style={styles.footerItemText} numberOfLines={1}>
-              {user ? (user.name || user.email || user.phone || 'Devotee Profile') : 'Devotee Sign In'}
+              {user ? (user.name || user.email || user.phone || 'Devotee Profile') : 'User Profile / Sign In'}
             </Text>
           </TouchableOpacity>
 
@@ -493,6 +651,13 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: colors.surfaceSecondary,
+  },
+  chatSectionHeader: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  chatHistoryItem: {
+    marginBottom: 8,
   },
   newChatButton: {
     flexDirection: 'row',
@@ -622,10 +787,26 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 2,
   },
+  navItemActive: {
+    backgroundColor: colors.softPlum,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
   navItemLabel: {
     fontSize: 13,
     color: colors.textPrimary,
     fontWeight: '600',
+    flex: 1,
+  },
+  navItemLabelActive: {
+    color: colors.royalPlum,
+    fontWeight: '800',
+  },
+  activeIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.royalPlum,
   },
   drawerFooter: {
     borderTopWidth: 1,

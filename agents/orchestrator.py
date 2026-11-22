@@ -355,6 +355,30 @@ def extract_trip_requirements(user_text: str, current_req: Optional[Dict[str, An
                 curr_places.append(d)
         req["sightseeing_places"] = curr_places
 
+    # 14. Destination specification & ambiguity check
+    explicit_fields = set(req.get("_explicit_fields") or [])
+    pilgrim_terms = (
+        "vaishno", "devi", "katra", "bhawan", "darshan", "parchi", "yatra",
+        "pilgrim", "pilgrims", "shrine", "temple", "ardhkuwari", "bhairon",
+        "mata rani", "mata", "sanctum"
+    )
+    has_pilgrim_context = any(w in user_text.lower() for w in pilgrim_terms)
+    explicit_dest_mentioned = bool(destinations) or any(k in user_text.lower() for k in ("katra", "vaishno", "patnitop", "srinagar", "shiv khori", "jammu"))
+
+    if explicit_dest_mentioned:
+        pass
+    elif has_pilgrim_context:
+        req["destination"] = "Katra"
+        explicit_fields.add("destination")
+    elif "destination" in explicit_fields or req.get("destination"):
+        # Retain existing destination from prior turn
+        pass
+    elif req.get("origin"):
+        req["destination"] = None
+    else:
+        req["destination"] = "Katra"
+
+    req["_explicit_fields"] = list(explicit_fields)
     req["_last_user_text"] = user_text
     return req
 
@@ -378,6 +402,9 @@ def detect_missing_mandatory_fields(req: Dict[str, Any]) -> List[str]:
 
     explicit = set(req.get("_explicit_fields") or [])
     missing = []
+
+    if "destination" in req and req.get("destination") is None:
+        missing.append("destination")
 
     if not req.get("origin"):
         missing.append("origin")
@@ -404,6 +431,12 @@ def generate_missing_info_question(missing: List[str], req: Dict[str, Any]) -> s
     origin = req.get("origin")
     pax = req.get("pax")
     pax_word = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}.get(pax, str(pax) if pax else "")
+
+    if "destination" in missing:
+        return (
+            "🙏 **Jai Mata Di!** Which destination or pilgrimage circuit in Jammu & Kashmir would you like to visit? "
+            "(For example: Maa Vaishno Devi / Katra, Srinagar & Kashmir Valley, Patnitop, or Shiv Khori)."
+        )
 
     # Phase 14.5: Single-Question Clarification Policy (Priority: 1. origin, 2. pax, 3. duration_or_dates)
     if "origin" in missing:
@@ -940,11 +973,15 @@ def _format_consolidated_reply(
     itinerary: List[Dict[str, Any]],
     infeasible_places: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
-    """Formats a concise, devotional conversational response for yatra plans."""
+    """Formats a comprehensive, devotional conversational response for yatra plans."""
     origin = req.get("origin") or (transport.get("origin") if isinstance(transport, dict) else None) or "your departure city"
     pax = max(1, req.get("pax") or 1)
-    duration = req.get("duration_days") or 4
+    duration = req.get("duration_days") or (len(itinerary) if itinerary else 4)
+    nights = max(1, duration - 1)
+    rooms = budget_engine.calculate_rooms_required(pax)
     mode = (transport.get("mode") or "train").lower()
+    mode_title = mode.title()
+    dest = req.get("destination") or "Katra"
 
     slot_cat = slot.get("category", "Normal Darshan")
     slot_date = slot.get("slot_date", "")
@@ -957,11 +994,7 @@ def _format_consolidated_reply(
             date_str = slot_date
     slot_display = f"{slot_cat} · {date_str}" if date_str else slot_cat
 
-    rooms = budget_engine.calculate_rooms_required(pax)
-    nights = max(1, duration - 1)
-    grand_total = budget_eval.get("grand_total")
-    total_str = f"₹{grand_total:,.0f}" if grand_total is not None else "Calculated at booking"
-
+    # Weather note
     weather_note = ""
     user_query = str(req.get("_last_user_text") or "").lower()
     if any(w in user_query for w in ["weather", "climate", "temperature", "temp", "cold", "forecast"]):
@@ -977,6 +1010,7 @@ def _format_consolidated_reply(
         except Exception:
             weather_note = "🌤️ **Katra Climate:** Pleasant with cool mountain evenings (15°C to 24°C). Ideal for undertaking the holy trek.\n\n"
 
+    # Accessibility note
     accessibility_note = ""
     if any(w in user_query for w in ["elderly", "senior", "parents", "wheelchair", "battery car", "palki", "pony"]):
         try:
@@ -991,33 +1025,229 @@ def _format_consolidated_reply(
         except Exception:
             pass
 
-    lines = [
-        f"{weather_note}{accessibility_note}🙏 **Jai Mata Di!** Your {duration}-day Vaishno Devi trip is ready for {pax} pilgrim{'s' if pax > 1 else ''} from {origin}.\n",
-        f"🚆 **{origin} → Katra** by {mode}",
-        f"🛕 **{slot_display}**",
-        f"🏨 **{rooms} room{'s' if rooms > 1 else ''} · {nights} night{'s' if nights > 1 else ''}**",
-        f"💰 **Estimated total:** {total_str}",
-    ]
+    # Optional compact summary mode
+    if req.get("compact_summary"):
+        grand_total = budget_eval.get("grand_total")
+        total_str = f"₹{grand_total:,.0f}" if grand_total is not None else "Calculated at booking"
+        lines = [
+            f"{weather_note}{accessibility_note}🙏 **Jai Mata Di!** Your {duration}-day Vaishno Devi trip is ready for {pax} pilgrim{'s' if pax > 1 else ''} from {origin}.\n",
+            f"🚆 **{origin} → Katra** by {mode}",
+            f"🛕 **{slot_display}**",
+            f"🏨 **{rooms} room{'s' if rooms > 1 else ''} · {nights} night{'s' if nights > 1 else ''}**",
+            f"💰 **Estimated total:** {total_str}",
+            "\nWould you like to explore your itinerary or modify anything?",
+        ]
+        return "\n".join(lines)
 
-    # Add authentic connecting transit guidance for non-hub origins
+    # -------------------------------------------------------------------------
+    # Transport Details & Cost Computation
+    # -------------------------------------------------------------------------
+    t_name = transport.get("name") or transport.get("operator") or f"{origin} to Katra {mode_title}"
+    t_op = transport.get("operator") or ("Northern Railways" if mode == "train" else ("FlixBus" if mode == "bus" else "Air Carrier"))
+    t_dep = transport.get("departure_time") or "Morning / Evening schedule"
+    t_arr = transport.get("arrival_time") or "Next morning / Afternoon"
+    t_dur = transport.get("duration_str") or (f"{transport.get('duration_hours', 12)}h" if transport.get("duration_hours") else "")
+
+    t_fare_pp = (
+        transport.get("price")
+        or transport.get("fare")
+        or transport.get("indicative_fare_min")
+        or transport.get("estimated_fare_per_person")
+        or (800.0 if mode == "train" else (650.0 if mode == "bus" else 3500.0))
+    )
+    try:
+        t_fare_pp = float(t_fare_pp)
+    except Exception:
+        t_fare_pp = 650.0
+    t_fare_rt_pp = t_fare_pp * 2.0
+    total_group_transit = t_fare_rt_pp * pax
+
+    # -------------------------------------------------------------------------
+    # Hotel Details & Cost Computation
+    # -------------------------------------------------------------------------
+    h_name = hotel.get("name", "Niharika Complex (Yatri Niwas, Shakti Bhawan & Ashirwad)") if hotel else "Niharika Complex (Yatri Niwas)"
+    h_cat = hotel.get("category", "Dharamshala") if hotel else "Dharamshala"
+    try:
+        h_rate = float((hotel.get("price_per_night") if hotel else None) or (hotel.get("price") if hotel else None) or 500.0)
+    except Exception:
+        h_rate = 500.0
+    total_hotel = rooms * nights * h_rate
+    h_addr = hotel.get("address") or hotel.get("landmark") or "Near Main Bus Stand, Katra Base"
+
+    # -------------------------------------------------------------------------
+    # Meals, Transfers, Buffer & Grand Total
+    # -------------------------------------------------------------------------
+    meals_cost = float(350.0 * pax * duration)
+    local_transfer = 1500.0 if mode == "flight" else 500.0
+    buffer_amt = 500.0
+    yatra_parchi = 0.0
+
+    grand_total_calc = total_group_transit + total_hotel + meals_cost + local_transfer + buffer_amt
+    grand_total = budget_eval.get("grand_total") if (budget_eval.get("grand_total") is not None and budget_eval.get("grand_total") > 0) else grand_total_calc
+    per_person_cost = grand_total / pax
+
+    total_budget = req.get("total_budget") or budget_eval.get("total_budget")
+    if total_budget:
+        try:
+            total_budget = float(total_budget)
+            budget_pp = total_budget / pax
+        except Exception:
+            total_budget = None
+            budget_pp = None
+    else:
+        budget_pp = None
+
+    sections = []
+
+    # -------------------------------------------------------------------------
+    # Section 1: Trip Overview
+    # -------------------------------------------------------------------------
+    overview_lines = [
+        f"{weather_note}{accessibility_note}🙏 **Jai Mata Di!** Your {duration}-day Vaishno Devi trip is ready for {pax} pilgrim{'s' if pax > 1 else ''} from {origin}.\n",
+        "### 📋 Trip Overview",
+        f"• **Destination:** Shri Mata Vaishno Devi Shrine & Katra Base Town, Jammu & Kashmir",
+        f"• **Starting Location:** {origin}",
+        f"• **Duration:** {duration} Days / {nights} Nights",
+        f"• **Travellers:** {pax} Pilgrims ({rooms} room{'s' if rooms > 1 else ''} allocated at 2 adults/room)",
+    ]
+    if total_budget:
+        overview_lines.append(f"• **Group Budget:** ₹{total_budget:,.0f} (₹{budget_pp:,.0f} per person)")
+    overview_lines.append(f"• **Darshan Category:** {slot_display}")
+    overview_lines.append(f"• **Primary Transit:** {origin} → Katra by {mode_title}")
+    overview_lines.append(f"• **Key Assumptions:** Dedicated full day for the 13 km sacred trek; {rooms} rooms for {nights} nights; balanced meal allowance of ₹350/person/day.")
+    sections.append("\n".join(overview_lines))
+
+    # -------------------------------------------------------------------------
+    # Section 2: Day-Wise Itinerary
+    # -------------------------------------------------------------------------
+    if itinerary:
+        itin_lines = ["### 📅 Day-Wise Itinerary"]
+        for day in itinerary:
+            d_num = day.get("day_number", 1)
+            d_title = day.get("title", f"Day {d_num}")
+            d_base = day.get("base_location", "Katra Base Town")
+            d_exertion = day.get("exertion_level", "Moderate")
+            itin_lines.append(f"\n#### Day {d_num}: {d_title}")
+            itin_lines.append(f"*Base: {d_base} | Exertion: {d_exertion}*")
+
+            acts = day.get("activities", [])
+            for act in acts:
+                itin_lines.append(f"• {act}")
+
+            if d_num == 1:
+                itin_lines.append(f"• 🍽️ **Meals:** Welcome refreshments upon arrival; early traditional Dogra vegetarian dinner in Katra.")
+                itin_lines.append(f"• 🏨 **Stay:** Overnight at {h_name} ({h_cat})")
+            elif d_num == 2:
+                itin_lines.append(f"• 🍽️ **Meals:** Early energizing breakfast; pure vegetarian snacks & free shrine langar along the holy trail (Himkoti & Bhawan); dinner upon descent.")
+                itin_lines.append(f"• 🏨 **Stay:** Overnight rest & recovery at {h_name} ({h_cat})")
+            elif d_num < duration:
+                itin_lines.append(f"• 🍽️ **Meals:** Leisure breakfast; traditional Dogra lunch; evening market dry fruit and souvenir stroll.")
+                itin_lines.append(f"• 🏨 **Stay:** Overnight at {h_name} ({h_cat})")
+            else:
+                itin_lines.append(f"• 🍽️ **Meals:** Morning breakfast in Katra; transit lunch / refreshments for departure journey.")
+                itin_lines.append(f"• 🚆 **Stay:** Return transit journey to {origin}")
+
+        sections.append("\n".join(itin_lines))
+
+    # -------------------------------------------------------------------------
+    # Section 3: Transport Recommendations
+    # -------------------------------------------------------------------------
+    trans_lines = [
+        f"### 🚆 Transport Recommendation ({origin} ➔ Katra)",
+        f"• **Recommended Service:** {t_name}",
+        f"• **Operator:** {t_op} | Mode: {mode_title}",
+    ]
+    if t_dep and t_arr:
+        trans_lines.append(f"• **Timings:** Departure ~{t_dep} ➔ Arrival ~{t_arr} ({t_dur})")
+    trans_lines.append(f"• **Indicative Fare:** ₹{t_fare_pp:,.0f} per person one-way (~₹{t_fare_rt_pp:,.0f} round-trip)")
+    trans_lines.append(f"• **Total Group Transport Cost:** ₹{total_group_transit:,.0f} (Round-trip for {pax} pilgrims)")
+    trans_lines.append(f"• **Local Transfers:** Katra Railway Station / Bus Stand to hotel via local auto (₹100–150 per vehicle)")
+    trans_lines.append("• **Travel Tip:** Pre-booking is recommended during festive peaks (Navratri / summer).")
+    sections.append("\n".join(trans_lines))
+
+    # Connecting transit guidance for non-hub origins
     try:
         from agents import conversation_state
         transit_info = conversation_state.get_transit_guidance_for_origin(origin)
         if transit_info and not transit_info.get("has_verified_direct") and transit_info.get("guidance_text"):
-            lines.append(f"\n📍 **Connecting Transit Guidance:** {transit_info['guidance_text']}")
+            sections.append(f"📍 **Connecting Transit Guidance:** {transit_info['guidance_text']}")
     except Exception:
         pass
 
+    # -------------------------------------------------------------------------
+    # Section 4: Accommodation Arrangements
+    # -------------------------------------------------------------------------
+    hotel_lines = [
+        "### 🏨 Accommodation Arrangements",
+        f"• **Recommended Property:** {h_name}",
+        f"• **Category:** {h_cat} | **Allocation:** {rooms} room{'s' if rooms > 1 else ''} for {nights} night{'s' if nights > 1 else ''} ({pax} guests)",
+        f"• **Tariff:** ₹{h_rate:,.0f} per room/night | **Total Stay Cost:** ₹{total_hotel:,.0f} for {nights} nights",
+        f"• **Address / Landmark:** {h_addr}",
+        "• **Curated Category Alternatives in Katra:**",
+        "  - *Pilgrim / Subsidized:* SMVDSB Yatri Niwas (Niharika, Shakti Bhawan) at ₹150–500/night",
+        "  - *Standard Hotel:* Registered Private AC Hotel (near Bus Stand) at ₹1,000–1,800/night",
+        "  - *Premium Comfort:* 3-Star / 4-Star Resort (with in-house dining) at ₹2,500–4,500/night",
+    ]
+    sections.append("\n".join(hotel_lines))
+
+    # -------------------------------------------------------------------------
+    # Section 5: Budget Breakdown & Honesty
+    # -------------------------------------------------------------------------
+    budget_lines = [
+        f"### 💰 Budget Breakdown & Cost Estimate ({pax} Pilgrims · {duration} Days)",
+        f"• 🚆 **Intercity Travel ({mode_title} Round-trip):** ₹{total_group_transit:,.0f} (~₹{t_fare_rt_pp:,.0f}/person)",
+        f"• 🏨 **Accommodation ({rooms} rooms × {nights} nights):** ₹{total_hotel:,.0f}",
+        f"• 🍽️ **Meals & Refreshments (₹350/person/day):** ₹{meals_cost:,.0f}",
+        f"• 🛺 **Local Katra Transfers:** ₹{local_transfer:,.0f}",
+        f"• 🎫 **Yatra Registration (RFID Parchi):** ₹0 (Free mandatory pilgrimage pass)",
+        f"• 🛡️ **Contingency / Emergency Buffer:** ₹{buffer_amt:,.0f}",
+        f"• 📊 **Estimated Total Group Cost:** ₹{grand_total:,.0f}",
+        f"• 👤 **Estimated Cost Per Person:** ₹{per_person_cost:,.0f}",
+    ]
+    if total_budget:
+        if grand_total <= total_budget:
+            surplus = total_budget - grand_total
+            surplus_pp = surplus / pax
+            budget_lines.append(
+                f"\n✅ **Budget Assessment (Within Budget):** Your ₹{total_budget:,.0f} group budget (₹{budget_pp:,.0f}/person) "
+                f"comfortably covers this 4-day plan with a remaining buffer of **₹{surplus:,.0f}** (₹{surplus_pp:,.0f}/person). "
+                "This surplus can be used for prasad, dry fruits shopping, or battery car/pony services on the holy trek."
+            )
+        else:
+            deficit = grand_total - total_budget
+            deficit_pp = deficit / pax
+            budget_lines.append(
+                f"\n⚠️ **Budget Honesty Assessment:** For {pax} pilgrims over {duration} days, ₹{total_budget:,.0f} works out to "
+                f"₹{budget_pp:,.0f} per person. Estimated expenses total ₹{grand_total:,.0f} (shortfall of ₹{deficit:,.0f} or ₹{deficit_pp:,.0f}/person). "
+                "To remain strictly within your budget, consider utilizing free Shrine Board langar meals and booking subsidized Shrine Board bhavans."
+            )
+    budget_lines.append("\n*Note: Fares and hotel tariffs reflect published baseline rates and standard seasonal estimates. Exact rates are confirmed at booking.*")
+    sections.append("\n".join(budget_lines))
+
+    # Infeasible places advisory
     if infeasible_places:
         inf_notes = []
         for inf in infeasible_places:
             p_name = inf.get("place", "Excursion")
             p_reason = inf.get("reason", f"cannot comfortably fit within a {duration}-day trip without physical exhaustion")
             inf_notes.append(f"{p_name} ({p_reason})")
-        lines.append(f"\n⚠️ **Sightseeing Feasibility Advisory:** {'; '.join(inf_notes)}")
+        sections.append(f"⚠️ **Sightseeing Feasibility Advisory:** {'; '.join(inf_notes)}")
 
-    lines.append("\nWould you like to explore your itinerary or modify anything?")
-    return "\n".join(lines)
+    # -------------------------------------------------------------------------
+    # Section 6: Customization & Next Steps
+    # -------------------------------------------------------------------------
+    custom_lines = [
+        "### ⚙️ Customization & Next Steps",
+        "You can easily adjust this plan! Simply reply with your preference:",
+        "• *“Switch hotel to standard private hotel”* or *“Show premium resorts”*",
+        "• *“Change travel mode to flight or train”*",
+        "• *“Add Baba Dhansar or Patnitop”* or *“Keep only Katra & Bhawan”*",
+        "• *“Adjust trip duration to 3 days”* or *“Update budget”*",
+        "• *“Confirm booking”* or *“Book Yatra Parchi”* to proceed with registration and reservations.",
+    ]
+    sections.append("\n".join(custom_lines))
+
+    return "\n\n".join(sections)
 
 
 def format_concise_edit_reply(diff: Dict[str, Any], req: Dict[str, Any], updated_plan: Dict[str, Any], new_version: int) -> str:

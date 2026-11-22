@@ -35,6 +35,35 @@ export default function TransportCard({ item, transport }) {
   const frequency = data.frequency || data.days_of_run || 'Daily Pilgrimage Service';
   const fare = data.fare || data.fareRange || null;
 
+  const resolveDataTier = (d) => {
+    if (d.dataTier) return d.dataTier;
+    if (d.is_live_telemetry || d.live_tracking_status === 'ACTIVE') return 'Live Availability';
+    if (d.is_simulated || d.is_demonstration || d.is_synthetic_test_fare || (d.mode || '').toLowerCase() === 'helicopter') {
+      return 'Demonstration Data';
+    }
+    if (d.timetable_verification?.status === 'unverified' || d.is_unverified) {
+      return 'Unavailable / Unverified';
+    }
+    return 'Indicative Estimate';
+  };
+
+  const getTierColors = (tier) => {
+    switch (tier) {
+      case 'Live Availability':
+        return { bg: '#D4EDDA', text: '#155724', border: '#C3E6CB' };
+      case 'Indicative Estimate':
+        return { bg: '#FFF3CD', text: '#856404', border: '#FFEEBA' };
+      case 'Demonstration Data':
+        return { bg: '#F8D7DA', text: '#721C24', border: '#F5C6CB' };
+      case 'Unavailable / Unverified':
+      default:
+        return { bg: '#E2E3E5', text: '#383D41', border: '#D6D8DB' };
+    }
+  };
+
+  const tier = resolveDataTier(data);
+  const tierColors = getTierColors(tier);
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
@@ -46,9 +75,9 @@ export default function TransportCard({ item, transport }) {
           </View>
         </View>
 
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>
-            {data.is_connecting ? 'Connecting Route' : (data.is_verified !== false ? 'Verified Schedule' : 'Estimated')}
+        <View style={[styles.badge, { backgroundColor: tierColors.bg, borderColor: tierColors.border }]}>
+          <Text style={[styles.badgeText, { color: tierColors.text }]}>
+            ● {tier}
           </Text>
         </View>
       </View>
@@ -90,6 +119,15 @@ export default function TransportCard({ item, transport }) {
               </Text>
             </View>
           ))}
+        </View>
+      )}
+
+      {/* Connecting Transfer Buffer Warning */}
+      {Boolean(data.is_connecting) && (
+        <View style={styles.connectingWarningBox}>
+          <Text style={styles.connectingWarningText}>
+            ⚠️ Transfer Buffer: Allow 45–60 min at Jammu GBS transfer hub. Non-interline connection.
+          </Text>
         </View>
       )}
 
@@ -277,5 +315,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 3,
+  },
+  connectingWarningBox: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 6,
+    padding: 6,
+    marginBottom: 8,
+  },
+  connectingWarningText: {
+    fontSize: 10,
+    color: '#92400E',
+    fontWeight: '600',
   },
 });

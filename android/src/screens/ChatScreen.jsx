@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { colors } from '../theme/colors';
@@ -109,6 +110,16 @@ export default function ChatScreen({ navigation, route }) {
       handleStartNewChat();
     }
   }, [route?.params?.sessionId, route?.params?.loadedAt]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    return () => sub.remove();
+  }, []);
 
   const handleStartNewChat = () => {
     const freshSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -392,6 +403,7 @@ export default function ChatScreen({ navigation, route }) {
         onLogout={handleLogout}
         user={user}
         currentSessionId={sessionId}
+        activeRoute="Assistant"
       />
 
       {/* 6. Connection & Settings Modal */}

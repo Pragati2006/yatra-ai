@@ -159,7 +159,14 @@ export default function MarkdownView({ content = '', textColor = colors.textPrim
             );
 
           case 'heading': {
-            const hStyle = block.level === 1 ? styles.h1 : block.level === 2 ? styles.h2 : styles.h3;
+            const hStyle =
+              block.level === 1
+                ? styles.h1
+                : block.level === 2
+                ? styles.h2
+                : block.level === 3
+                ? styles.h3
+                : styles.h4;
             return (
               <Text key={`h-${idx}`} style={[hStyle, { color: textColor }]}>
                 {renderInlineSpans(block.text, textColor)}
@@ -222,8 +229,8 @@ export default function MarkdownView({ content = '', textColor = colors.textPrim
 export function renderInlineSpans(text, defaultColor) {
   if (!text) return null;
 
-  // Regex matches `code`, **bold**, *italic*, [label](url)
-  const regex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
+  // Regex matches `code`, **bold**, __bold__, [label](url), *italic*, _italic_
+  const regex = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|_[^_]+_)/g;
   const parts = text.split(regex);
 
   return parts.map((part, idx) => {
@@ -238,8 +245,12 @@ export function renderInlineSpans(text, defaultColor) {
       );
     }
 
-    // Bold **text**
-    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+    // Bold **text** or __text__
+    if (
+      ((part.startsWith('**') && part.endsWith('**')) ||
+        (part.startsWith('__') && part.endsWith('__'))) &&
+      part.length > 4
+    ) {
       return (
         <Text key={idx} style={[styles.bold, { color: defaultColor }]}>
           {renderInlineSpans(part.slice(2, -2), defaultColor)}
@@ -247,8 +258,12 @@ export function renderInlineSpans(text, defaultColor) {
       );
     }
 
-    // Italic *text*
-    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+    // Italic *text* or _text_
+    if (
+      ((part.startsWith('*') && part.endsWith('*')) ||
+        (part.startsWith('_') && part.endsWith('_'))) &&
+      part.length > 2
+    ) {
       return (
         <Text key={idx} style={[styles.italic, { color: defaultColor }]}>
           {part.slice(1, -1)}
@@ -304,6 +319,12 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     marginBottom: 4,
+    marginTop: 2,
+  },
+  h4: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    marginBottom: 3,
     marginTop: 2,
   },
   bold: {

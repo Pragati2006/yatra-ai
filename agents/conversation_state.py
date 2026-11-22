@@ -215,9 +215,10 @@ INDIAN_STATE_VARIANTS = {
 
 # Stopwords that must not be mistaken for origin cities after "from"
 DESTINATION_WORDS = {
-    "katra", "vaishno devi", "mata vaishno devi", "bhawan", "sanjichhat",
+    "katra", "vaishno", "devi", "vaishno devi", "mata vaishno devi", "bhawan", "sanjichhat",
     "adhkuwari", "ardhkuwari", "bhairon ghati", "bhairavnath", "banganga",
     "charan paduka", "himkoti", "tarakote", "jammu", "patnitop", "shiv khori",
+    "srinagar", "kashmir", "gulmarg", "pahalgam",
 }
 
 ORIGIN_STOPWORDS = {
@@ -785,11 +786,25 @@ def update_conversation_state(text: str, current_state: Optional[Dict[str, Any]]
 
     # 3. Destination
     dest_val = extract_destination_location(text)
+    pilgrim_terms = (
+        "vaishno", "devi", "katra", "bhawan", "darshan", "parchi", "yatra",
+        "pilgrim", "pilgrims", "shrine", "temple", "ardhkuwari", "bhairon",
+        "mata rani", "mata", "sanctum"
+    )
+    has_pilgrim_context = any(w in text.lower() for w in pilgrim_terms)
+
     if dest_val:
         req["destination"] = dest_val
-        if dest_val != "Katra" or "vaishno" in text.lower() or "katra" in text.lower():
-            explicit_fields.add("destination")
-    elif not req.get("destination"):
+        explicit_fields.add("destination")
+    elif has_pilgrim_context:
+        req["destination"] = "Katra"
+        explicit_fields.add("destination")
+    elif req.get("destination"):
+        # Retain destination already established in conversation state
+        pass
+    elif origin_val:
+        req["destination"] = None
+    else:
         req["destination"] = "Katra"
 
     # 4. Mode
@@ -847,6 +862,10 @@ def evaluate_missing_slots(state: Dict[str, Any]) -> List[str]:
     req = state.get("requirements") or {}
     explicit = set(req.get("_explicit_fields") or [])
     missing = []
+
+    # Destination: required if explicitly None or ambiguous in trip request
+    if "destination" in req and req.get("destination") is None:
+        missing.append("destination")
 
     # Origin is strictly required for transport planning
     if not req.get("origin"):
@@ -922,6 +941,12 @@ def generate_smart_missing_prompt(missing_slots: List[str], state: Dict[str, Any
     pax_str = f"{pax} pilgrims" if pax > 1 else "solo pilgrim"
     if pax == 2:
         pax_str = "two adults"
+
+    if "destination" in missing_slots:
+        return (
+            "🙏 **Jai Mata Di!** Which destination or pilgrimage circuit in Jammu & Kashmir would you like to visit? "
+            "(For example: Maa Vaishno Devi / Katra, Srinagar & Kashmir Valley, Patnitop, or Shiv Khori)."
+        )
 
     if "origin" in missing_slots:
         explicit_pax = req.get("_pax_explicit") or ("pax" in (req.get("_explicit_fields") or []))

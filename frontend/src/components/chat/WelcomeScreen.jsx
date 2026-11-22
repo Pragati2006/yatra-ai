@@ -1,49 +1,38 @@
 import React from 'react';
-import { Compass, Building2, Sparkles, CloudSun, Train, Luggage } from 'lucide-react';
+import { Compass, Mountain, Train, MapPin, CloudSun, Calendar } from 'lucide-react';
 import YatraLogo from '../common/YatraLogo';
 
 /**
- * Modern, elegant Welcome Screen displayed when devotee begins a new conversation.
- * Clean, uncluttered, professional line icons, Cinzel serif typography,
- * deep burgundy & warm gold aesthetic. Zero emojis.
+ * Phase 8.6 Modern AI Application Welcome Experience
+ * Clean, spacious, conversational layout inspired by modern AI assistants.
+ * Palette: Royal Plum (#54152D), Champagne Taupe (#A3826C), Warm Ivory (#F7F1EB), Soft Plum (#F0E3E7).
  */
 export default function WelcomeScreen({ onSelectPrompt }) {
   const suggestedPrompts = [
     {
       icon: Compass,
       title: 'Plan my Vaishno Devi trip',
-      desc: 'Create a tailored multi-day pilgrimage with transport & itinerary',
-      query: 'Plan a comfortable two-day Vaishno Devi trip from Jammu with my family',
+      query: 'Plan a comfortable two-day Vaishno Devi pilgrimage with transport and Bhawan accommodation',
     },
     {
-      icon: Building2,
-      title: 'Find accommodation in Katra',
-      desc: 'Explore verified dharamshalas, hotels, and Shrine Board complexes',
-      query: 'Find accommodation options in Katra',
-    },
-    {
-      icon: Sparkles,
-      title: 'Darshan and Yatra Registration',
-      desc: 'RFID Yatra Access Card, Bhawan trek routes, and Aarti rituals',
-      query: 'What is the procedure for Vaishno Devi darshan and RFID registration?',
-    },
-    {
-      icon: CloudSun,
-      title: 'Check mountain weather',
-      desc: 'Live mountain temperature, forecast, and base vs Bhawan conditions',
-      query: 'Check current weather and temperature at Katra and Bhawan',
+      icon: Mountain,
+      title: 'Explore Kashmir',
+      query: 'Tell me about visiting Dal Lake, Pari Mahal, and Gulmarg in Kashmir',
     },
     {
       icon: Train,
-      title: 'Transport from Jammu & Delhi',
-      desc: 'Compare Indian Railways, JKSRTC buses, and flight transfers',
-      query: 'What are the transport options from Jammu to Katra?',
+      title: 'Find trains to Katra',
+      query: 'Find trains from Delhi to Katra including Vande Bharat Express',
     },
     {
-      icon: Luggage,
-      title: 'Yatra packing essentials',
-      desc: 'Trek footwear, winter layers, document requirements, and advisories',
-      query: 'What should we pack and carry for the Vaishno Devi pilgrimage?',
+      icon: MapPin,
+      title: 'Show nearby attractions',
+      query: 'Show verified sightseeing attractions and tourist spots around Katra and Jammu',
+    },
+    {
+      icon: CloudSun,
+      title: 'Check weather in Srinagar',
+      query: 'Check current weather, temperature, and seasonal forecast in Srinagar and Katra',
     },
   ];
 
@@ -56,56 +45,72 @@ export default function WelcomeScreen({ onSelectPrompt }) {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '2.5rem 1rem 1.5rem',
-        maxWidth: '740px',
+        padding: '3rem 1.25rem 2rem',
+        maxWidth: '720px',
         margin: '0 auto',
         width: '100%',
       }}
     >
-      {/* Brand Vector Logo with subtle spiritual elevation */}
+      {/* Brand Vector Logo */}
       <YatraLogo
-        size={64}
+        size={56}
         style={{
-          marginBottom: '1.25rem',
-          filter: 'drop-shadow(0 6px 18px rgba(88, 17, 26, 0.22))',
+          marginBottom: '1rem',
+          filter: 'drop-shadow(0 4px 12px rgba(84, 21, 45, 0.15))',
         }}
       />
 
-      {/* Suggested Heading */}
-      <h1
-        style={{
-          fontFamily: 'var(--font-serif, Cinzel, serif)',
-          fontSize: 'clamp(1.5rem, 3.2vw, 2.15rem)',
-          fontWeight: 800,
-          color: 'var(--burgundy, #58111A)',
-          lineHeight: 1.25,
-          marginBottom: '0.65rem',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Where would you like your pilgrimage to begin?
-      </h1>
-
-      {/* Supporting Description */}
-      <p
-        style={{
-          fontSize: 'clamp(0.88rem, 1.8vw, 0.98rem)',
-          color: 'var(--text-muted, #6B5C5C)',
-          maxWidth: '580px',
-          lineHeight: 1.55,
-          marginBottom: '2rem',
-        }}
-      >
-        Your unified AI-powered pilgrimage and tourism assistant. Ask about sacred Maa Vaishno Devi darshan guidance, Katra stays, multimodal travel routes, mountain elevation weather, and itemized budgets.
-      </p>
-
-      {/* Prompt Cards Grid */}
+      {/* Subtle Devotional Greeting */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '12px',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: 'var(--champagne-taupe, #A3826C)',
+          marginBottom: '0.5rem',
+        }}
+      >
+        Jai Mata Di
+      </div>
+
+      {/* Primary Heading */}
+      <h1
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'clamp(1.75rem, 3.5vw, 2.35rem)',
+          fontWeight: 700,
+          color: 'var(--royal-plum, #54152D)',
+          lineHeight: 1.2,
+          marginBottom: '0.5rem',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        Where would you like to go?
+      </h1>
+
+      {/* Supporting Text */}
+      <p
+        style={{
+          fontSize: 'clamp(0.92rem, 1.8vw, 1.02rem)',
+          color: 'var(--text-secondary, #796D69)',
+          maxWidth: '480px',
+          lineHeight: 1.5,
+          marginBottom: '2.25rem',
+        }}
+      >
+        Your journey, thoughtfully planned.
+      </p>
+
+      {/* Modern Suggestion Chips */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: '10px',
           width: '100%',
+          maxWidth: '640px',
         }}
       >
         {suggestedPrompts.map((p, idx) => {
@@ -117,67 +122,35 @@ export default function WelcomeScreen({ onSelectPrompt }) {
               data-testid={`suggested-prompt-${idx}`}
               onClick={() => onSelectPrompt(p.query)}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                textAlign: 'left',
-                background: '#FFFFFF',
-                border: '1.5px solid var(--gold-border, #E5D2AD)',
-                borderRadius: '14px',
-                padding: '14px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'var(--surface-white, #FFFCF9)',
+                border: '1px solid var(--border-default, #E9DED6)',
+                borderRadius: '999px',
+                padding: '9px 16px',
                 cursor: 'pointer',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                boxShadow: '0 2px 8px rgba(88, 17, 26, 0.03)',
+                transition: 'all 0.18s ease',
+                boxShadow: '0 1px 3px rgba(84, 21, 45, 0.04)',
+                color: 'var(--text-primary, #30272A)',
+                fontSize: '0.86rem',
+                fontWeight: 600,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--gold-primary, #B8860B)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(88, 17, 26, 0.08)';
-                e.currentTarget.style.background = '#FFFCF7';
+                e.currentTarget.style.borderColor = 'var(--champagne-taupe, #A3826C)';
+                e.currentTarget.style.background = 'var(--soft-plum-surface, #F0E3E7)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 3px 10px rgba(84, 21, 45, 0.08)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--gold-border, #E5D2AD)';
+                e.currentTarget.style.borderColor = 'var(--border-default, #E9DED6)';
+                e.currentTarget.style.background = 'var(--surface-white, #FFFCF9)';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(88, 17, 26, 0.03)';
-                e.currentTarget.style.background = '#FFFFFF';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(84, 21, 45, 0.04)';
               }}
             >
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: 'var(--gold-subtle, #F5ECDA)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--burgundy, #58111A)',
-                  marginBottom: '10px',
-                }}
-              >
-                <Icon size={18} strokeWidth={2} />
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-serif, Cinzel, serif)',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  color: 'var(--burgundy, #58111A)',
-                  marginBottom: '4px',
-                  lineHeight: 1.3,
-                }}
-              >
-                {p.title}
-              </div>
-              <div
-                style={{
-                  fontSize: '0.76rem',
-                  color: 'var(--text-muted, #6B5C5C)',
-                  lineHeight: 1.4,
-                }}
-              >
-                {p.desc}
-              </div>
+              <Icon size={15} color="var(--royal-plum, #54152D)" strokeWidth={2} />
+              <span>{p.title}</span>
             </button>
           );
         })}

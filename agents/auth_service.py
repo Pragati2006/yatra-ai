@@ -1458,7 +1458,7 @@ class AuthService:
             cursor = conn.cursor()
             # Verify ownership if booking_id already exists
             cursor.execute(
-                "SELECT user_id FROM user_bookings WHERE booking_id = ?",
+                "SELECT user_id, created_at FROM user_bookings WHERE booking_id = ?",
                 (bid,),
             )
             existing = cursor.fetchone()
@@ -1468,6 +1468,8 @@ class AuthService:
                     bid, existing[0], user_id,
                 )
                 raise PermissionError(f"Booking {bid} belongs to another user account.")
+            if existing and existing[1]:
+                created_at = existing[1]
 
             cursor.execute(
                 """

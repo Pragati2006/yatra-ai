@@ -353,6 +353,7 @@ export default function AuthModal({
 
               <button
                 type="submit"
+                data-testid="auth-verify-otp-btn"
                 disabled={loading || otpCode.length !== 6}
                 className="btn btn-primary"
                 style={{
@@ -409,6 +410,7 @@ export default function AuthModal({
               </p>
               <button
                 type="button"
+                data-testid="auth-continue-btn"
                 className="btn btn-primary"
                 onClick={handleClose}
                 style={{ padding: '0.65rem 2rem', fontSize: '0.92rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}

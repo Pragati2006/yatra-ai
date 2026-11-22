@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
@@ -133,6 +134,8 @@ export default function SettingsScreen({ navigation }) {
       <Header
         title="Settings & System"
         subtitle="Account, Preferences & Security"
+        showBack={true}
+        onBackPress={() => navigation.navigate('Assistant')}
       />
 
       <ScrollView

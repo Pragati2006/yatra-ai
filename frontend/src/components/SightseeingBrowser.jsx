@@ -68,12 +68,24 @@ export default function SightseeingBrowser({
     }
   };
 
+  const matchesCategoryHelper = (p, catId) => {
+    if (catId === 'All') return true;
+    if (p.category === catId) return true;
+    if (catId === 'Nearby temple' && p.category === 'Pilgrimage / Temple') return true;
+    if (catId === 'Nature' && ['Botanical Garden', 'National Park', 'Highland Meadow', 'Lake & Waterways'].includes(p.category)) return true;
+    if (catId === 'Nature / heritage' && ['Historic Fort', 'Heritage Palace', 'Ancient Heritage & Garden', 'Heritage Garden', 'Mughal Garden', 'Historic Garden'].includes(p.category)) return true;
+    if (catId === 'Jammu city' && (p.district === 'Jammu' || p.category === 'Jammu city')) return true;
+    if (catId === 'Kashmir' && (p.region === 'Kashmir' || p.district === 'Srinagar' || (p.category && p.category.toLowerCase().includes('kashmir')))) return true;
+    return false;
+  };
+
   // Compute category place counts
   const categoryCounts = useMemo(() => {
     const counts = { All: allPlaces.length };
-    allPlaces.forEach((p) => {
-      const cat = p.category || 'Other';
-      counts[cat] = (counts[cat] || 0) + 1;
+    CATEGORY_TABS.forEach((cat) => {
+      if (cat.id !== 'All') {
+        counts[cat.id] = allPlaces.filter((p) => matchesCategoryHelper(p, cat.id)).length;
+      }
     });
     return counts;
   }, [allPlaces]);
@@ -81,7 +93,7 @@ export default function SightseeingBrowser({
   // Filter places based on search query and selected category
   const filteredPlaces = useMemo(() => {
     return allPlaces.filter((p) => {
-      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+      const matchesCategory = matchesCategoryHelper(p, selectedCategory);
       if (!matchesCategory) return false;
 
       if (!searchQuery.trim()) return true;
@@ -89,7 +101,9 @@ export default function SightseeingBrowser({
       const nameMatch = p.name && p.name.toLowerCase().includes(q);
       const descMatch = p.description && p.description.toLowerCase().includes(q);
       const regionMatch = p.region && p.region.toLowerCase().includes(q);
-      return nameMatch || descMatch || regionMatch;
+      const districtMatch = p.district && p.district.toLowerCase().includes(q);
+      const categoryMatch = p.category && p.category.toLowerCase().includes(q);
+      return nameMatch || descMatch || regionMatch || districtMatch || categoryMatch;
     });
   }, [allPlaces, selectedCategory, searchQuery]);
 

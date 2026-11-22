@@ -22,7 +22,7 @@ export default function BookingHandoffCard({
   const bgt = message.budget_evaluation || message.plan?.budget_evaluation || chatState?.budget_evaluation || null;
 
   const pax = req?.pax || selOpt?.pax || 2;
-  const origin = req?.origin || selOpt?.origin || 'Delhi';
+  const origin = req?.origin || selOpt?.origin || 'Pending Origin';
   const mode = (req?.travel_mode || selOpt?.mode || 'Train').toUpperCase();
   const hotelName = htl?.name || 'Hotel in Katra';
   const totalAmount = bgt?.grand_total ? `₹${Math.round(bgt.grand_total).toLocaleString('en-IN')}` : null;
@@ -56,11 +56,11 @@ export default function BookingHandoffCard({
       data-testid="booking-handoff-action-card"
       style={{
         marginTop: '0.85rem',
-        background: 'linear-gradient(135deg, #FFFDF9 0%, #FAF4E8 100%)',
-        border: '1.5px solid var(--gold-primary, #B8860B)',
+        background: 'var(--surface-white, #FFFCF9)',
+        border: '1.5px solid var(--border-default, #E9DED6)',
         borderRadius: '14px',
         padding: '14px 16px',
-        boxShadow: '0 4px 16px rgba(184, 134, 11, 0.12)',
+        boxShadow: '0 2px 10px rgba(84, 21, 45, 0.05)',
       }}
     >
       <div
@@ -74,19 +74,19 @@ export default function BookingHandoffCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Ticket size={20} color="var(--burgundy)" />
+          <Ticket size={20} color="var(--royal-plum, #54152D)" />
           <div>
             <div
               style={{
-                fontFamily: 'var(--font-serif, Cinzel, serif)',
-                fontWeight: 800,
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
                 fontSize: '0.92rem',
-                color: 'var(--burgundy, #58111A)',
+                color: 'var(--royal-plum, #54152D)',
               }}
             >
-              Sacred Yatra Booking Handoff
+              Yatra Booking Handoff
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6B5C5C)' }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #796D69)' }}>
               Your trip details have been organized. Review options before human authorization.
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import YatraLogo from './YatraLogo';
@@ -22,11 +22,15 @@ export default function Header({
 }) {
   const insets = useSafeAreaInsets();
   const handleSettings = onOpenSettings || onSettingsPress;
-  const topPadding = Math.max(insets.top, 8) + 4;
+  const topPadding = Platform.OS === 'android' ? 6 : Math.max(insets.top, 8);
 
   return (
     <View style={[styles.container, { paddingTop: topPadding }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={colors.surfaceWhite}
+        translucent={false}
+      />
       <View style={styles.topRow}>
         {/* Left Action: Back button OR Hamburger Menu button */}
         {showBack && onBackPress ? (
@@ -116,7 +120,7 @@ export default function Header({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surfaceWhite,
-    paddingBottom: 10,
+    paddingBottom: 8,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderDefault,
@@ -130,6 +134,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 40,
   },
   navButton: {
     width: 36,
@@ -165,6 +170,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     marginLeft: 8,
     flex: 1,
+    justifyContent: 'center',
   },
   titleRow: {
     flexDirection: 'row',
@@ -175,6 +181,7 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     fontWeight: '800',
     letterSpacing: 0.6,
+    lineHeight: 19,
   },
   statusDot: {
     width: 7,
@@ -187,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '600',
     letterSpacing: 0.2,
+    marginTop: 1,
   },
   actionsRow: {
     flexDirection: 'row',

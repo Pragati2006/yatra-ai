@@ -24,14 +24,18 @@ CANONICAL_PLACES = {
     "bhairavnath": "Bhairavnath Temple",
     "bhairavnath temple": "Bhairavnath Temple",
     "ardhkuwari": "Ardhkuwari Cave",
+    "ardh kuwari": "Ardhkuwari Cave",
     "ardhkuwari cave": "Ardhkuwari Cave",
     "garbh joon": "Ardhkuwari Cave",
+    "garbhjoon": "Ardhkuwari Cave",
     "charan paduka": "Charan Paduka",
     "nau devi": "Nau Devi Cave Temple",
+    "nav devi": "Nau Devi Cave Temple",
     "nau devi cave temple": "Nau Devi Cave Temple",
     "baba dhansar": "Baba Dhansar",
     "jhajjar kotli": "Jhajjar Kotli",
     "patnitop": "Patnitop",
+    "patni top": "Patnitop",
     "sanasar": "Sanasar",
     "mansar": "Mansar Lake",
     "mansar lake": "Mansar Lake",
@@ -39,10 +43,14 @@ CANONICAL_PLACES = {
     "raghunath temple": "Raghunath Temple, Jammu",
     "bahu fort": "Bahu Fort & Bagh-e-Bahu",
     "bagh-e-bahu": "Bahu Fort & Bagh-e-Bahu",
+    "bagh e bahu": "Bahu Fort & Bagh-e-Bahu",
+    "baghe bahu": "Bahu Fort & Bagh-e-Bahu",
     "amar mahal": "Amar Mahal Palace",
     "ban ganga": "Ban Ganga",
     "himkoti": "Himkoti",
+    "him koti": "Himkoti",
     "dera baba banda": "Dera Baba Banda Bahadur",
+    "dera baba banda bahadur": "Dera Baba Banda Bahadur",
     "shiv khori": "Shiv Khori",
     "peer kho": "Peer Kho Cave Temple",
     "sightseeing": "Sightseeing",
@@ -51,8 +59,14 @@ CANONICAL_PLACES = {
     "mubarak mandi": "Mubarak Mandi Palace",
     "mubarak mandi palace": "Mubarak Mandi Palace",
     "chashma shahi": "Chashma Shahi",
+    "chashmashahi": "Chashma Shahi",
+    "chashme shahi": "Chashma Shahi",
+    "cheshma shahi": "Chashma Shahi",
     "pari mahal": "Pari Mahal",
+    "parimahal": "Pari Mahal",
+    "parimal": "Pari Mahal",
     "tulip garden": "Tulip Garden",
+    "srinagar tulip garden": "Tulip Garden",
     "dachigam": "Dachigam National Park",
     "dachigam national park": "Dachigam National Park",
     "hari parbat fort": "Hari Parbat Fort",
@@ -60,10 +74,12 @@ CANONICAL_PLACES = {
     "badamwari": "Badamwari",
     "botanical garden": "Botanical Garden",
     "nigeen lake": "Nigeen Lake",
+    "nagin lake": "Nigeen Lake",
     "machail mata": "Machail Mata",
     "sinthan top": "Sinthan Top",
     "kishtwar national park": "Kishtwar National Park",
     "chowgan": "Chowgan",
+    "kishtwar chowgan": "Chowgan",
 }
 
 
@@ -852,6 +868,11 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
         t_transfer = "Scenic taxi transfer from Jammu Airport to Katra base town (~1.5–2 hrs via NH-44)"
         t_time = "~1.5–2 hrs road transfer from Jammu"
         t_cost = "₹1,300–2,500 private cab (Estimated)"
+    elif mode == "bus":
+        t_summary = f"Travel by Bus via {operator} ({transport_no}) departing at {dep_time} from {origin} to Katra"
+        t_transfer = "Direct arrival at Katra Bus Stand and transfer to hotel"
+        t_time = "~15–20 mins local transfer to Katra hotel"
+        t_cost = "Included in bus ticket; local auto ₹100–150"
     else:
         t_summary = f"Travel by Train via {operator} ({transport_no}) departing at {dep_time} from {origin} to Shri Mata Vaishno Devi Katra"
         t_transfer = "Direct arrival at Shri Mata Vaishno Devi Katra railway station and transfer to hotel"
@@ -1072,6 +1093,10 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
             dep_summary = f"Taxi transfer to Jammu Airport and return flight to {origin}"
             dep_time_est = "~1.5–2 hrs road transfer to Jammu Airport"
             dep_cost_est = "₹1,300–2,000 private sedan (Estimated)"
+        elif mode == "bus":
+            dep_summary = f"Transfer to Katra Bus Stand and return journey to {origin} by Bus"
+            dep_time_est = "15–20 mins to Katra Bus Stand"
+            dep_cost_est = "Included in bus ticket; local auto ₹100–150"
         else:
             dep_summary = f"Transfer to Katra Railway Station and return journey to {origin} by Train"
             dep_time_est = "15–20 mins to Katra railway station"

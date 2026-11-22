@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Send, Globe, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Mic, Square, Send, Globe, AlertCircle, CheckCircle2, Loader2, Calendar, Plus, ArrowUp } from 'lucide-react';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'en-IN', label: 'English (India)', native: 'English' },
@@ -301,92 +301,160 @@ export default function MessageComposer({
         </div>
       )}
 
-      {/* Main Composer Box */}
+      {/* Floating Modern AI Composer Container */}
       <div
         style={{
-          background: '#FFFFFF',
+          background: 'var(--surface-white, #FFFCF9)',
           border: `1.5px solid ${
             micState === 'listening'
-              ? '#C0392B'
+              ? 'var(--status-error, #C75A60)'
               : isFocused
-              ? 'var(--gold-primary, #B8860B)'
-              : 'var(--gold-border, #E5D2AD)'
+              ? 'var(--royal-plum, #54152D)'
+              : 'var(--border-default, #E9DED6)'
           }`,
-          borderRadius: '20px',
-          padding: '10px 14px',
-          boxShadow:
-            micState === 'listening'
-              ? '0 0 16px rgba(192, 57, 43, 0.25)'
-              : isFocused
-              ? '0 0 0 3px rgba(184, 134, 11, 0.16), 0 4px 20px rgba(88, 17, 26, 0.08)'
-              : '0 4px 20px rgba(88, 17, 26, 0.06)',
+          borderRadius: '24px',
+          padding: '8px 14px 10px 14px',
+          boxShadow: isFocused
+            ? '0 0 0 3px rgba(84, 21, 45, 0.08), 0 6px 20px rgba(84, 21, 45, 0.06)'
+            : '0 4px 16px rgba(84, 21, 45, 0.04)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+          gap: '6px',
+          transition: 'all 0.2s ease',
           colorScheme: 'light',
         }}
       >
-        {/* High-Contrast Multiline Textarea */}
-        <textarea
-          ref={textareaRef}
-          id="chat-user-input"
-          data-testid="chat-user-input"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholder={micState === 'listening' ? `Listening in ${activeLang.label}... speak now` : placeholder}
-          disabled={loading}
-          rows={1}
-          style={{
-            width: '100%',
-            border: 'none',
-            outline: 'none',
-            resize: 'none',
-            minHeight: '44px',
-            maxHeight: '130px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: '0.96rem',
-            lineHeight: 1.5,
-            color: '#1A0407',
-            background: '#FFFFFF',
-            padding: '6px 8px',
-            caretColor: 'var(--burgundy, #58111A)',
-            boxSizing: 'border-box',
-          }}
-          aria-label="Ask Yatra AI"
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Quick Action (+) button (Preserves data-testid="composer-calendar-btn") */}
+          <button
+            type="button"
+            data-testid="composer-calendar-btn"
+            onClick={() => {
+              if (onSend) {
+                onSend("Change my travel date to 27 November");
+              }
+            }}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'var(--secondary-bg, #F2EAE4)',
+              border: '1px solid var(--border-default, #E9DED6)',
+              color: 'var(--royal-plum, #54152D)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            title="Travel Options & Dates"
+            aria-label="Options"
+          >
+            <Plus size={16} strokeWidth={2.4} />
+          </button>
 
-        {/* Primary Controls Row: Language Pill + Mic Button + Send Button */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderTop: '1px solid var(--border-subtle, #EBE1D0)',
-            paddingTop: '8px',
-            marginTop: '2px',
-            flexWrap: 'wrap',
-            gap: '8px',
-          }}
-        >
-          {/* Left: Language Selection */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                color: 'var(--burgundy, #58111A)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              <Globe size={14} strokeWidth={2} />
-              <span className="hide-on-mobile">Voice:</span>
-            </span>
+          {/* Multiline Textarea */}
+          <textarea
+            ref={textareaRef}
+            id="chat-user-input"
+            data-testid="chat-user-input"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={micState === 'listening' ? `Listening in ${activeLang.label}... speak now` : placeholder}
+            disabled={loading}
+            rows={1}
+            style={{
+              flex: 1,
+              width: '100%',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              minHeight: '38px',
+              maxHeight: '130px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.96rem',
+              lineHeight: 1.5,
+              color: 'var(--text-primary, #30272A)',
+              background: 'transparent',
+              padding: '6px 4px',
+              caretColor: 'var(--royal-plum, #54152D)',
+              boxSizing: 'border-box',
+            }}
+            aria-label="Ask Yatra AI"
+          />
+
+          {/* Voice Input Button */}
+          <button
+            type="button"
+            id="composer-mic-btn"
+            data-testid="composer-mic-btn"
+            onClick={toggleListening}
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: micState === 'listening' ? 'var(--status-error, #C75A60)' : 'var(--secondary-bg, #F2EAE4)',
+              border: `1px solid ${micState === 'listening' ? 'transparent' : 'var(--border-default, #E9DED6)'}`,
+              color: micState === 'listening' ? '#FFFFFF' : 'var(--royal-plum, #54152D)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            title={
+              !isSupported
+                ? 'Voice recognition not supported in this browser'
+                : micState === 'listening'
+                ? 'Listening... Click to stop voice input'
+                : `Voice Input: Click to speak in ${activeLang.label}`
+            }
+            aria-label={micState === 'listening' ? 'Stop voice listening' : 'Voice Input: Click to speak'}
+          >
+            {micState === 'listening' ? <Square size={13} fill="#FFFFFF" /> : <Mic size={16} strokeWidth={2.2} />}
+          </button>
+
+          {/* Royal Plum Circular Send Button with Clean Arrow-Up */}
+          <button
+            type="button"
+            id="chat-send-btn"
+            data-testid="chat-send-btn"
+            onClick={() => handleSubmit()}
+            disabled={loading || !inputValue.trim()}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: loading || !inputValue.trim() ? 'var(--secondary-bg, #F2EAE4)' : 'var(--royal-plum, #54152D)',
+              border: 'none',
+              color: loading || !inputValue.trim() ? 'var(--text-muted, #A39994)' : '#FFFFFF',
+              cursor: loading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.18s ease',
+              boxShadow: !inputValue.trim() ? 'none' : '0 2px 8px rgba(84, 21, 45, 0.25)',
+            }}
+            aria-label="Send message"
+          >
+            {loading ? (
+              <span className="spinner" style={{ width: '13px', height: '13px', borderWidth: '2px', display: 'inline-block' }} />
+            ) : (
+              <ArrowUp size={18} strokeWidth={2.4} />
+            )}
+          </button>
+        </div>
+
+        {/* Subtle Bottom Metadata Row: Language Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', fontSize: '0.74rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary, #796D69)' }}>
+            <Globe size={13} strokeWidth={2} />
             <select
               id="composer-lang-select"
               data-testid="composer-lang-select"
@@ -394,13 +462,11 @@ export default function MessageComposer({
               onChange={(e) => setSelectedLang(e.target.value)}
               disabled={micState === 'listening'}
               style={{
-                fontSize: '0.76rem',
-                padding: '4px 8px',
-                borderRadius: '8px',
-                border: '1px solid var(--gold-border, #E5D2AD)',
-                background: 'var(--bg-subtle, #F8F4EC)',
-                color: 'var(--burgundy, #58111A)',
-                fontWeight: 700,
+                fontSize: '0.74rem',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--royal-plum, #54152D)',
+                fontWeight: 600,
                 outline: 'none',
                 cursor: 'pointer',
               }}
@@ -414,97 +480,9 @@ export default function MessageComposer({
               ))}
             </select>
           </div>
-
-          {/* Right: Direct Microphone & Send Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Desktop keyboard hint */}
-            <span
-              className="hide-on-mobile"
-              style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6B5C5C)', marginRight: '4px' }}
-            >
-              Press Enter to send
-            </span>
-
-            {/* Recognizable Voice Input Button */}
-            <button
-              type="button"
-              id="composer-mic-btn"
-              data-testid="composer-mic-btn"
-              onClick={toggleListening}
-              style={{
-                background: micState === 'listening' ? '#C0392B' : 'var(--gold-subtle, #F5ECDA)',
-                border: `1.5px solid ${micState === 'listening' ? '#962D22' : 'var(--gold-border, #E5D2AD)'}`,
-                color: micState === 'listening' ? '#FFFFFF' : 'var(--burgundy, #58111A)',
-                borderRadius: '999px',
-                padding: '6px 14px',
-                fontSize: '0.82rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                minHeight: '36px',
-                transition: 'all 0.2s ease',
-                boxShadow: micState === 'listening' ? '0 0 10px rgba(192, 57, 43, 0.4)' : 'none',
-              }}
-              title={
-                !isSupported
-                  ? 'Voice recognition not supported in this browser'
-                  : micState === 'listening'
-                  ? 'Listening... Click to stop voice input'
-                  : `Voice Input: Click to speak in ${activeLang.label}`
-              }
-              aria-label={micState === 'listening' ? 'Stop voice listening' : 'Voice Input: Click to speak'}
-            >
-              {micState === 'listening' ? (
-                <>
-                  <Square size={14} fill="#FFFFFF" />
-                  <span>Listening...</span>
-                </>
-              ) : (
-                <>
-                  <Mic size={15} strokeWidth={2.2} />
-                  <span>Voice Input</span>
-                </>
-              )}
-            </button>
-
-            {/* Send Button */}
-            <button
-              type="button"
-              id="chat-send-btn"
-              data-testid="chat-send-btn"
-              onClick={() => handleSubmit()}
-              disabled={loading || !inputValue.trim()}
-              className="btn btn-primary"
-              style={{
-                padding: '6px 18px',
-                fontSize: '0.84rem',
-                fontWeight: 800,
-                borderRadius: '999px',
-                minHeight: '36px',
-                gap: '6px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              aria-label="Send message"
-            >
-              {loading ? (
-                <>
-                  <span
-                    className="spinner"
-                    style={{ width: '13px', height: '13px', borderWidth: '2px', display: 'inline-block' }}
-                  />
-                  <span>Thinking...</span>
-                </>
-              ) : (
-                <>
-                  <span>Send</span>
-                  <Send size={14} strokeWidth={2.2} />
-                </>
-              )}
-            </button>
-          </div>
+          <span className="hide-on-mobile" style={{ color: 'var(--text-muted, #A39994)', fontSize: '0.72rem' }}>
+            Yatra AI provides pilgrimage guidance · Verify train &amp; darshan bookings
+          </span>
         </div>
       </div>
     </div>

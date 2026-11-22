@@ -1,14 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
 import ChatHeader from './components/chat/ChatHeader';
 import HistoryDrawer from './components/chat/HistoryDrawer';
 import AIChat from './components/AIChat';
-import YatraBooking from './pages/YatraBooking';
-import SightseeingBrowser from './components/SightseeingBrowser';
-import SettingsView from './components/SettingsView';
 import LandingScreen from './components/LandingScreen';
-import AuthModal from './components/AuthModal';
-import SavedTripsModal from './components/SavedTripsModal';
+
+// Route-level and screen-level code-splitting for high-performance initial loading
+const YatraBooking = lazy(() => import('./pages/YatraBooking'));
+const SightseeingBrowser = lazy(() => import('./components/SightseeingBrowser'));
+const WeatherView = lazy(() => import('./components/WeatherView'));
+const AccommodationView = lazy(() => import('./components/AccommodationView'));
+const TransportView = lazy(() => import('./components/TransportView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
+const SavedTripsModal = lazy(() => import('./components/SavedTripsModal'));
+
+function ViewLoadingFallback({ label = 'Loading...' }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '3rem 1.5rem',
+        color: 'var(--royal-plum, #54152D)',
+        minHeight: '220px',
+      }}
+    >
+      <div
+        style={{
+          width: '28px',
+          height: '28px',
+          border: '3px solid var(--border-default, #E9DED6)',
+          borderTopColor: 'var(--royal-plum, #54152D)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+          marginBottom: '10px',
+        }}
+      />
+      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary, #796D69)' }}>
+        {label}
+      </span>
+    </div>
+  );
+}
 import {
   getAuthMe,
   logout,
@@ -411,14 +447,16 @@ export default function App() {
                 <span>Return to Yatra AI Companion</span>
               </button>
             </div>
-            <YatraBooking
-              initialSearchParams={bookingParams}
-              currentUser={currentUser}
-              onRequireAuth={() => setShowAuthModal(true)}
-              onReturnHome={() => {
-                setActiveTab('assistant');
-              }}
-            />
+            <Suspense fallback={<ViewLoadingFallback label="Loading Booking Experience..." />}>
+              <YatraBooking
+                initialSearchParams={bookingParams}
+                currentUser={currentUser}
+                onRequireAuth={() => setShowAuthModal(true)}
+                onReturnHome={() => {
+                  setActiveTab('assistant');
+                }}
+              />
+            </Suspense>
           </div>
         )}
 
@@ -444,31 +482,80 @@ export default function App() {
                 <span>Return to Yatra AI Companion</span>
               </button>
             </div>
-            <SightseeingBrowser
-              isStandalone={true}
-              onExplorePlace={handleExplorePlaceQuery}
-              onPlanYatra={(selectedPlaces) => {
-                handleStartBooking({
-                  sightseeing_choice: 'custom',
-                  sightseeing_places: selectedPlaces,
-                });
-              }}
-              onBack={() => {
-                setActiveTab('assistant');
-              }}
-            />
+            <Suspense fallback={<ViewLoadingFallback label="Loading Sightseeing Catalog..." />}>
+              <SightseeingBrowser
+                isStandalone={true}
+                onExplorePlace={handleExplorePlaceQuery}
+                onPlanYatra={(selectedPlaces) => {
+                  handleStartBooking({
+                    sightseeing_choice: 'custom',
+                    sightseeing_places: selectedPlaces,
+                  });
+                }}
+                onBack={() => {
+                  setActiveTab('assistant');
+                }}
+              />
+            </Suspense>
+          </div>
+        )}
+
+        {/* 3b. Dedicated Weather View */}
+        {activeTab === 'weather' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <Suspense fallback={<ViewLoadingFallback label="Loading Elevation Forecasts..." />}>
+              <WeatherView
+                onReturnToAssistant={() => setActiveTab('assistant')}
+              />
+            </Suspense>
+          </div>
+        )}
+
+        {/* 3c. Dedicated Accommodation & Bhawans View */}
+        {activeTab === 'accommodation' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <Suspense fallback={<ViewLoadingFallback label="Loading Shrine Accommodations..." />}>
+              <AccommodationView
+                onReturnToAssistant={() => setActiveTab('assistant')}
+                onBookAccommodation={(hotel) => {
+                  handleStartBooking({
+                    accommodation_choice: 'custom',
+                    selected_hotel: hotel,
+                  });
+                }}
+              />
+            </Suspense>
+          </div>
+        )}
+
+        {/* 3d. Dedicated Transport & Schedules View */}
+        {activeTab === 'transport' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <Suspense fallback={<ViewLoadingFallback label="Loading Transport Schedules..." />}>
+              <TransportView
+                onReturnToAssistant={() => setActiveTab('assistant')}
+                onBookTransport={(tr) => {
+                  handleStartBooking({
+                    transport_choice: 'custom',
+                    selected_transport: tr,
+                  });
+                }}
+              />
+            </Suspense>
           </div>
         )}
 
         {/* 4. Dedicated Settings & Account Management View */}
         {activeTab === 'settings' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <SettingsView
-              user={currentUser}
-              onOpenAuthModal={() => setShowAuthModal(true)}
-              onLogout={handleLogout}
-              onReturnToAssistant={() => setActiveTab('assistant')}
-            />
+            <Suspense fallback={<ViewLoadingFallback label="Loading Settings..." />}>
+              <SettingsView
+                user={currentUser}
+                onOpenAuthModal={() => setShowAuthModal(true)}
+                onLogout={handleLogout}
+                onReturnToAssistant={() => setActiveTab('assistant')}
+              />
+            </Suspense>
           </div>
         )}
       </main>
@@ -479,53 +566,79 @@ export default function App() {
         onClose={() => setIsHistoryOpen(false)}
         onSelectConversation={handleOpenConversation}
         onStartNewChat={handleStartFreshChat}
+        onNavigate={(tab) => {
+          setHasStartedJourney(true);
+          sessionStorage.setItem('yatra_has_started', 'true');
+          if (tab === 'booking') {
+            setHasMountedBooking(true);
+            setActiveTab('booking');
+          } else {
+            setActiveTab(tab);
+          }
+          setIsHistoryOpen(false);
+        }}
+        activeTab={activeTab}
         user={currentUser}
         onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenSettings={() => {
+          setHasStartedJourney(true);
+          setActiveTab('settings');
+          setIsHistoryOpen(false);
+        }}
+        onLogout={handleLogout}
         activeSessionId={activeConversation?.conversation_id || null}
       />
 
       {/* Passwordless Email Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={async (user, token) => {
-          setCurrentUser(user);
-          if (token) setAuthToken(token);
-          try {
-            const guestConvs = getLocalGuestConversations();
-            if (guestConvs && guestConvs.length > 0) {
-              for (const gc of guestConvs) {
-                if (gc.messages && gc.messages.length > 0) {
-                  await saveConversation(
-                    gc.title || 'Saved Journey',
-                    gc.messages,
-                    gc.conversation_id,
-                    gc.trip_request,
-                    gc.itinerary
-                  );
+      {showAuthModal && (
+        <Suspense fallback={null}>
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            onAuthSuccess={async (user, token) => {
+              setCurrentUser(user);
+              if (token) setAuthToken(token);
+              try {
+                const guestConvs = getLocalGuestConversations();
+                if (guestConvs && guestConvs.length > 0) {
+                  for (const gc of guestConvs) {
+                    if (gc.messages && gc.messages.length > 0) {
+                      await saveConversation(
+                        gc.title || 'Saved Journey',
+                        gc.messages,
+                        gc.conversation_id,
+                        gc.trip_request,
+                        gc.itinerary
+                      );
+                    }
+                  }
+                  clearLocalGuestConversations();
                 }
+              } catch (err) {
+                console.debug('Silent error migrating guest conversations on login:', err);
               }
-              clearLocalGuestConversations();
-            }
-          } catch (err) {
-            console.debug('Silent error migrating guest conversations on login:', err);
-          }
-        }}
-      />
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Authenticated User Saved Trips Modal (Account, Bookings, Itineraries, Conversations) */}
-      <SavedTripsModal
-        isOpen={showSavedTripsModal}
-        onClose={() => setShowSavedTripsModal(false)}
-        user={currentUser}
-        onLoadItinerary={(itineraryData) => {
-          setBookingParams(itineraryData);
-          setHasMountedBooking(true);
-          setActiveTab('booking');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        onLoadConversation={handleOpenConversation}
-      />
+      {showSavedTripsModal && (
+        <Suspense fallback={null}>
+          <SavedTripsModal
+            isOpen={showSavedTripsModal}
+            onClose={() => setShowSavedTripsModal(false)}
+            user={currentUser}
+            onLoadItinerary={(itineraryData) => {
+              setBookingParams(itineraryData);
+              setHasMountedBooking(true);
+              setActiveTab('booking');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onLoadConversation={handleOpenConversation}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

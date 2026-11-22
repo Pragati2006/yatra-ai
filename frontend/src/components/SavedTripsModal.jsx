@@ -10,8 +10,9 @@ import {
   getUserProfile,
   transferConversation,
   transferTrip,
+  fetchBookingPdf,
 } from '../services/api';
-import { generatePilgrimPassPDF } from '../utils/pdfGenerator';
+import { downloadPilgrimPassPDF } from '../utils/pdfGenerator';
 
 export default function SavedTripsModal({
   isOpen,
@@ -326,7 +327,7 @@ export default function SavedTripsModal({
                     const slotTimeDesc = b.slot_time || 'Morning Slot (06:00)';
 
                     const handleDownloadCardPDF = () => {
-                      generatePilgrimPassPDF(b, {
+                      downloadPilgrimPassPDF(b, {
                         option: {
                           transport: { name: transportDesc, mode: b.transport_mode || 'Train' },
                           slot: { category: b.category, slot_date: b.slot_date, slot_time: slotTimeDesc }
@@ -335,7 +336,7 @@ export default function SavedTripsModal({
                         pax: b.pax_count,
                         origin: originRoute,
                         total_price: b.total_price,
-                      });
+                      }, { fetchPdf: fetchBookingPdf });
                     };
 
                     const handlePrintCardPass = () => {
@@ -932,7 +933,7 @@ export default function SavedTripsModal({
                 <button
                   type="button"
                   data-testid="modal-download-pass-btn"
-                  onClick={() => generatePilgrimPassPDF(selectedPass, {
+                  onClick={() => downloadPilgrimPassPDF(selectedPass, {
                     option: {
                       transport: { name: selectedPass.transport_info, mode: selectedPass.transport_mode },
                       slot: { category: selectedPass.category, slot_date: selectedPass.slot_date, slot_time: selectedPass.slot_time }
@@ -941,7 +942,7 @@ export default function SavedTripsModal({
                     pax: selectedPass.pax_count,
                     origin: selectedPass.receipt?.origin || 'Not specified',
                     total_price: selectedPass.total_price,
-                  })}
+                  }, { fetchPdf: fetchBookingPdf })}
                   style={{
                     background: 'linear-gradient(135deg, #155724 0%, #0d3817 100%)',
                     color: '#FFFFFF',

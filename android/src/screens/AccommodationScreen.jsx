@@ -123,6 +123,8 @@ export default function AccommodationScreen({ navigation }) {
       <Header
         title="Pilgrim Accommodation"
         subtitle="Bhawans, Ashrams & Hotels"
+        showBack={true}
+        onBackPress={() => navigation.navigate('Assistant')}
       />
 
       <View style={styles.filterBar}>

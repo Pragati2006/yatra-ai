@@ -132,6 +132,8 @@ export default function TourismScreen({ navigation }) {
       <Header
         title="Holy Pilgrimage Sites"
         subtitle="Mata Vaishno Devi Circuit"
+        showBack={true}
+        onBackPress={() => navigation.navigate('Assistant')}
       />
 
       <View style={styles.searchSection}>

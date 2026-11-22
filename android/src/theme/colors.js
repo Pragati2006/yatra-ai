@@ -1,69 +1,88 @@
 /**
- * Yatra AI Design System — Color Palette
- * Matches official Yatra AI Web Identity & Accessible Mobile UI:
- * Primary: Deep Sacred Burgundy (#71152C)
- * Background: Warm Ivory (#FAF7F0)
- * Surface / Cards: Crisp White (#FFFFFF)
- * Accents: Muted Temple Gold (#C18A00) & Deep Dark Gold Text (#805900)
- * Typography: High contrast charcoal brown (#302329) & warm slate (#65575B)
- * Fully compliant with WCAG AA (4.5:1 for normal text, 3:1 for large text/components).
+ * Yatra AI Design System — Phase 8.6 Color Palette
+ * Official Theme: ROYAL PLUM + CHAMPAGNE TAUPE
+ * Clean, flat, modern UI surfaces inspired by ChatGPT & Gemini.
+ * Primary: Royal Plum (#54152D)
+ * Secondary: Champagne Taupe (#A3826C)
+ * Background: Warm Ivory (#F7F1EB) & Surface White (#FFFCF9)
+ * User Bubble / Accent: Soft Plum (#F0E3E7)
+ * Text: Primary (#30272A), Secondary (#796D69), Muted (#A39994)
+ * Borders: Default (#E9DED6), Subtle (#F0E8E2)
  */
 
 export const colors = {
-  // Brand Primary (Sacred Burgundy)
-  primary: '#71152C',
-  primaryDark: '#4E0B1B',
-  primaryLight: '#8F1D38',
-  primarySubtle: '#F6EBEB',
-  burgundy: '#71152C',
-  burgundyDark: '#4E0B1B',
-  burgundyLight: '#8F1D38',
-  burgundySubtle: '#F6EBEB',
+  // Official Primary: Royal Plum Palette
+  primary: '#54152D',
+  primaryDark: '#3D1022',
+  primaryLight: '#71364D',
+  primarySubtle: '#F0E3E7',
+  royalPlum: '#54152D',
+  deepPlum: '#3D1022',
+  mutedPlum: '#71364D',
 
-  // Temple Gold & Accents
-  gold: '#C18A00',
-  goldLight: '#D4AF37',
-  goldDark: '#805900',
-  goldText: '#805900',
-  goldBorder: '#D8C7A0',
-  goldSubtle: '#F5EFE6',
-  ochre: '#C97A1E',
-  saffron: '#FF9933',
+  // Backward-compatible aliases for components referencing burgundy
+  burgundy: '#54152D',
+  burgundyDark: '#3D1022',
+  burgundyLight: '#71364D',
+  burgundySubtle: '#F0E3E7',
 
-  // Backgrounds & Surfaces
-  background: '#FAF7F0',
-  bgMain: '#FAF7F0',
-  surface: '#FFFFFF',
-  bgCard: '#FFFFFF',
-  surfaceSecondary: '#F3ECE0',
-  bgSubtle: '#F3ECE0',
-  bgDark: '#1A0407',
+  // Official Secondary: Champagne Taupe Palette
+  secondary: '#A3826C',
+  champagneTaupe: '#A3826C',
+  softChampagne: '#D7C2B2',
+  warmBeige: '#E9DCD1',
 
-  // Text & Typography (WCAG AA Compliant)
-  text: '#302329',
-  textPrimary: '#302329',
-  textSecondary: '#65575B',
-  textMuted: '#7A6C70',
-  textLight: '#7A6C70',
-  textPlaceholder: '#7A6C70',
+  // Backward-compatible aliases for components referencing gold
+  gold: '#A3826C',
+  goldLight: '#D7C2B2',
+  goldDark: '#71364D',
+  goldText: '#54152D',
+  goldBorder: '#E9DED6',
+  goldSubtle: '#F0E3E7',
+  ochre: '#C28B42',
+  saffron: '#A3826C',
+
+  // Official Backgrounds & Clean Surfaces
+  background: '#F7F1EB',
+  bgMain: '#F7F1EB',
+  warmIvory: '#F7F1EB',
+  surface: '#FFFCF9',
+  surfaceWhite: '#FFFCF9',
+  bgCard: '#FFFCF9',
+  surfaceSecondary: '#F2EAE4',
+  secondaryBackground: '#F2EAE4',
+  bgSubtle: '#F2EAE4',
+  softPlumSurface: '#F0E3E7',
+  softPlum: '#F0E3E7',
+  bgDark: '#3D1022',
+
+  // Official Text & Typography (WCAG AA Compliant)
+  text: '#30272A',
+  textPrimary: '#30272A',
+  textSecondary: '#796D69',
+  textMuted: '#A39994',
+  textLight: '#A39994',
+  textPlaceholder: '#A39994',
   textWhite: '#FFFFFF',
   textOnBurgundy: '#FFFFFF',
-  textOnGold: '#302329',
+  textOnGold: '#30272A',
 
-  // Status & Feedback
-  success: '#0F766E',
-  successSubtle: '#ECFDF5',
-  warning: '#B45309',
-  warningSubtle: '#FEF3C7',
-  danger: '#B91C1C',
-  dangerSubtle: '#FEF2F2',
-  error: '#B91C1C',
-  info: '#1D4ED8',
-  infoSubtle: '#EFF6FF',
+  // Official Status & Feedback
+  success: '#3E876C',
+  successSubtle: '#E8F5EE',
+  warning: '#C28B42',
+  warningSubtle: '#FAF2E6',
+  danger: '#C75A60',
+  dangerSubtle: '#FAEBEC',
+  error: '#C75A60',
+  info: '#8A6A91',
+  infoSubtle: '#F4EFF6',
 
-  // Borders & Dividers
-  border: '#D8C7A0',
-  borderLight: '#E8DFC8',
+  // Official Borders & Dividers
+  border: '#E9DED6',
+  borderDefault: '#E9DED6',
+  borderLight: '#F0E8E2',
+  borderSubtle: '#F0E8E2',
 };
 
 export default colors;

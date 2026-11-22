@@ -83,13 +83,19 @@ export default function TransportMiniCard({ option }) {
   const timetableVerified = option.timetable_verification?.status === 'verified_official_source';
   const timetablePartiallyVerified = option.timetable_verification?.status === 'partially_verified';
   const status = option.status || option.availability || (
-    isBus ? 'ROUTE GUIDANCE' : (
-      isFlight
-        ? (isGuidanceOnly
-            ? (option.schedule_type === 'CONNECTING_HUB_GUIDANCE' ? 'CONNECTING GUIDANCE' : 'ROUTE GUIDANCE')
-            : (timetableVerified ? 'TIMETABLE VERIFIED' : (timetablePartiallyVerified ? 'INDICATIVE SCHEDULE' : 'TIMETABLE UNVERIFIED')))
-        : (timetableVerified ? 'TIMETABLE VERIFIED' : 'ROUTE GUIDANCE')
-    )
+    isBus
+      ? (option.is_connecting
+          ? 'CONNECTING (EST. BUFFER)'
+          : (option.is_partially_verified || option.verification_status === 'partially_verified'
+              ? 'PARTIALLY VERIFIED'
+              : 'VERIFIED SCHEDULE'))
+      : (
+        isFlight
+          ? (isGuidanceOnly
+              ? (option.schedule_type === 'CONNECTING_HUB_GUIDANCE' ? 'CONNECTING GUIDANCE' : 'ROUTE GUIDANCE')
+              : (timetableVerified ? 'TIMETABLE VERIFIED' : (timetablePartiallyVerified ? 'INDICATIVE SCHEDULE' : 'TIMETABLE UNVERIFIED')))
+          : (timetableVerified ? 'TIMETABLE VERIFIED' : 'ROUTE GUIDANCE')
+      )
   );
 
   let timeRouteDisplay = `${origin} → ${dest}`;
@@ -116,17 +122,17 @@ export default function TransportMiniCard({ option }) {
       data-testid="chat-transport-card"
       style={{
         marginTop: '0.65rem',
-        background: '#FFFFFF',
-        border: '1px solid var(--gold-border, #E5D2AD)',
+        background: 'var(--surface-white, #FFFCF9)',
+        border: '1px solid var(--border-default, #E9DED6)',
         borderRadius: '12px',
         padding: '10px 14px',
-        boxShadow: '0 2px 6px rgba(88, 17, 26, 0.04)',
+        boxShadow: '0 1px 4px rgba(84, 21, 45, 0.04)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isFlight ? <Plane size={15} color="var(--burgundy)" /> : (isBus ? <Bus size={15} color="var(--burgundy)" /> : <Train size={15} color="var(--burgundy)" />)}
-          <span style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--burgundy)' }}>{name}</span>
+          {isFlight ? <Plane size={15} color="var(--royal-plum, #54152D)" /> : (isBus ? <Bus size={15} color="var(--royal-plum, #54152D)" /> : <Train size={15} color="var(--royal-plum, #54152D)" />)}
+          <span style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--royal-plum, #54152D)' }}>{name}</span>
           <span className="pill pill-gold" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>{mode}</span>
           {isConnecting && (
             <span
@@ -261,6 +267,12 @@ export default function TransportMiniCard({ option }) {
             <div style={{ marginTop: '5px', fontSize: '0.65rem', color: '#666', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Info size={11} />
               <span>{option.booking_advice}</span>
+            </div>
+          )}
+          {Boolean(option.is_connecting || (Array.isArray(option.legs) && option.legs.length > 1)) && (
+            <div style={{ marginTop: '6px', fontSize: '0.67rem', color: '#92400E', background: '#FEF3C7', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+              <AlertTriangle size={12} color="#92400E" style={{ flexShrink: 0 }} />
+              <span>Transfer Buffer Notice: Allow 45–60 min at {option.primary_hub || 'Jammu GBS'} transfer hub. Self-transfer connection.</span>
             </div>
           )}
         </div>

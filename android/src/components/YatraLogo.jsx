@@ -10,9 +10,9 @@ export default function YatraLogo({ size = 36 }) {
           <Stop offset="100%" stopColor="#B8860B" />
         </LinearGradient>
       </Defs>
-      {/* Sacred Outer Ring */}
-      <Circle cx="50" cy="50" r="46" stroke="url(#goldGradient)" strokeWidth="3" />
-      <Circle cx="50" cy="50" r="41" stroke="#58111A" strokeWidth="1.5" strokeDasharray="3 3" />
+      {/* Sacred Deep Burgundy Shield & Golden Perimeter */}
+      <Circle cx="50" cy="50" r="46" fill="#58111A" stroke="url(#goldGradient)" strokeWidth="3" />
+      <Circle cx="50" cy="50" r="41" stroke="#D4AF37" strokeWidth="1.2" strokeDasharray="3 3" opacity={0.65} />
 
       {/* Central Trishul / Lotus Sacred Emblem */}
       {/* Central Trident Blade */}

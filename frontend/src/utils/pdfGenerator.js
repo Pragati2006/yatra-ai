@@ -15,7 +15,7 @@ export function generatePilgrimPassPDF(bookingData, bookingSummary = {}) {
   const slotDate = String(bookingData?.slot_date || slot.slot_date || '2026-10-20');
   const category = String(bookingData?.category || slot.category || 'Normal Darshan');
   const slotTime = String(bookingData?.slot_time || slot.slot_time || 'Morning Slot (06:00)');
-  const origin = bookingSummary?.origin || 'Delhi';
+  const origin = bookingSummary?.origin || 'Origin Pending';
   const transport = String(bookingData?.transport_info || `${tr.operator || tr.name || 'Express Service'} (${tr.mode || 'Train'}) from ${origin}`);
   const hotelName = String(bookingData?.hotel_name || (hotel ? hotel.name : 'Accommodation not selected'));
   const priceVal = bookingData?.total_price || bookingSummary?.total_price || 0;
@@ -105,12 +105,54 @@ export function generatePilgrimPassPDF(bookingData, bookingSummary = {}) {
   }
 
   const blob = new Blob([buffer], { type: 'application/pdf' });
+  triggerBlobDownload(blob, `Pilgrim_Pass_${bid}.pdf`);
+}
+
+export function triggerBlobDownload(blob, filename) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `Pilgrim_Pass_${bid}.pdf`;
+  link.download = filename || 'Pilgrim_Pass.pdf';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Downloads the authentic pilgrim pass PDF.
+ * First attempts backend retrieval if a fetchPdf function is provided and booking_id is valid.
+ * Seamlessly falls back to client-side PDF generation if backend retrieval fails,
+ * is unauthorized (401), the booking record is not yet in cloud persistence (404),
+ * network is disconnected, or the server response is not a valid PDF.
+ */
+export async function downloadPilgrimPassPDF(bookingData, bookingSummary = {}, { fetchPdf = null } = {}) {
+  const bid = String(bookingData?.booking_id || 'VD-RPA-DEMO').replace(/[^\w-]/g, '');
+
+  if (fetchPdf && typeof fetchPdf === 'function' && bookingData?.booking_id) {
+    try {
+      const blob = await fetchPdf(bookingData.booking_id);
+      if (blob && blob.size > 20) {
+        let isPdf = false;
+        try {
+          const head = await blob.slice(0, 5).text();
+          isPdf = head.startsWith('%PDF-');
+        } catch {
+          isPdf = blob.type === 'application/pdf';
+        }
+
+        if (isPdf) {
+          triggerBlobDownload(blob, `Pilgrim_Pass_${bid}.pdf`);
+          return { source: 'backend', success: true };
+        }
+      }
+    } catch (err) {
+      console.info('Backend PDF download unavailable or unauthorized, falling back to local PDF generator:', err?.message || err);
+    }
+  }
+
+  // Client-side fallback generator
+  generatePilgrimPassPDF(bookingData, bookingSummary);
+  return { source: 'client', success: true };
 }

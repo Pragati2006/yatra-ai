@@ -43,22 +43,11 @@ function TabIcon({ focused, IconComponent, label }) {
 }
 
 function MainTabNavigator() {
-  const insets = useSafeAreaInsets();
-  const bottomInset = insets.bottom;
-  const tabBarHeight = 56 + bottomInset;
-
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            height: tabBarHeight,
-            paddingBottom: bottomInset > 0 ? bottomInset : 4,
-            paddingTop: 6,
-          },
-        ],
+        tabBarStyle: { display: 'none' },
         tabBarShowLabel: false,
       }}
     >

@@ -350,3 +350,32 @@ export function CompassIcon({ size = 20, color = '#58111A', strokeWidth = 2, ...
     </Svg>
   );
 }
+
+export function MenuIcon({ size = 20, color = '#58111A', strokeWidth = 2, ...props }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <Line x1="3" y1="12" x2="21" y2="12" />
+      <Line x1="3" y1="6" x2="21" y2="6" />
+      <Line x1="3" y1="18" x2="21" y2="18" />
+    </Svg>
+  );
+}
+
+export function SearchIcon({ size = 20, color = '#58111A', strokeWidth = 2, ...props }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <Circle cx="11" cy="11" r="8" />
+      <Line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </Svg>
+  );
+}
+
+export function LogOutIcon({ size = 20, color = '#58111A', strokeWidth = 2, ...props }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <Polyline points="16 17 21 12 16 7" />
+      <Line x1="21" y1="12" x2="9" y2="12" />
+    </Svg>
+  );
+}

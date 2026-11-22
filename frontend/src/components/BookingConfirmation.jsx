@@ -1,6 +1,7 @@
-import React from 'react';
-import { AlertTriangle, CheckCircle2, Ticket, Download, Printer, RefreshCw, ArrowRight } from 'lucide-react';
-import { generatePilgrimPassPDF } from '../utils/pdfGenerator';
+import React, { useState } from 'react';
+import { AlertTriangle, CheckCircle2, Ticket, Download, Printer, RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
+import { generatePilgrimPassPDF, downloadPilgrimPassPDF } from '../utils/pdfGenerator';
+import { fetchBookingPdf } from '../services/api';
 
 export default function BookingConfirmation({ confirmationData, bookingSummary, onReturnHome, onStartNewBooking }) {
   // Safety Invariant: Do not generate or display a successful pass for failed, incomplete or expired workflows
@@ -53,8 +54,19 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
   const hotelName = hotel ? hotel.name : 'Self-arranged Katra stay';
   const totalAmount = confirmationData.total_price != null ? confirmationData.total_price : (bookingSummary?.total_price != null ? bookingSummary.total_price : (receipt?.total_price != null ? receipt.total_price : null));
 
-  const handleDownload = () => {
-    generatePilgrimPassPDF(confirmationData, bookingSummary);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadPilgrimPassPDF(confirmationData, bookingSummary, { fetchPdf: fetchBookingPdf });
+    } catch (err) {
+      console.warn('PDF download unexpected error:', err);
+      generatePilgrimPassPDF(confirmationData, bookingSummary);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -330,6 +342,7 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
           type="button"
           data-testid="download-pass-btn"
           onClick={handleDownload}
+          disabled={downloading}
           className="btn btn-primary"
           style={{
             padding: '0.75rem 1.8rem',
@@ -340,7 +353,17 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             gap: '8px',
           }}
         >
-          <Download size={14} /> Download Pass (PDF)
+          {downloading ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              <span>Downloading Pass...</span>
+            </>
+          ) : (
+            <>
+              <Download size={14} />
+              <span>Download Pass (PDF)</span>
+            </>
+          )}
         </button>
 
         <button

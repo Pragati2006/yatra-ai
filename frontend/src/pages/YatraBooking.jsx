@@ -492,6 +492,17 @@ export default function YatraBooking({
       setErrorMsg('Human authorization is required to proceed with booking.');
       return;
     }
+
+    // Compulsory Authentication Gate (Requirement 6)
+    if (!activeUser) {
+      if (propOnRequireAuth) {
+        propOnRequireAuth();
+      } else {
+        setShowAuthModal(true);
+      }
+      return;
+    }
+
     setConfirming(true);
     setErrorMsg('');
     try {
@@ -502,10 +513,11 @@ export default function YatraBooking({
         });
       }
 
+      const userName = activeUser.name || activeUser.email || activeUser.phone || 'Devotee';
       const data = await confirmBooking({
         option: selectedOption,
         pax: tripRequest?.pax || 1,
-        user_name: 'Guest-User',
+        user_name: userName,
         hotel: selectedHotel,
         hotel_nights: 2,
         sightseeing_places: selectedPlaces.map((p) => p.name),
@@ -517,6 +529,27 @@ export default function YatraBooking({
       if (data && data.status === 'success') {
         setConfirmationData(data);
         setCurrentStep(7);
+        // Persist booking to authenticated user account (Requirement 7)
+        if (data.booking_id) {
+          try {
+            await saveBooking({
+              booking_id: data.booking_id,
+              pax_count: tripRequest?.pax || 1,
+              slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
+              category: selectedOption?.slot?.category || 'Normal Darshan',
+              slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
+              transport_mode: selectedOption?.transport?.mode || 'Train',
+              transport_info: selectedOption?.transport?.name || 'Express Service',
+              hotel_name: selectedHotel?.name || 'Katra Stay',
+              total_price: data.total_price || selectedOption?.total_price || 0,
+              session_id: sessionId,
+              plan_version: planVersion || 1,
+              receipt: data.receipt || {},
+            });
+          } catch (e) {
+            console.warn('Booking persistence warning:', e);
+          }
+        }
       } else {
         setErrorMsg(data.message || 'Booking confirmation returned error.');
       }

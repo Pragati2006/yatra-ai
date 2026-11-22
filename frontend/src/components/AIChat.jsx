@@ -49,6 +49,7 @@ export default function AIChat({
   });
 
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [historyError, setHistoryError] = useState(false);
   const [historyRetryCount, setHistoryRetryCount] = useState(0);
 
@@ -194,6 +195,8 @@ export default function AIChat({
               partial_failure: Boolean(meta.partial_failure),
               execution_mode: meta.execution_mode || null,
               weather: meta.weather || meta.live_weather || null,
+              destination_images: meta.destination_images || null,
+              matched_destination: meta.matched_destination || null,
               created_at: m.created_at,
               persisted: true,
               isPending: false,
@@ -274,6 +277,9 @@ export default function AIChat({
         recommendation: m.recommendation || meta.recommendation || null,
         plan: m.plan || meta.plan || null,
         request: m.request || meta.request || null,
+        intent: m.intent || meta.intent || null,
+        showDatePicker: Boolean(m.showDatePicker || meta.showDatePicker),
+        available_hotels: m.available_hotels || meta.available_hotels || null,
         itinerary: m.itinerary || meta.itinerary || meta.plan?.itinerary || null,
         feasible_places: m.feasible_places || meta.feasible_places || [],
         infeasible_places: m.infeasible_places || meta.infeasible_places || [],
@@ -286,6 +292,8 @@ export default function AIChat({
         partial_failure: Boolean(m.partial_failure !== undefined ? m.partial_failure : meta.partial_failure),
         execution_mode: m.execution_mode || meta.execution_mode || null,
         weather: m.weather || meta.weather || null,
+        destination_images: m.destination_images || meta.destination_images || null,
+        matched_destination: m.matched_destination || meta.matched_destination || null,
         created_at: m.created_at || getNowIsoString(),
         persisted: true,
         isPending: false,
@@ -376,6 +384,7 @@ export default function AIChat({
     if (!text || loading) return;
 
     isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     const userMsg = {
       id: createLocalMessageId(),
@@ -455,6 +464,11 @@ export default function AIChat({
         recommendation: data.recommendation || null,
         plan: data.plan || null,
         request: data.request || null,
+        intent: data.intent || null,
+        showDatePicker: Boolean(data.showDatePicker),
+        available_hotels: data.available_hotels || data.plan?.available_hotels || null,
+        operational_notices: data.operational_notices || data.operational_notice || null,
+        verified_contacts: data.verified_contacts || data.verified_contact || null,
         action: data.action || null,
         status: data.status || null,
         step: data.step || null,
@@ -471,6 +485,8 @@ export default function AIChat({
         partial_failure: Boolean(data.partial_failure),
         execution_mode: data.execution_mode || null,
         weather: data.weather || data.live_weather || null,
+        destination_images: data.destination_images || data.images || null,
+        matched_destination: data.matched_destination || data.destination || null,
         feasible_places: feasiblePlaces,
         infeasible_places: infeasiblePlaces,
         created_at: getNowIsoString(),
@@ -591,6 +607,7 @@ export default function AIChat({
     } finally {
       pendingMessageIdsRef.current.delete(userMsg.id);
       isSubmittingRef.current = false;
+      setIsSubmitting(false);
       setLoading(false);
     }
   };
@@ -846,7 +863,7 @@ export default function AIChat({
 
       {/* Message Composer Anchored at Bottom */}
       <div style={{ flexShrink: 0, background: 'linear-gradient(to top, var(--bg-main) 70%, transparent 100%)' }}>
-        <MessageComposer onSend={handleSend} loading={loading} />
+        <MessageComposer onSend={handleSend} loading={loading || isSubmitting} />
       </div>
     </div>
   );
