@@ -246,7 +246,7 @@ export default function HistoryDrawer({
                 textTransform: 'uppercase',
               }}
             >
-              CHAT
+              CHAT &amp; SAVED JOURNEYS
             </div>
 
             {/* New Chat Button */}

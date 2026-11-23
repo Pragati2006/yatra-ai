@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime, timezone
+from typing import Any
 from fastapi import APIRouter, Request, HTTPException, Response
 from pydantic import BaseModel
 
 import agents.coordinator as coordinator
 from agents.auth_service import auth_service
+from agents.itinerary_agent import validate_duration, validate_pax
 from backend.routes.auth import extract_session_token
 from utils.logger import log_event
 from utils.masking import mask_name, mask_otp, mask_sensitive_data
@@ -113,19 +115,28 @@ class ItineraryRequest(BaseModel):
     hotel_nights: int = 0
     sightseeing_places: list[str] = []
     request: dict | None = None
+    duration_days: Any = None
+    pax: Any = None
 
 
 @router.post("/itinerary")
 def itinerary(request: ItineraryRequest):
     opt = request.option or {}
-    req = request.request or {}
-    days = coordinator.build_final_itinerary(
-        option=opt,
-        hotel=request.hotel,
-        hotel_nights=request.hotel_nights,
-        sightseeing_places=request.sightseeing_places,
-        request=req,
-    )
+    req = dict(request.request or {})
+    if request.duration_days is not None and "duration_days" not in req:
+        req["duration_days"] = request.duration_days
+    if request.pax is not None and "pax" not in req:
+        req["pax"] = request.pax
+    try:
+        days = coordinator.build_final_itinerary(
+            option=opt,
+            hotel=request.hotel,
+            hotel_nights=request.hotel_nights,
+            sightseeing_places=request.sightseeing_places,
+            request=req,
+        )
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
 
     infeasible = getattr(days, "infeasible_places", [])
     feasible = getattr(days, "feasible_places", [])
@@ -142,7 +153,7 @@ import agents.session_store as session_store
 
 class ConfirmBookingRequest(BaseModel):
     option: dict
-    pax: int
+    pax: Any = None
     user_name: str
     hotel: dict | None = None
     hotel_nights: int = 0
@@ -231,6 +242,15 @@ def authorize_plan(request: AuthorizePlanRequest):
 
 @router.post("/confirm")
 def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None):
+    # 0. Strict pax validation
+    if request.pax is not None:
+        try:
+            validated_pax = validate_pax(request.pax, allow_none=False)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+    else:
+        validated_pax = 1
+
     # 1. Require session_id - cannot bypass authorization by omitting session_id
     if not request.session_id:
         return {
@@ -313,7 +333,7 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
         # 7. Execute booking
         booking_id, blessing = coordinator.confirm_booking(
             option=request.option,
-            pax=request.pax,
+            pax=validated_pax,
             user_name=request.user_name,
             hotel=request.hotel,
             hotel_nights=request.hotel_nights,
@@ -345,7 +365,7 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
                         "session_id": request.session_id,
                         "plan_version": curr_version,
                         "user_name": request.user_name,
-                        "pax_count": request.pax,
+                        "pax_count": validated_pax,
                         "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or "2026-10-20",
                         "category": (request.option.get("slot") or {}).get("category") or request.option.get("category") or "Normal Darshan",
                         "slot_time": (request.option.get("slot") or {}).get("slot_time") or request.option.get("slot_time") or "Morning (06:00)",
@@ -358,7 +378,7 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
                         "receipt": {
                             "booking_id": booking_id,
                             "user_name": request.user_name,
-                            "pax_count": request.pax,
+                            "pax_count": validated_pax,
                             "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or "2026-10-20",
                             "category": (request.option.get("slot") or {}).get("category") or request.option.get("category") or "Normal Darshan",
                             "total_price": float(request.option.get("total_price") or 0.0),

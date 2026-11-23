@@ -194,7 +194,13 @@ export default function MessageItem({
 
           {/* 5. Itinerary Timeline Card (if separate itinerary attached) */}
           {message.itinerary && !hasRecommendation && (
-            <ItineraryCard itinerary={message.itinerary} />
+            <ItineraryCard
+              itinerary={message.itinerary}
+              message={message}
+              chatState={chatState}
+              onNavigateToBooking={onNavigateToBooking}
+              onSwitchToForm={onSwitchToForm}
+            />
           )}
 
           {/* 6. Weather Card (if separate weather attached) */}

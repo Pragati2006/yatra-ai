@@ -15,80 +15,79 @@ import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import TourismCard from '../components/TourismCard';
 import { fetchTourismSpots } from '../services/api';
+import { VERIFIED_DESTINATION_GALLERIES } from '../utils/destinationImages';
 
-const CURATED_DESTINATIONS = [
-  {
-    id: 'bhawan',
-    name: 'Holy Cave Bhawan (Mata Vaishno Devi)',
+const DETAILED_INFO = {
+  'Holy Cave Bhawan (Mata Vaishno Devi)': {
     category: 'Sacred Sanctum',
     altitude: '1,585 m (5,200 ft)',
-    description:
-      'The supreme sanctum sanctorum where the divine Mother resides as three natural rock formations (Pindies): Maha Kali, Maha Lakshmi, and Maha Saraswati.',
+    description: 'The supreme sanctum sanctorum where the divine Mother resides as three natural rock formations (Pindies): Maha Kali, Maha Lakshmi, and Maha Saraswati.',
     significance: 'Primary darshan objective of the entire 13 km pilgrimage.',
     timings: 'Open 24 hours (Closed during Aarti: 06:00-08:00 AM & 06:00-08:00 PM)',
     darshanTips: 'Lockers, bathing ghats, and Prasad counters available at Bhawan complex.',
   },
-  {
-    id: 'ardhkuwari',
-    name: 'Garbhjoon Cave (Ardhkuwari)',
+  'Ardhkuwari Cave': {
     category: 'Mid Trek Milestone',
     altitude: '1,460 m (4,800 ft)',
-    description:
-      'The sacred womb cave where Mata Vaishno Devi meditated in penance for 9 months before manifesting at the Holy Cave.',
+    description: 'The sacred womb cave where Mata Vaishno Devi meditated in penance for 9 months before manifesting at the Holy Cave.',
     significance: 'Traditional belief states passing through the Garbhjoon cave liberates the soul.',
     timings: 'Continuous tokens distributed; waiting times typically range 6-18 hours.',
     darshanTips: 'Get token registered immediately upon reaching Ardhkuwari before resting.',
   },
-  {
-    id: 'bhairon',
-    name: 'Bhairon Baba Temple',
+  'Bhairavnath Temple': {
     category: 'Completing Darshan',
     altitude: '2,012 m (6,600 ft)',
-    description:
-      'Perched on the highest point overlooking Bhawan. Pilgrimage is spiritually incomplete without Bhairon Nath darshan.',
+    description: 'Perched on the highest point overlooking Bhawan. Pilgrimage is spiritually incomplete without Bhairon Nath darshan.',
     significance: 'Divine boon granted by Mata Rani to Bhairon Nath upon his salvation.',
     timings: '24 hours open. Ropeway operates from 08:00 AM to 05:00 PM.',
     darshanTips: 'Passenger ropeway connects Bhawan to Bhairon in 3 minutes (INR 100).',
   },
-  {
-    id: 'sanjichhat',
-    name: 'Sanjichhat Helipad & Viewpoint',
-    category: 'High Altitude Plateau',
-    altitude: '1,768 m (5,800 ft)',
-    description:
-      'Scenic plateau featuring the shrine board helipad, emergency hospital, and panoramic views of the Trikuta mountains.',
-    significance: 'Primary aerial transit hub; 2.5 km downhill trek to Holy Bhawan.',
-    timings: 'Helicopter operations daylight only (weather permitting).',
-    darshanTips: 'Battery car service operates from Sanjichhat to Bhawan for elderly pilgrims.',
-  },
-  {
-    id: 'banganga',
-    name: 'Banganga Holy River',
+  'Ban Ganga': {
     category: 'Base Trek Starting Point',
     altitude: '875 m (2,870 ft)',
-    description:
-      'The holy stream created by Mata Rani shooting an arrow (Baan) into the earth to quench Veer Langur’s thirst.',
+    description: 'The holy stream created by Mata Rani shooting an arrow (Baan) into the earth to quench Veer Langur’s thirst.',
     significance: 'Devotees take holy bath before commencing the uphill trek.',
     timings: 'Open 24 hours. Entry checkpoint for RFID Yatra Parchi.',
     darshanTips: 'Pony and Palki registration stands located just beyond Banganga gate.',
   },
-  {
-    id: 'charanpaduka',
-    name: 'Charan Paduka Temple',
+  'Charan Paduka': {
     category: 'Midway Sacred Halt',
     altitude: '1,030 m (3,380 ft)',
-    description:
-      'The sacred slab bearing the imprints of the divine Mother’s holy feet as she looked back towards Trikuta hill.',
+    description: 'The sacred slab bearing the imprints of the divine Mother’s holy feet as she looked back towards Trikuta hill.',
     significance: 'Darshan of holy footprints; 1.5 km uphill from Banganga.',
     timings: 'Open 24 hours with continuous Bhajan kirtan.',
     darshanTips: 'Shrine Board tea/water kiosk available right outside.',
   },
-];
+};
 
-const CATEGORIES = ['All', 'Sacred Sanctum', 'Mid Trek Milestone', 'Completing Darshan', 'High Altitude Plateau', 'Base Trek Starting Point'];
+const ALL_43_DESTINATIONS = Object.values(VERIFIED_DESTINATION_GALLERIES).map((g, idx) => {
+  const dInfo = DETAILED_INFO[g.name] || {};
+  const isReligious =
+    g.name.includes('Temple') ||
+    g.name.includes('Cave') ||
+    g.name.includes('Mata') ||
+    g.name.includes('Bhawan') ||
+    g.name.includes('Paduka') ||
+    g.name.includes('Ganga');
+
+  return {
+    id: g.id || `dest-${idx}`,
+    name: g.name,
+    category: dInfo.category || (isReligious ? 'Holy Shrine' : 'Tourist Attraction'),
+    altitude: dInfo.altitude || 'Jammu & Kashmir Region',
+    description: dInfo.description || `Explore the scenic beauty and cultural significance of ${g.name}.`,
+    significance: dInfo.significance || `Important regional destination in Jammu & Kashmir.`,
+    timings: dInfo.timings || 'Daytime visiting hours (weather permitting)',
+    darshanTips: dInfo.darshanTips || 'Follow local advisories and carry appropriate mountain attire.',
+    image_gallery: g.images,
+    image_url: g.images[0]?.thumbnail_url || g.images[0]?.image_url,
+  };
+});
+
+const CATEGORIES = ['All', 'Sacred Sanctum', 'Mid Trek Milestone', 'Completing Darshan', 'Holy Shrine', 'Tourist Attraction'];
 
 export default function TourismScreen({ navigation }) {
-  const [spots, setSpots] = useState(CURATED_DESTINATIONS);
+  const [spots, setSpots] = useState(ALL_43_DESTINATIONS);
   const [filterCat, setFilterCat] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -104,9 +103,11 @@ export default function TourismScreen({ navigation }) {
       const data = await fetchTourismSpots();
       if (Array.isArray(data) && data.length > 0) {
         setSpots(data);
+      } else {
+        setSpots(ALL_43_DESTINATIONS);
       }
     } catch (e) {
-      // Keep curated destinations
+      setSpots(ALL_43_DESTINATIONS);
     } finally {
       setLoading(false);
       setRefreshing(false);

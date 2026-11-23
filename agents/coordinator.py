@@ -219,8 +219,64 @@ def _resolve_destination_images(user_text, detected_place=None, specific_places=
 
     import mongo_db
 
-    # 1. Direct single destination match
+    # 0. Precision Guard: Distinguish destination-photo requests from transport,
+    # booking, timetable, registration, and general procedural queries.
+    # Strictly remove broad reliance on "show me" as a photo intent.
+    has_photo_intent = False
+    is_transport_or_procedural = False
+    if user_text:
+        has_photo_intent = bool(re.search(r"\b(photos?|pictures?|pics?|images?|photographs?|gallery|snapshots?)\b", user_text, re.I))
+        is_transport_or_procedural = bool(re.search(
+            r"\b(train|trains|flight|flights|bus|buses|railway|irctc|timetable|timetables|schedule|schedules|timings?|fare|fares|ticket|tickets|pnr|vande bharat|"
+            r"how to reach|how do i reach|route|routes|station|airport|platform|"
+            r"helicopter|helipad|ropeway|cable car|battery car|electric vehicle|palki|palanquin|pony|horse|pithoo|"
+            r"rfid|parchi|yatra slip|registration|register|how to register|counter|"
+            r"booking|procedure|procedures|process|steps|guidelines|"
+            r"locker|lockers|cloakroom|luggage|storage|deposit|"
+            r"bhojanalaya|langar|food|eating|meals?|kitchen|"
+            r"rules|restrictions|prohibited|allowed|banned|dress code|documents|id card|proof|"
+            r"medical|dispensary|doctor|hospital|first aid|oxygen|altitude|breathing|sickness|"
+            r"weather|forecast|temperature|climate|rainfall|snowfall|snow|rain|"
+            r"budget|cost|price|packages?|per person|expense)\b",
+            user_text,
+            re.I
+        ))
+        if is_transport_or_procedural and not has_photo_intent:
+            return [], None
+
+        # Precision Guard: Suppress photographs for specific valleys that do not have verified photos in catalog
+        if re.search(r"\b(doodhpathri|doodh\s*pathri|valley\s*of\s*milk|baisaran(\s*valley|\s*meadow)?|mini\s*switzerland|betaab(\s*valley)?)\b", user_text, re.I):
+            return [], None
+
+    # Guard against cross-turn image leakage from last_tourism_place:
+    # If detected_place came from a previous turn and wasn't mentioned in user_text,
+    # only attach photos if user explicitly asked for photos of it via follow-up pronouns.
+    if detected_place and not specific_places and user_text:
+        place_mentioned = bool(re.search(r"\b" + re.escape(detected_place) + r"\b", user_text, re.I))
+        is_followup = bool(knowledge_agent.is_place_followup(user_text))
+        if not place_mentioned and not (has_photo_intent and is_followup):
+            detected_place = None
+
+    photo_filter = None
     target_name = detected_place
+
+    # Precision destination mapping for sub-valleys and shrines
+    if user_text:
+        if re.search(r"\b(aru\s*valley|aru)\b", user_text, re.I):
+            target_name = "Kashmir Valley"
+            photo_filter = "aru"
+        elif re.search(r"\bchandanwari\b", user_text, re.I):
+            target_name = "Kashmir Valley"
+            photo_filter = "chandanwari"
+        elif re.search(r"\b(vaishno\s*devi\s*bhawan|bhawan|holy\s*cave|mata\s*vaishno\s*devi\s*bhawan)\b", user_text, re.I):
+            target_name = "Katra"
+            photo_filter = "bhawan"
+        elif re.search(r"\b(katra|katra\s*town)\b", user_text, re.I):
+            target_name = "Katra"
+            if has_photo_intent:
+                photo_filter = "katra_town"
+
+    # 1. Direct single destination match
     if not target_name and specific_places:
         target_name = specific_places[0].get("name") if isinstance(specific_places[0], dict) else specific_places[0]
 
@@ -229,11 +285,27 @@ def _resolve_destination_images(user_text, detected_place=None, specific_places=
         if found:
             target_name = found[0].get("name")
 
-    # Guard: Do not display town landscape for generic Katra queries unless asked about Katra town or Vaishno Devi shrine/bhawan photos
-    if target_name == "Katra" and user_text and not re.search(r"\b(about katra|what is katra|tell me about katra|katra town|visit katra|katra sightseeing|explore katra|in katra|photos of katra|pictures of katra|vaishno devi|bhawan|shrine|pictures of vaishno|photos of vaishno|pictures of bhawan|photos of bhawan)\b", user_text, re.I):
-        target_name = None
+    # If the query is transport or procedural, suppress destination photos even if a place name was mentioned
+    if is_transport_or_procedural and not has_photo_intent:
+        return [], None
+
+    # Never attach generic Katra photographs without explicit request.
+    # Handle Katra destination intent:
+    # - Bhawan-specific queries receive ONLY authentic Bhawan/Holy Cave photographs.
+    # - Ordinary Katra queries with explicit photo intent receive Katra municipal overviews.
+    # - Generic Katra inquiries without photo intent are suppressed.
+    if target_name == "Katra":
+        is_bhawan = bool(re.search(r"\b(bhawan|vaishno\s*devi|shrine|holy\s*cave)\b", user_text or "", re.I))
+        if is_bhawan:
+            photo_filter = "bhawan"
+        elif has_photo_intent:
+            photo_filter = "katra_town"
+        else:
+            target_name = None
 
     if target_name:
+        gallery = []
+        dest_meta = {}
         # Check MongoDB Atlas if available
         if mongo_db.is_available() and mongo_db.tourist_attractions is not None:
             try:
@@ -242,14 +314,34 @@ def _resolve_destination_images(user_text, detected_place=None, specific_places=
                     {"_id": 0, "name": 1, "id": 1, "district": 1, "image_gallery": 1, "image_url": 1}
                 )
                 if doc and doc.get("image_gallery"):
-                    return doc.get("image_gallery", [])[:3], {"name": doc.get("name"), "id": doc.get("id"), "district": doc.get("district")}
+                    gallery = doc.get("image_gallery", [])
+                    dest_meta = {"name": doc.get("name"), "id": doc.get("id"), "district": doc.get("district")}
             except Exception:
                 pass
 
         # Check local verified map
-        mapped = images_map.get(target_name) or images_map.get(target_name.lower().strip())
-        if mapped and mapped.get("image_gallery"):
-            return mapped.get("image_gallery", [])[:3], {"name": target_name, "id": mapped.get("destination_id")}
+        if not gallery:
+            mapped = images_map.get(target_name) or images_map.get(target_name.lower().strip())
+            if mapped and mapped.get("image_gallery"):
+                gallery = mapped.get("image_gallery", [])
+                dest_meta = {"name": target_name, "id": mapped.get("destination_id")}
+
+        if gallery:
+            if photo_filter == "aru":
+                gallery = [img for img in gallery if "aru" in img.get("title", "").lower() or "aru" in img.get("image_url", "").lower()]
+            elif photo_filter == "chandanwari":
+                gallery = [img for img in gallery if "chandanwari" in img.get("title", "").lower() or "chandanwari" in img.get("image_url", "").lower()]
+            elif photo_filter == "bhawan":
+                gallery = [img for img in gallery if "bhawan" in img.get("title", "").lower() or "bhawan" in img.get("image_url", "").lower() or "holy cave" in img.get("title", "").lower()]
+                if dest_meta:
+                    dest_meta["name"] = "Holy Cave Bhawan (Mata Vaishno Devi)"
+            elif photo_filter == "katra_town":
+                gallery = [img for img in gallery if not ("bhawan" in img.get("title", "").lower() or "bhawan" in img.get("image_url", "").lower() or "holy cave" in img.get("title", "").lower())]
+                if dest_meta:
+                    dest_meta["name"] = "Katra"
+
+            if gallery:
+                return gallery[:3], dest_meta
 
     # 2. Regional multi-destination queries (e.g. Kishtwar, Srinagar, Jammu heritage)
     places_to_check = matched_places or []

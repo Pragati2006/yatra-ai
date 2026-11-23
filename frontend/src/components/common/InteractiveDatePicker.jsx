@@ -33,8 +33,20 @@ export default function InteractiveDatePicker({
     return `${year}-${month}-${day}`;
   };
 
-  const initialDepDate = parseISO(initialDeparture) || new Date(2026, 10, 25);
-  const initialRetDate = parseISO(initialReturn) || new Date(2026, 10, 28);
+  const getDefaultDep = () => {
+    const d = new Date(today);
+    return d;
+  };
+  const getDefaultRet = () => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 3);
+    return d;
+  };
+
+  const parsedDep = parseISO(initialDeparture);
+  const parsedRet = parseISO(initialReturn);
+  const initialDepDate = (parsedDep && parsedDep >= today) ? parsedDep : getDefaultDep();
+  const initialRetDate = (parsedRet && parsedRet >= initialDepDate) ? parsedRet : (parsedDep ? new Date(parsedDep.getFullYear(), parsedDep.getMonth(), parsedDep.getDate() + 3) : getDefaultRet());
 
   const [currentMonth, setCurrentMonth] = useState(
     new Date(initialDepDate.getFullYear(), initialDepDate.getMonth(), 1)
@@ -284,6 +296,8 @@ export default function InteractiveDatePicker({
           { label: '3 Days', days: 3 },
           { label: '4 Days (Standard)', days: 4 },
           { label: '5 Days', days: 5 },
+          { label: '7 Days', days: 7 },
+          { label: '10 Days', days: 10 },
         ].map((p) => (
           <button
             key={p.days}

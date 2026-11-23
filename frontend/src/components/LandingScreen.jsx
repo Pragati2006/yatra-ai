@@ -15,8 +15,8 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 'calc(100vh - 80px)',
-        padding: '2rem 1.5rem',
+        minHeight: 'calc(100vh - 100px)',
+        padding: '1.75rem 1.25rem',
         textAlign: 'center',
         maxWidth: '680px',
         margin: '0 auto',
@@ -25,9 +25,9 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
     >
       {/* Brand Logo */}
       <YatraLogo
-        size={88}
+        size={84}
         style={{
-          marginBottom: '1.5rem',
+          marginBottom: '1rem',
           filter: 'drop-shadow(0 8px 24px rgba(88, 17, 26, 0.2))',
         }}
       />
@@ -41,7 +41,7 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
           color: 'var(--burgundy, #58111A)',
           letterSpacing: '0.04em',
           lineHeight: 1.15,
-          marginBottom: '0.4rem',
+          marginBottom: '0.3rem',
         }}
       >
         Yatra AI
@@ -50,10 +50,10 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
       {/* Subtitle */}
       <div
         style={{
-          fontSize: 'clamp(1rem, 2.2vw, 1.25rem)',
+          fontSize: 'clamp(0.95rem, 2vw, 1.15rem)',
           fontWeight: 600,
           color: 'var(--text-dark, #2A2020)',
-          marginBottom: '1rem',
+          marginBottom: '0.6rem',
           letterSpacing: '0.02em',
         }}
       >
@@ -67,13 +67,13 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
           background: 'var(--gold-subtle, #F5ECDA)',
           border: '1.5px solid var(--gold-border, #E5D2AD)',
           borderRadius: '999px',
-          padding: '6px 18px',
-          fontSize: '0.76rem',
+          padding: '5px 16px',
+          fontSize: '0.74rem',
           fontWeight: 800,
           letterSpacing: '0.12em',
           color: 'var(--burgundy, #58111A)',
           textTransform: 'uppercase',
-          marginBottom: '1.5rem',
+          marginBottom: '0.85rem',
         }}
       >
         MAA VAISHNO DEVI YATRA EDITION
@@ -82,11 +82,11 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
       {/* Introductory Text */}
       <p
         style={{
-          fontSize: 'clamp(0.95rem, 2vw, 1.05rem)',
+          fontSize: 'clamp(0.9rem, 1.8vw, 1rem)',
           color: 'var(--text-muted, #6B5C5C)',
-          lineHeight: 1.6,
+          lineHeight: 1.5,
           maxWidth: '480px',
-          marginBottom: '2.5rem',
+          marginBottom: '1.25rem',
         }}
       >
         Your intelligent companion for a smoother pilgrimage journey.
@@ -97,10 +97,10 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
+          gap: '10px',
           width: '100%',
           maxWidth: '320px',
-          marginBottom: '2.5rem',
+          marginBottom: '1.5rem',
         }}
       >
         <button
@@ -109,7 +109,7 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
           onClick={onStartJourney}
           className="btn btn-primary"
           style={{
-            padding: '0.85rem 2rem',
+            padding: '0.82rem 2rem',
             fontSize: '0.96rem',
             fontWeight: 800,
             borderRadius: '999px',
@@ -126,7 +126,7 @@ export default function LandingScreen({ onStartJourney, onSignIn }) {
           onClick={onSignIn}
           className="btn btn-secondary"
           style={{
-            padding: '0.78rem 1.8rem',
+            padding: '0.75rem 1.8rem',
             fontSize: '0.92rem',
             fontWeight: 700,
             borderRadius: '999px',

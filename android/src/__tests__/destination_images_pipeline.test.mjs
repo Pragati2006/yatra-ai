@@ -17,30 +17,28 @@ test('Catalogue Verification: All 43 destinations exist in verified_destination_
   assert.equal(keys.length, 43, 'Must contain exactly 43 destinations');
 
   const withPhotos = keys.filter((k) => catalog[k].photo_count > 0);
-  const fallbackOnly = keys.filter((k) => catalog[k].photo_count === 0);
 
-  assert.equal(withPhotos.length, 36, '36 destinations must have verified photos');
-  assert.equal(fallbackOnly.length, 7, '7 destinations must preserve visual fallback');
+  assert.equal(withPhotos.length, 43, 'All 43 destinations must have verified photos');
 
-  // Verify all 101 photos use secure HTTPS URLs and contain metadata
+  // Verify all photos use secure URLs or local assets and contain metadata
   let photoCount = 0;
   for (const k of withPhotos) {
     const entry = catalog[k];
-    assert.ok(entry.image_url.startsWith('https://'), `Main URL must be HTTPS for ${entry.destination_name}`);
+    assert.ok(entry.image_url.startsWith('https://') || entry.image_url.startsWith('/assets/'), `Main URL must be HTTPS or local asset for ${entry.destination_name}`);
     assert.ok(Array.isArray(entry.image_gallery), `Gallery must be array for ${entry.destination_name}`);
     assert.ok(entry.image_gallery.length > 0, `Gallery must not be empty for ${entry.destination_name}`);
 
     for (const img of entry.image_gallery) {
       photoCount++;
-      assert.ok(img.image_url.startsWith('https://'), `Image URL must be HTTPS for ${img.title}`);
-      assert.ok(img.thumbnail_url.startsWith('https://'), `Thumbnail URL must be HTTPS for ${img.title}`);
+      assert.ok(img.image_url.startsWith('https://') || img.image_url.startsWith('/assets/'), `Image URL must be HTTPS or local asset for ${img.title}`);
+      assert.ok(img.thumbnail_url.startsWith('https://') || img.thumbnail_url.startsWith('/assets/'), `Thumbnail URL must be HTTPS or local asset for ${img.title}`);
       assert.ok(img.title && img.title.length > 0, `Title must be present for photo in ${entry.destination_name}`);
       assert.ok(img.photographer && img.photographer.length > 0, `Photographer must be present for photo in ${entry.destination_name}`);
       assert.ok(img.license && img.license.length > 0, `License must be present for photo in ${entry.destination_name}`);
       assert.ok(img.attribution && img.attribution.length > 0, `Attribution must be present for photo in ${entry.destination_name}`);
     }
   }
-  assert.equal(photoCount, 101, 'Must contain exactly 101 verified photographs across 36 destinations');
+  assert.equal(photoCount, 108, 'Must contain exactly 108 verified photographs across all 43 destinations');
 });
 
 test('Android Image Renderer: ChatBubble renders verified gallery and graceful fallback', () => {

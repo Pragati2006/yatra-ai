@@ -4,10 +4,27 @@
     "destination_name": "Bhairavnath Temple",
     "is_curated": true,
     "existing_image": "assets/images/places/Bhairavnath Temple.png",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Katra_city_view_from_top_of_bhairav_temple.jpg/960px-Katra_city_view_from_top_of_bhairav_temple.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "image_gallery": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Katra_city_view_from_top_of_bhairav_temple.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Katra_city_view_from_top_of_bhairav_temple.jpg/960px-Katra_city_view_from_top_of_bhairav_temple.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Katra view from top of Bhairav Temple",
+        "source": "Wikimedia Commons",
+        "source_page_url": "https://commons.wikimedia.org/wiki/File:Katra_city_view_from_top_of_bhairav_temple.jpg",
+        "photographer": "02addicted",
+        "license": "CC0",
+        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "attribution": "Photo by 02addicted / Wikimedia Commons / CC0",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 4080,
+        "height": 3072,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42cd1723aa73d3bad2b": {
     "destination_id": "6ac9e42cd1723aa73d3bad2b",
@@ -100,10 +117,27 @@
     "destination_name": "Nau Devi Cave Temple",
     "is_curated": true,
     "existing_image": "assets/images/places/Nau Devi Temple.avif",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Nau_devi_mandir_jammu_kashmir.jpg/960px-Nau_devi_mandir_jammu_kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "image_gallery": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/Nau_devi_mandir_jammu_kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Nau_devi_mandir_jammu_kashmir.jpg/960px-Nau_devi_mandir_jammu_kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Nau Devi Mandir, Jammu and Kashmir",
+        "source": "Wikimedia Commons",
+        "source_page_url": "https://commons.wikimedia.org/wiki/File:Nau_devi_mandir_jammu_kashmir.jpg",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1280,
+        "height": 960,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42cd1723aa73d3bad2e": {
     "destination_id": "6ac9e42cd1723aa73d3bad2e",
@@ -137,10 +171,27 @@
     "destination_name": "Jhajjar Kotli",
     "is_curated": true,
     "existing_image": "assets/images/places/Jhajjar Kotli.jpg",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "/assets/images/places/Jhajjar Kotli.jpg",
+    "image_gallery": [
+      {
+        "image_url": "/assets/images/places/Jhajjar Kotli.jpg",
+        "thumbnail_url": "/assets/images/places/Jhajjar Kotli.jpg",
+        "title": "Jhajjar Kotli Tourist Complex, Jammu",
+        "source": "Curated J&K Tourism Archive",
+        "source_page_url": "/assets/images/places/Jhajjar Kotli.jpg",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "license_url": "https://www.jktdc.co.in",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1200,
+        "height": 800,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42cd1723aa73d3bad30": {
     "destination_id": "6ac9e42cd1723aa73d3bad30",
@@ -324,10 +375,27 @@
     "destination_name": "Raghunath Temple, Jammu",
     "is_curated": true,
     "existing_image": "assets/images/places/Raghunath Temple.webp",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Raghunath_Temple_Jammu.JPG/960px-Raghunath_Temple_Jammu.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "image_gallery": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Raghunath_Temple_Jammu.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Raghunath_Temple_Jammu.JPG/960px-Raghunath_Temple_Jammu.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Raghunath Temple Jammu",
+        "source": "Wikimedia Commons",
+        "source_page_url": "https://commons.wikimedia.org/wiki/File:Raghunath_Temple_Jammu.JPG",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1600,
+        "height": 1200,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42dd1723aa73d3bad34": {
     "destination_id": "6ac9e42dd1723aa73d3bad34",
@@ -495,10 +563,27 @@
     "destination_name": "Himkoti",
     "is_curated": true,
     "existing_image": "assets/images/places/Himkoti.jpg",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "/assets/images/places/Himkoti.jpg",
+    "image_gallery": [
+      {
+        "image_url": "/assets/images/places/Himkoti.jpg",
+        "thumbnail_url": "/assets/images/places/Himkoti.jpg",
+        "title": "Himkoti Viewpoint, Vaishno Devi Trek",
+        "source": "Curated J&K Tourism Archive",
+        "source_page_url": "/assets/images/places/Himkoti.jpg",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "license_url": "https://www.jktdc.co.in",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1200,
+        "height": 800,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42dd1723aa73d3bad38": {
     "destination_id": "6ac9e42dd1723aa73d3bad38",
@@ -591,10 +676,27 @@
     "destination_name": "Peer Kho Cave Temple",
     "is_curated": true,
     "existing_image": "assets/images/places/Peer Kho Cave Temple.jpg",
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+    "image_gallery": [
+      {
+        "image_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+        "thumbnail_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+        "title": "Peer Kho Cave Temple, Jammu",
+        "source": "Curated J&K Tourism Archive",
+        "source_page_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "license_url": "https://www.jktdc.co.in",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1200,
+        "height": 800,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "6ac9e42dd1723aa73d3bad3b": {
     "destination_id": "6ac9e42dd1723aa73d3bad3b",
@@ -1191,22 +1293,22 @@
     "destination_name": "Katra",
     "is_curated": true,
     "existing_image": "assets/images/places/vaishno devi.jpg",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg/960px-A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Mata_Vaishno_Devi_Bhawan.jpg/960px-Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "image_gallery": [
       {
-        "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg/960px-A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-        "title": "A view from a top of a building from Katra, Jammu and Kashmir",
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d4/Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Mata_Vaishno_Devi_Bhawan.jpg/960px-Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Holy Cave Bhawan, Shri Mata Vaishno Devi",
         "source": "Wikimedia Commons",
-        "source_page_url": "https://commons.wikimedia.org/wiki/File:A_view_from_a_top_of_a_building_from_Katra,_Jammu_and_Kashmir.jpg",
-        "photographer": "Anubhav Sinha",
-        "license": "CC BY-SA 2.0",
-        "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
-        "attribution": "Photo by Anubhav Sinha / Wikimedia Commons / CC BY-SA 2.0",
+        "source_page_url": "https://commons.wikimedia.org/wiki/File:Mata_Vaishno_Devi_Bhawan.jpg",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 3.0",
         "verified": true,
-        "verified_at": "2026-11-19T17:26:16.055799+00:00",
-        "width": 3999,
-        "height": 2419,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1600,
+        "height": 1200,
         "mime": "image/jpeg"
       },
       {
@@ -2017,10 +2119,27 @@
     "destination_name": "Kishtwar National Park",
     "is_curated": false,
     "existing_image": null,
-    "image_url": null,
-    "image_gallery": [],
-    "photo_count": 0,
-    "status": "FALLBACK_PRESERVED"
+    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Marwah_Valley_Kishtwar%2C_Jammu.jpg/960px-Marwah_Valley_Kishtwar%2C_Jammu.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "image_gallery": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Marwah_Valley_Kishtwar%2C_Jammu.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Marwah_Valley_Kishtwar%2C_Jammu.jpg/960px-Marwah_Valley_Kishtwar%2C_Jammu.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Marwah Valley, Kishtwar National Park Region",
+        "source": "Wikimedia Commons",
+        "source_page_url": "https://commons.wikimedia.org/wiki/File:Marwah_Valley_Kishtwar,_Jammu.jpg",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0",
+        "verified": true,
+        "verified_at": "2026-11-23T12:00:00.000000+00:00",
+        "width": 1600,
+        "height": 1067,
+        "mime": "image/jpeg"
+      }
+    ],
+    "photo_count": 1,
+    "status": "VERIFIED_IMAGES"
   },
   "dest-machail-mata": {
     "destination_id": "dest-machail-mata",

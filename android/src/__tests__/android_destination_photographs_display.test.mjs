@@ -63,17 +63,39 @@ test('Destination Images: All 4 target user queries resolve genuine verified pho
   assert.ok(r1.images[0].photographer, 'Must include photographer attribution');
   assert.ok(r1.images[0].license, 'Must include license');
 
-  // Query 2: Baisaran Valley (Pahalgam)
+  // Query 2: Baisaran Valley (suppressed as no verified photo exists yet)
   const r2 = resolveDestinationImages('Tell me about Baisaran Valley and show photographs.');
-  assert.ok(r2, 'Must resolve Baisaran Valley to Pahalgam');
-  assert.strictEqual(r2.destination.name, 'Pahalgam (Valley of Shepherds)');
-  assert.ok(r2.images.length >= 3, 'Must have at least 3 photos');
+  assert.strictEqual(r2, null, 'Must suppress photos for unverified Baisaran Valley');
+
+  // Query 2b: Aru Valley resolves to genuine Aru Valley photographs in Kashmir Valley gallery
+  const rAru = resolveDestinationImages('Show me pictures of Aru Valley.');
+  assert.ok(rAru, 'Must resolve Aru Valley');
+  assert.strictEqual(rAru.destination.name, 'Kashmir Valley');
+  assert.ok(rAru.images.length >= 2, 'Must have at least 2 Aru Valley photos');
+  assert.ok(rAru.images.every((img) => img.title.includes('Aru')), 'Must only return Aru Valley photos, not Golf Course');
 
   // Query 3: Vaishno Devi Bhawan
   const r3 = resolveDestinationImages('Show pictures of Vaishno Devi Bhawan.');
-  assert.ok(r3, 'Must resolve Vaishno Devi Bhawan to Katra / Vaishno Devi');
-  assert.strictEqual(r3.destination.name, 'Katra');
-  assert.ok(r3.images.length >= 3, 'Must have at least 3 photos');
+  assert.ok(r3, 'Must resolve Vaishno Devi Bhawan to Holy Cave Bhawan');
+  assert.strictEqual(r3.destination.name, 'Holy Cave Bhawan (Mata Vaishno Devi)');
+  assert.strictEqual(r3.images.length, 1, 'Must return ONLY the 1 authentic Bhawan photo');
+  assert.strictEqual(r3.images[0].title, 'Holy Cave Bhawan, Shri Mata Vaishno Devi');
+  assert.strictEqual(
+    r3.images[0].image_url,
+    'https://upload.wikimedia.org/wikipedia/commons/d/d4/Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original'
+  );
+  assert.ok(!r3.images.some((img) => img.title.includes('Katra') || img.title.includes('KATRA TOWN')), 'Must never return Katra town photos for Bhawan queries');
+
+  // Query 3b: Katra town with photo intent resolves to Katra municipal overviews, NEVER Bhawan-only photo
+  const rKatraPhotos = resolveDestinationImages('Show me pictures of Katra.');
+  assert.ok(rKatraPhotos, 'Must resolve Katra photos');
+  assert.strictEqual(rKatraPhotos.destination.name, 'Katra');
+  assert.strictEqual(rKatraPhotos.images.length, 2, 'Must return the 2 Katra municipal overview photos');
+  assert.ok(rKatraPhotos.images.every((img) => !img.title.includes('Bhawan')), 'Must not contain Bhawan photo');
+
+  // Query 3c: Generic Katra query without photo intent returns null
+  const rKatraInfo = resolveDestinationImages('Tell me about Katra.');
+  assert.strictEqual(rKatraInfo, null, 'Must suppress photos for generic Katra info query');
 
   // Query 4: Best places in Pahalgam
   const r4 = resolveDestinationImages('What are the best places to visit in Pahalgam?');

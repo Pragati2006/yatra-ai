@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
+import BookingDatePicker from '../components/BookingDatePicker';
 import {
   CheckIcon,
   TicketIcon,
@@ -567,6 +568,30 @@ export default function BookingScreen({ route, navigation }) {
       Alert.alert('Pilgrim Details', 'Please provide primary devotee full name.');
       return;
     }
+    const paxNum = parseInt(pax, 10);
+    if (!pax || isNaN(paxNum) || paxNum < 1) {
+      Alert.alert('Pilgrims Required', 'Please specify at least 1 pilgrim.');
+      return;
+    }
+    if (paxNum > 200) {
+      Alert.alert(
+        'Pilgrim Group Limit',
+        'Online itinerary booking supports groups up to 200 pilgrims per request to ensure accurate accommodation allocation. For larger congregations, please contact group reservation support directly.'
+      );
+      return;
+    }
+    const durationNum = parseInt(duration, 10);
+    if (!duration || isNaN(durationNum) || durationNum < 1) {
+      Alert.alert('Duration Required', 'Please specify a positive itinerary duration in days.');
+      return;
+    }
+    if (durationNum > 90) {
+      Alert.alert(
+        'Itinerary Duration Limit',
+        'The interactive itinerary generator supports trips up to 90 days (3 months) to ensure optimal device performance and stay within local storage safety limits. For longer journeys, please plan separate regional segments.'
+      );
+      return;
+    }
     if (phone.trim() && !/^\d{10}$/.test(phone.trim().replace(/[\s+-]/g, ''))) {
       Alert.alert('Contact Phone', 'Please enter a valid 10-digit mobile number for transit alerts, or leave blank.');
       return;
@@ -961,25 +986,60 @@ export default function BookingScreen({ route, navigation }) {
                 {/* Dates & Duration with Auto Return Date */}
                 <View style={styles.row}>
                   <View style={styles.halfCol}>
-                    <Text style={styles.inputLabel}>Start Date (YYYY-MM-DD) *</Text>
-                    <TextInput
-                      style={styles.input}
+                    <BookingDatePicker
                       value={startDate}
-                      onChangeText={setStartDate}
-                      placeholder="2026-11-10"
-                      placeholderTextColor={colors.textLight}
+                      onChange={setStartDate}
+                      label="Start Date *"
                     />
                   </View>
                   <View style={styles.halfCol}>
                     <Text style={styles.inputLabel}>Duration (Days) *</Text>
-                    <View style={styles.stepperRow}>
-                      {[2, 3, 4, 5, 6].map((d) => (
+                    <View style={styles.numericInputRow}>
+                      <TouchableOpacity
+                        style={styles.stepperCtrlBtn}
+                        onPress={() => setDuration((prev) => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
+                        accessibilityLabel="Decrease duration"
+                      >
+                        <Text style={styles.stepperCtrlText}>−</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.numericTextInput}
+                        value={String(duration)}
+                        onChangeText={(txt) => {
+                          const clean = txt.replace(/[^0-9]/g, '');
+                          if (clean === '') {
+                            setDuration('');
+                          } else {
+                            setDuration(Math.max(1, parseInt(clean, 10)));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!duration || parseInt(duration, 10) < 1) {
+                            setDuration(1);
+                          }
+                        }}
+                        keyboardType="number-pad"
+                        placeholder="Days"
+                        placeholderTextColor={colors.textLight}
+                        accessibilityLabel="Itinerary duration in days"
+                        testID="duration-input"
+                      />
+                      <TouchableOpacity
+                        style={styles.stepperCtrlBtn}
+                        onPress={() => setDuration((prev) => Math.min(90, (parseInt(prev, 10) || 0) + 1))}
+                        accessibilityLabel="Increase duration"
+                      >
+                        <Text style={styles.stepperCtrlText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.quickChipsRow}>
+                      {[2, 3, 4, 7, 10].map((d) => (
                         <TouchableOpacity
                           key={d}
-                          style={[styles.stepperBtn, duration === d && styles.stepperBtnActive]}
+                          style={[styles.quickChip, duration === d && styles.quickChipActive]}
                           onPress={() => setDuration(d)}
                         >
-                          <Text style={[styles.stepperText, duration === d && styles.stepperTextActive]}>
+                          <Text style={[styles.quickChipText, duration === d && styles.quickChipTextActive]}>
                             {d}d
                           </Text>
                         </TouchableOpacity>
@@ -1000,14 +1060,52 @@ export default function BookingScreen({ route, navigation }) {
                 <View style={styles.row}>
                   <View style={styles.halfCol}>
                     <Text style={styles.inputLabel}>Pilgrims (Pax Count) *</Text>
-                    <View style={styles.stepperRow}>
-                      {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <View style={styles.numericInputRow}>
+                      <TouchableOpacity
+                        style={styles.stepperCtrlBtn}
+                        onPress={() => setPax((prev) => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
+                        accessibilityLabel="Decrease pilgrims"
+                      >
+                        <Text style={styles.stepperCtrlText}>−</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.numericTextInput}
+                        value={String(pax)}
+                        onChangeText={(txt) => {
+                          const clean = txt.replace(/[^0-9]/g, '');
+                          if (clean === '') {
+                            setPax('');
+                          } else {
+                            setPax(Math.max(1, parseInt(clean, 10)));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!pax || parseInt(pax, 10) < 1) {
+                            setPax(1);
+                          }
+                        }}
+                        keyboardType="number-pad"
+                        placeholder="Pilgrims"
+                        placeholderTextColor={colors.textLight}
+                        accessibilityLabel="Number of pilgrims"
+                        testID="pax-input"
+                      />
+                      <TouchableOpacity
+                        style={styles.stepperCtrlBtn}
+                        onPress={() => setPax((prev) => Math.min(200, (parseInt(prev, 10) || 0) + 1))}
+                        accessibilityLabel="Increase pilgrims"
+                      >
+                        <Text style={styles.stepperCtrlText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.quickChipsRow}>
+                      {[1, 2, 4, 6, 10].map((num) => (
                         <TouchableOpacity
                           key={num}
-                          style={[styles.stepperBtn, pax === num && styles.stepperBtnActive]}
+                          style={[styles.quickChip, pax === num && styles.quickChipActive]}
                           onPress={() => setPax(num)}
                         >
-                          <Text style={[styles.stepperText, pax === num && styles.stepperTextActive]}>
+                          <Text style={[styles.quickChipText, pax === num && styles.quickChipTextActive]}>
                             {num}
                           </Text>
                         </TouchableOpacity>
@@ -1189,22 +1287,85 @@ export default function BookingScreen({ route, navigation }) {
                     <Text style={styles.itineraryStayNote}>🏨 Stay: {selectedHotel.name}</Text>
                   </View>
 
-                  {/* Day 4 (if duration >= 4) */}
-                  {duration >= 4 && (
-                    <View style={styles.itineraryCard}>
-                      <View style={styles.dayBadge}>
-                        <Text style={styles.dayBadgeText}>DAY 4</Text>
-                      </View>
-                      <Text style={styles.itineraryDayHeading}>
-                        Local Sacred Excursion & Return Journey
-                      </Text>
-                      <Text style={styles.itineraryTiming}>⏰ Morning & Afternoon</Text>
-                      <Text style={styles.itineraryActivityText}>
-                        Excursion to Baba Dhansar sacred holy spring / Nau Devi Temple. Return to hotel for check-out. Board your return transit back to {origin}.
-                      </Text>
-                      <Text style={styles.itineraryStayNote}>🚆 Departure: {selectedTransport.name} back to {origin}</Text>
-                    </View>
-                  )}
+                  {/* Day 4 onward dynamically rendered up to duration */}
+                  {duration >= 4 &&
+                    (duration <= 10 ? (
+                      Array.from({ length: duration - 3 }, (_, idx) => {
+                        const dayNum = idx + 4;
+                        const isLastDay = dayNum === duration;
+                        return (
+                          <View key={dayNum} style={styles.itineraryCard}>
+                            <View style={styles.dayBadge}>
+                              <Text style={styles.dayBadgeText}>DAY {dayNum}</Text>
+                            </View>
+                            <Text style={styles.itineraryDayHeading}>
+                              {isLastDay
+                                ? `Local Sacred Excursion & Return Journey`
+                                : `Day ${dayNum}: Regional Pilgrimage & Valley Excursion`}
+                            </Text>
+                            <Text style={styles.itineraryTiming}>
+                              {isLastDay ? `⏰ Morning & Afternoon` : `⏰ Full Day Exploration`}
+                            </Text>
+                            <Text style={styles.itineraryActivityText}>
+                              {isLastDay
+                                ? `Excursion to Baba Dhansar sacred holy spring / Nau Devi Temple. Check-out from ${selectedHotel.name}. Board your return transit back to ${origin}.`
+                                : `Spiritual exploration of holy spots around Katra and Jammu hills (Shiv Khori, Patnitop, or Sanasar). Evening Aarti & devotional satsang.`}
+                            </Text>
+                            <Text style={styles.itineraryStayNote}>
+                              {isLastDay
+                                ? `🚆 Departure: ${selectedTransport.name} back to ${origin}`
+                                : `🏨 Stay: ${selectedHotel.name}`}
+                            </Text>
+                          </View>
+                        );
+                      })
+                    ) : (
+                      <>
+                        {[4, 5].map((dayNum) => (
+                          <View key={dayNum} style={styles.itineraryCard}>
+                            <View style={styles.dayBadge}>
+                              <Text style={styles.dayBadgeText}>DAY {dayNum}</Text>
+                            </View>
+                            <Text style={styles.itineraryDayHeading}>
+                              Day {dayNum}: Regional Pilgrimage & Valley Excursion
+                            </Text>
+                            <Text style={styles.itineraryTiming}>⏰ Full Day Exploration</Text>
+                            <Text style={styles.itineraryActivityText}>
+                              Spiritual exploration of holy spots around Katra and Jammu hills (Shiv Khori, Patnitop, or Sanasar). Evening Aarti & devotional satsang.
+                            </Text>
+                            <Text style={styles.itineraryStayNote}>🏨 Stay: {selectedHotel.name}</Text>
+                          </View>
+                        ))}
+                        <View key="intermediate-summary" style={styles.itineraryCard}>
+                          <View style={styles.dayBadge}>
+                            <Text style={styles.dayBadgeText}>DAYS 6–{duration - 1}</Text>
+                          </View>
+                          <Text style={styles.itineraryDayHeading}>
+                            Regional Pilgrimage & Sacred Excursions ({duration - 6} Days)
+                          </Text>
+                          <Text style={styles.itineraryTiming}>⏰ Extended Spiritual Immersion</Text>
+                          <Text style={styles.itineraryActivityText}>
+                            Self-paced spiritual exploration across Jammu & Kashmir sacred sites (Patnitop, Sanasar, Shiv Khori, and local Katra shrines). Sacred rest buffers, satsang, and devotional relaxation.
+                          </Text>
+                          <Text style={styles.itineraryStayNote}>🏨 Stay: {selectedHotel.name}</Text>
+                        </View>
+                        <View key={duration} style={styles.itineraryCard}>
+                          <View style={styles.dayBadge}>
+                            <Text style={styles.dayBadgeText}>DAY {duration}</Text>
+                          </View>
+                          <Text style={styles.itineraryDayHeading}>
+                            Local Sacred Excursion & Return Journey
+                          </Text>
+                          <Text style={styles.itineraryTiming}>⏰ Morning & Afternoon</Text>
+                          <Text style={styles.itineraryActivityText}>
+                            Excursion to Baba Dhansar sacred holy spring / Nau Devi Temple. Check-out from {selectedHotel.name}. Board your return transit back to {origin}.
+                          </Text>
+                          <Text style={styles.itineraryStayNote}>
+                            🚆 Departure: {selectedTransport.name} back to {origin}
+                          </Text>
+                        </View>
+                      </>
+                    ))}
                 </View>
 
                 {/* ------------------------------------------------- */}
@@ -1848,6 +2009,65 @@ const styles = StyleSheet.create({
   },
   halfCol: {
     flex: 1,
+  },
+  numericInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  stepperCtrlBtn: {
+    width: 36,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: colors.goldSubtle,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperCtrlText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.burgundy,
+    marginTop: -2,
+  },
+  numericTextInput: {
+    flex: 1,
+    height: 38,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  quickChipsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  quickChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  quickChipActive: {
+    backgroundColor: colors.burgundy,
+    borderColor: colors.burgundy,
+  },
+  quickChipText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  quickChipTextActive: {
+    color: colors.textWhite,
   },
   stepperRow: {
     flexDirection: 'row',

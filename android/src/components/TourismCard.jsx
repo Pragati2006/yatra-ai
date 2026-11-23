@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal } from 'react-native';
 import { colors } from '../theme/colors';
-import { MountainIcon } from './Icons';
+import { MountainIcon, CloseIcon } from './Icons';
+import { VERIFIED_DESTINATION_GALLERIES } from '../utils/destinationImages';
 
 export default function TourismCard({ place, spot, onAskAssistant }) {
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const target = place || spot || {};
 
   const name = target.name || 'Holy Pilgrimage Site';
@@ -16,8 +19,37 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
   const description = target.description || '';
   const distance = target.distance || null;
 
-  const gallery = target.image_gallery || [];
-  const imageUrl = target.image_url || (target.image && target.image.startsWith('http') ? target.image : null) || gallery[0]?.thumbnail_url || gallery[0]?.image_url || null;
+  // Resolve gallery from target or local verified catalogue
+  const localEntry =
+    VERIFIED_DESTINATION_GALLERIES[name] ||
+    VERIFIED_DESTINATION_GALLERIES[target.name] ||
+    Object.values(VERIFIED_DESTINATION_GALLERIES).find(
+      (v) => (v.name || '').toLowerCase() === (name || '').toLowerCase()
+    ) ||
+    null;
+
+  const gallery =
+    Array.isArray(target.image_gallery) && target.image_gallery.length > 0
+      ? target.image_gallery
+      : localEntry?.images || [];
+
+  const rawUrl =
+    target.image_url ||
+    (target.image && target.image.startsWith('http') ? target.image : null) ||
+    gallery[0]?.thumbnail_url ||
+    gallery[0]?.image_url ||
+    null;
+
+  // Safely encode URI if needed
+  let imageUrl = null;
+  if (rawUrl) {
+    try {
+      imageUrl = encodeURI(decodeURI(rawUrl));
+    } catch {
+      imageUrl = rawUrl;
+    }
+  }
+
   const photoMeta = gallery[0] || null;
   const timings = isReligious
     ? (target.darshan_timings || target.timings || null)
@@ -34,26 +66,80 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
   return (
     <View style={styles.card}>
       {imageUrl && !imageError ? (
-        <View style={styles.imageContainer}>
+        <TouchableOpacity
+          style={styles.imageContainer}
+          onPress={() => setLightboxOpen(true)}
+          activeOpacity={0.9}
+          accessibilityLabel={`View full photo for ${name}`}
+        >
           <Image
             source={{ uri: imageUrl }}
             style={styles.cardImage}
-            onError={() => setImageError(true)}
+            onLoadStart={() => setImageLoading(true)}
+            onLoadEnd={() => setImageLoading(false)}
+            onError={() => {
+              setImageLoading(false);
+              setImageError(true);
+            }}
             resizeMode="cover"
           />
+          {imageLoading && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator size="small" color={colors.goldDark} />
+            </View>
+          )}
           {gallery.length > 1 && (
             <View style={styles.photoCountBadge}>
               <Text style={styles.photoCountText}>📷 {gallery.length} photos</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
       ) : (
         <View style={styles.fallbackNoticeBox}>
           <MountainIcon size={18} color={colors.goldDark} />
           <Text style={styles.fallbackNoticeText}>
-            {target.image_notice || 'Verified photograph in archival curation'}
+            {target.image_notice || `Verified photograph in archival curation for ${name}`}
           </Text>
         </View>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxOpen && photoMeta && (
+        <Modal
+          visible={lightboxOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLightboxOpen(false)}
+        >
+          <View style={styles.lightboxBackdrop}>
+            <View style={styles.lightboxCard}>
+              <View style={styles.lightboxTopBar}>
+                <Text style={styles.lightboxTitle} numberOfLines={1}>
+                  {name} — {photoMeta.title || 'Verified Photograph'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.lightboxCloseBtn}
+                  onPress={() => setLightboxOpen(false)}
+                  activeOpacity={0.7}
+                >
+                  <CloseIcon size={18} color="#FFFFFF" strokeWidth={2.2} />
+                </TouchableOpacity>
+              </View>
+
+              <Image
+                source={{ uri: photoMeta.thumbnail_url || photoMeta.image_url || imageUrl }}
+                style={styles.lightboxFullImage}
+                resizeMode="contain"
+              />
+
+              <View style={styles.lightboxMetaRow}>
+                <Text style={styles.lightboxAttribution} numberOfLines={2}>
+                  {photoMeta.attribution || (photoMeta.photographer ? `Photo by ${photoMeta.photographer}` : 'Wikimedia Commons')}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
 
       <View style={styles.headerRow}>
@@ -256,6 +342,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  imageLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(61, 8, 16, 0.4)',
+  },
   photoCountBadge: {
     position: 'absolute',
     bottom: 6,
@@ -287,5 +383,53 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(26, 12, 18, 0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  lightboxCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#240B15',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: colors.goldBorder,
+  },
+  lightboxTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(163, 130, 108, 0.3)',
+  },
+  lightboxTitle: {
+    color: '#F4E5BE',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  lightboxCloseBtn: {
+    padding: 4,
+  },
+  lightboxFullImage: {
+    width: '100%',
+    height: 260,
+    backgroundColor: '#15050C',
+  },
+  lightboxMetaRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  lightboxAttribution: {
+    color: '#E0D0C0',
+    fontSize: 11,
   },
 });

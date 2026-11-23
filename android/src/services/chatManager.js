@@ -178,14 +178,6 @@ class ChatManager {
           m.meta?.matched_destination ||
           null;
 
-        if (!destImages && m.role === 'assistant' && m.content) {
-          const localResolved = resolveDestinationImages('', m.content);
-          if (localResolved) {
-            destImages = localResolved.images;
-            matchedDest = matchedDest || localResolved.destination;
-          }
-        }
-
         return {
           id: m.id || `msg-${idx}-${Date.now()}`,
           role: m.role || 'assistant',
@@ -285,13 +277,15 @@ class ChatManager {
             }
           : null;
 
-        let destImages =
-          Array.isArray(response.destination_images) && response.destination_images.length > 0
-            ? response.destination_images.slice(0, 6)
-            : null;
-        let destMeta = response.matched_destination || null;
+        let destImages = null;
+        let destMeta = null;
 
-        if (!destImages) {
+        // Respect backend response: if backend explicitly provided destination_images array, honor it
+        if (Array.isArray(response.destination_images)) {
+          destImages = response.destination_images.length > 0 ? response.destination_images.slice(0, 6) : null;
+          destMeta = response.matched_destination || null;
+        } else {
+          // Offline mock or legacy backend without destination_images field: resolve locally
           const localResolved = resolveDestinationImages(cleanText, response.response);
           if (localResolved) {
             destImages = localResolved.images;

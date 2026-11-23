@@ -84,10 +84,10 @@ function ItineraryPreviewCard({
       'Bhairavnath Temple & Scenic Patnitop / Shiv Khori Excursion',
       'Morning Souvenir Shopping & Departure with Holy Blessings',
     ];
-    for (let i = 0; i < Math.min(duration, 4); i++) {
+    for (let i = 0; i < duration; i++) {
       dayHighlights.push({
         dayNum: i + 1,
-        title: defaultThemes[i] || `Day ${i + 1} Itinerary Schedule`,
+        title: defaultThemes[i] || `Day ${i + 1} Regional Pilgrimage & Sacred Excursion`,
       });
     }
   }
@@ -150,17 +150,51 @@ function ItineraryPreviewCard({
       {/* 3. Concise Day-Wise Highlights */}
       <View style={styles.timelineBox}>
         <Text style={styles.timelineHeading}>📅 DAY-WISE OVERVIEW</Text>
-        {dayHighlights.map((day) => (
-          <View key={day.dayNum} style={styles.timelineRow}>
-            <View style={styles.dayDotContainer}>
-              <View style={styles.dayDot} />
-              <Text style={styles.dayLabel}>D{day.dayNum}</Text>
+        {dayHighlights.length <= 7 ? (
+          dayHighlights.map((day) => (
+            <View key={day.dayNum} style={styles.timelineRow}>
+              <View style={styles.dayDotContainer}>
+                <View style={styles.dayDot} />
+                <Text style={styles.dayLabel}>D{day.dayNum}</Text>
+              </View>
+              <Text style={styles.dayText} numberOfLines={2}>
+                {day.title}
+              </Text>
             </View>
-            <Text style={styles.dayText} numberOfLines={2}>
-              {day.title}
-            </Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          <>
+            {dayHighlights.slice(0, 4).map((day) => (
+              <View key={day.dayNum} style={styles.timelineRow}>
+                <View style={styles.dayDotContainer}>
+                  <View style={styles.dayDot} />
+                  <Text style={styles.dayLabel}>D{day.dayNum}</Text>
+                </View>
+                <Text style={styles.dayText} numberOfLines={2}>
+                  {day.title}
+                </Text>
+              </View>
+            ))}
+            <View style={styles.timelineRow}>
+              <View style={styles.dayDotContainer}>
+                <View style={styles.dayDot} />
+                <Text style={styles.dayLabel}>D5–{dayHighlights[dayHighlights.length - 1].dayNum - 1}</Text>
+              </View>
+              <Text style={styles.dayText} numberOfLines={2}>
+                Regional Pilgrimage & Sacred Excursions ({dayHighlights.length - 5} intermediate days)
+              </Text>
+            </View>
+            <View key={dayHighlights[dayHighlights.length - 1].dayNum} style={styles.timelineRow}>
+              <View style={styles.dayDotContainer}>
+                <View style={styles.dayDot} />
+                <Text style={styles.dayLabel}>D{dayHighlights[dayHighlights.length - 1].dayNum}</Text>
+              </View>
+              <Text style={styles.dayText} numberOfLines={2}>
+                {dayHighlights[dayHighlights.length - 1].title}
+              </Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* 4. Estimated Budget Banner */}

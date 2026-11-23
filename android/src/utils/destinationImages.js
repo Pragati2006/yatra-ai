@@ -3,11 +3,25 @@
  *
  * Verified Destination Photographs Catalog & Resolver for Yatra AI Android.
  *
- * Provides guaranteed client-side resolution of genuine Wikimedia Commons photography
- * across 36 verified destinations in Jammu & Kashmir.
+ * Provides guaranteed client-side resolution of genuine verified photography
+ * across all 43 verified destinations in Jammu & Kashmir.
  */
 
 export const VERIFIED_DESTINATION_GALLERIES = {
+  "Bhairavnath Temple": {
+    "name": "Bhairavnath Temple",
+    "id": "6ac9e42cd1723aa73d3bad2a",
+    "images": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Katra_city_view_from_top_of_bhairav_temple.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Katra_city_view_from_top_of_bhairav_temple.jpg/960px-Katra_city_view_from_top_of_bhairav_temple.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Katra view from top of Bhairav Temple",
+        "photographer": "02addicted",
+        "license": "CC0",
+        "attribution": "Photo by 02addicted / Wikimedia Commons / CC0"
+      }
+    ]
+  },
   "Ardhkuwari Cave": {
     "name": "Ardhkuwari Cave",
     "id": "6ac9e42cd1723aa73d3bad2b",
@@ -52,6 +66,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
       }
     ]
   },
+  "Nau Devi Cave Temple": {
+    "name": "Nau Devi Cave Temple",
+    "id": "6ac9e42cd1723aa73d3bad2d",
+    "images": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/Nau_devi_mandir_jammu_kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Nau_devi_mandir_jammu_kashmir.jpg/960px-Nau_devi_mandir_jammu_kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Nau Devi Mandir, Jammu and Kashmir",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0"
+      }
+    ]
+  },
   "Baba Dhansar": {
     "name": "Baba Dhansar",
     "id": "6ac9e42cd1723aa73d3bad2e",
@@ -63,6 +91,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
         "photographer": "Mr. Debapriya Hore",
         "license": "CC BY 4.0",
         "attribution": "Photo by Mr. Debapriya Hore / Wikimedia Commons / CC BY 4.0"
+      }
+    ]
+  },
+  "Jhajjar Kotli": {
+    "name": "Jhajjar Kotli",
+    "id": "6ac9e42cd1723aa73d3bad2f",
+    "images": [
+      {
+        "image_url": "/assets/images/places/Jhajjar Kotli.jpg",
+        "thumbnail_url": "/assets/images/places/Jhajjar Kotli.jpg",
+        "title": "Jhajjar Kotli Tourist Complex, Jammu",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive"
       }
     ]
   },
@@ -156,6 +198,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
       }
     ]
   },
+  "Raghunath Temple, Jammu": {
+    "name": "Raghunath Temple, Jammu",
+    "id": "6ac9e42dd1723aa73d3bad33",
+    "images": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Raghunath_Temple_Jammu.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Raghunath_Temple_Jammu.JPG/960px-Raghunath_Temple_Jammu.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Raghunath Temple Jammu",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0"
+      }
+    ]
+  },
   "Bahu Fort & Bagh-e-Bahu": {
     "name": "Bahu Fort & Bagh-e-Bahu",
     "id": "6ac9e42dd1723aa73d3bad34",
@@ -238,6 +294,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
       }
     ]
   },
+  "Himkoti": {
+    "name": "Himkoti",
+    "id": "6ac9e42dd1723aa73d3bad37",
+    "images": [
+      {
+        "image_url": "/assets/images/places/Himkoti.jpg",
+        "thumbnail_url": "/assets/images/places/Himkoti.jpg",
+        "title": "Himkoti Viewpoint, Vaishno Devi Trek",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive"
+      }
+    ]
+  },
   "Dera Baba Banda Bahadur": {
     "name": "Dera Baba Banda Bahadur",
     "id": "6ac9e42dd1723aa73d3bad38",
@@ -279,6 +349,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
         "photographer": "Itzseoprasoon",
         "license": "CC BY-SA 4.0",
         "attribution": "Photo by Itzseoprasoon / Wikimedia Commons / CC BY-SA 4.0"
+      }
+    ]
+  },
+  "Peer Kho Cave Temple": {
+    "name": "Peer Kho Cave Temple",
+    "id": "6ac9e42dd1723aa73d3bad3a",
+    "images": [
+      {
+        "image_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+        "thumbnail_url": "/assets/images/places/Peer Kho Cave Temple.jpg",
+        "title": "Peer Kho Cave Temple, Jammu",
+        "photographer": "Jammu & Kashmir Tourism",
+        "license": "Official Tourism Archive",
+        "attribution": "Photo by Jammu & Kashmir Tourism / Official Archive"
       }
     ]
   },
@@ -587,12 +671,12 @@ export const VERIFIED_DESTINATION_GALLERIES = {
     "id": "6ac9e42ed1723aa73d3bad45",
     "images": [
       {
-        "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg/960px-A_view_from_a_top_of_a_building_from_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-        "title": "A view from a top of a building from Katra, Jammu and Kashmir",
-        "photographer": "Anubhav Sinha",
-        "license": "CC BY-SA 2.0",
-        "attribution": "Photo by Anubhav Sinha / Wikimedia Commons / CC BY-SA 2.0"
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d4/Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Mata_Vaishno_Devi_Bhawan.jpg/960px-Mata_Vaishno_Devi_Bhawan.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Holy Cave Bhawan, Shri Mata Vaishno Devi",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 3.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 3.0"
       },
       {
         "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Houses_and_Shops_located_in_Katra%2C_Jammu_and_Kashmir.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
@@ -1002,6 +1086,20 @@ export const VERIFIED_DESTINATION_GALLERIES = {
       }
     ]
   },
+  "Kishtwar National Park": {
+    "name": "Kishtwar National Park",
+    "id": "dest-kishtwar-national-park",
+    "images": [
+      {
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Marwah_Valley_Kishtwar%2C_Jammu.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Marwah_Valley_Kishtwar%2C_Jammu.jpg/960px-Marwah_Valley_Kishtwar%2C_Jammu.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "title": "Marwah Valley, Kishtwar National Park Region",
+        "photographer": "Wikimedia Commons Contributor",
+        "license": "CC BY-SA 4.0",
+        "attribution": "Photo from Wikimedia Commons / CC BY-SA 4.0"
+      }
+    ]
+  },
   "Machail Mata": {
     "name": "Machail Mata",
     "id": "dest-machail-mata",
@@ -1035,84 +1133,233 @@ export const VERIFIED_DESTINATION_GALLERIES = {
 };
 
 export const DESTINATION_ALIASES = {
+  // Patnitop & Highlands
   "patnitop": "Patnitop",
   "patni top": "Patnitop",
-  "baisaran": "Pahalgam (Valley of Shepherds)",
-  "baisaran valley": "Pahalgam (Valley of Shepherds)",
-  "baisaran meadow": "Pahalgam (Valley of Shepherds)",
-  "mini switzerland": "Pahalgam (Valley of Shepherds)",
-  "aru valley": "Pahalgam (Valley of Shepherds)",
-  "betaab valley": "Pahalgam (Valley of Shepherds)",
+  "sanasar": "Sanasar",
+  "sanasar lake": "Sanasar",
+  "nathatop": "Patnitop",
+
+  // Kashmir Valleys
+  "aru valley": "Kashmir Valley",
+  "aru": "Kashmir Valley",
+  "chandanwari": "Kashmir Valley",
   "pahalgam": "Pahalgam (Valley of Shepherds)",
+  "valley of shepherds": "Pahalgam (Valley of Shepherds)",
+  "gulmarg": "Gulmarg (Snow Meadow)",
+  "snow meadow": "Gulmarg (Snow Meadow)",
+  "gondola": "Gulmarg (Snow Meadow)",
+  "sonamarg": "Sonamarg (Meadow of Gold)",
+  "sonmarg": "Sonamarg (Meadow of Gold)",
+  "meadow of gold": "Sonamarg (Meadow of Gold)",
+  "thajiwas": "Sonamarg (Meadow of Gold)",
+  "kashmir valley": "Kashmir Valley",
+  "kashmir": "Kashmir Valley",
+  "sinthan top": "Sinthan Top",
+  "sinthan": "Sinthan Top",
+
+  // Mata Vaishno Devi Shrine Circuit
   "vaishno devi bhawan": "Katra",
-  "vaishno devi": "Katra",
   "bhawan": "Katra",
+  "mata vaishno devi bhawan": "Katra",
+  "holy cave": "Katra",
+  "vaishno devi": "Katra",
   "mata vaishno devi": "Katra",
   "katra": "Katra",
+  "katra town": "Katra",
+  "bhairavnath": "Bhairavnath Temple",
+  "bhairav temple": "Bhairavnath Temple",
+  "bhairon temple": "Bhairavnath Temple",
+  "bhairon": "Bhairavnath Temple",
+  "bhairon nath": "Bhairavnath Temple",
   "ardhkuwari": "Ardhkuwari Cave",
   "garbhjoon": "Ardhkuwari Cave",
   "ardh kuwari": "Ardhkuwari Cave",
+  "garbh joon": "Ardhkuwari Cave",
   "charan paduka": "Charan Paduka",
   "ban ganga": "Ban Ganga",
   "banganga": "Ban Ganga",
+  "himkoti": "Himkoti",
+  "him koti": "Himkoti",
   "baba dhansar": "Baba Dhansar",
   "dhansar": "Baba Dhansar",
+  "nau devi": "Nau Devi Cave Temple",
+  "nau devi temple": "Nau Devi Cave Temple",
+  "nav devi": "Nau Devi Cave Temple",
+  "jhajjar kotli": "Jhajjar Kotli",
+  "jhajjar": "Jhajjar Kotli",
   "shiv khori": "Shiv Khori",
   "shivkhori": "Shiv Khori",
-  "sanasar": "Sanasar",
-  "mansar": "Mansar Lake",
+  "dera baba banda": "Dera Baba Banda Bahadur",
+  "dera baba banda bahadur": "Dera Baba Banda Bahadur",
+  "banda bahadur": "Dera Baba Banda Bahadur",
+
+  // Jammu Heritage & Lakes
   "mansar lake": "Mansar Lake",
+  "mansar": "Mansar Lake",
+  "surinsar": "Mansar Lake",
   "bahu fort": "Bahu Fort & Bagh-e-Bahu",
   "bagh-e-bahu": "Bahu Fort & Bagh-e-Bahu",
+  "bagh e bahu": "Bahu Fort & Bagh-e-Bahu",
   "amar mahal": "Amar Mahal Palace",
   "amar palace": "Amar Mahal Palace",
-  "gulmarg": "Gulmarg (Snow Meadow)",
-  "srinagar": "Srinagar (Dal Lake & Gardens)",
-  "dal lake": "Srinagar (Dal Lake & Gardens)",
-  "sonamarg": "Sonamarg (Meadow of Gold)",
-  "shankaracharya": "Shankaracharya Temple, Srinagar",
-  "kheer bhawani": "Kheer Bhawani Temple, Tulmulla",
-  "verinag": "Verinag Spring and Mughal Garden",
-  "achabal": "Achabal Mughal Garden",
-  "martand": "Martand Sun Temple, Mattan",
-  "sinthan top": "Sinthan Top",
+  "amar mahal palace": "Amar Mahal Palace",
+  "raghunath": "Raghunath Temple, Jammu",
+  "raghunath temple": "Raghunath Temple, Jammu",
+  "peer kho": "Peer Kho Cave Temple",
+  "peer kho cave": "Peer Kho Cave Temple",
   "akhnoor fort": "Akhnoor Fort",
   "akhnoor": "Akhnoor Fort",
   "mubarak mandi": "Mubarak Mandi Palace",
+  "mubarak mandi palace": "Mubarak Mandi Palace",
+
+  // Srinagar Heritage & Lakes
+  "srinagar": "Srinagar (Dal Lake & Gardens)",
+  "dal lake": "Srinagar (Dal Lake & Gardens)",
+  "shankaracharya": "Shankaracharya Temple, Srinagar",
+  "shankaracharya temple": "Shankaracharya Temple, Srinagar",
+  "kheer bhawani": "Kheer Bhawani Temple, Tulmulla",
+  "kheer bhawani temple": "Kheer Bhawani Temple, Tulmulla",
+  "tulmulla": "Kheer Bhawani Temple, Tulmulla",
+  "verinag": "Verinag Spring and Mughal Garden",
+  "verinag spring": "Verinag Spring and Mughal Garden",
+  "achabal": "Achabal Mughal Garden",
+  "achabal garden": "Achabal Mughal Garden",
+  "martand": "Martand Sun Temple, Mattan",
+  "martand sun temple": "Martand Sun Temple, Mattan",
   "badamwari": "Badamwari",
+  "badam wari": "Badamwari",
   "botanical garden": "Botanical Garden",
   "chashma shahi": "Chashma Shahi",
+  "chashmashahi": "Chashma Shahi",
+  "chashme shahi": "Chashma Shahi",
+  "cheshma shahi": "Chashma Shahi",
   "dachigam": "Dachigam National Park",
+  "dachigam national park": "Dachigam National Park",
   "hari parbat": "Hari Parbat Fort",
+  "hari parbat fort": "Hari Parbat Fort",
   "harwan garden": "Harwan Garden",
+  "harwan": "Harwan Garden",
   "nigeen lake": "Nigeen Lake",
+  "nigeen": "Nigeen Lake",
+  "nagin lake": "Nigeen Lake",
   "pari mahal": "Pari Mahal",
+  "parimahal": "Pari Mahal",
   "tulip garden": "Tulip Garden",
+  "indira gandhi tulip garden": "Tulip Garden",
+
+  // Kishtwar & Chenab Valley
   "chowgan": "Chowgan",
+  "kishtwar chowgan": "Chowgan",
+  "kishtwar national park": "Kishtwar National Park",
+  "kishtwar": "Kishtwar National Park",
   "machail mata": "Machail Mata",
-  "kashmir valley": "Kashmir Valley"
+  "machail": "Machail Mata"
 };
 
 /**
  * Resolves verified destination images from user prompt or assistant reply.
- * Returns null if no verified destination is matched.
+ * Strictly adheres to Part A photo intent rules:
+ * 1. Checks userText for explicit photo intent or genuine destination inquiry.
+ * 2. Suppresses photographs for transport, booking, procedural, timetable, rules, weather, or budget questions.
+ * 3. Never attaches generic Katra town photos.
+ * 4. Never attaches previous-turn destination images to unrelated subsequent messages.
+ * 5. Returns null if no verified destination is matched.
  */
 export function resolveDestinationImages(userText = '', assistantText = '') {
-  const combined = (String(userText || '') + ' ' + String(assistantText || '')).toLowerCase();
+  const userClean = String(userText || '').trim();
+  const userLower = userClean.toLowerCase();
+
+  // Procedural, transport and logistical terms that suppress photo attachments
+  const isTransportOrProcedural = Boolean(
+    userLower.match(
+      /\b(train|trains|flight|flights|bus|buses|railway|irctc|timetable|timetables|schedule|schedules|timings?|fare|fares|ticket|tickets|pnr|vande bharat|how to reach|how do i reach|route|routes|station|airport|platform|helicopter|helipad|ropeway|cable car|battery car|electric vehicle|palki|palanquin|pony|horse|pithoo|rfid|parchi|yatra slip|registration|register|how to register|counter|booking|procedure|procedures|process|steps|guidelines|locker|lockers|cloakroom|luggage|storage|deposit|bhojanalaya|langar|food|eating|meals?|kitchen|rules|restrictions|prohibited|allowed|banned|dress code|documents|id card|proof|medical|dispensary|doctor|hospital|first aid|oxygen|altitude|breathing|sickness|weather|forecast|temperature|climate|rainfall|snowfall|snow|rain|budget|cost|price|packages?|per person|expense)\b/i
+    )
+  );
+
+  // Explicit photo intent keywords
+  const hasPhotoIntent = Boolean(
+    userLower.match(/\b(photos?|pictures?|pics?|images?|photographs?|gallery|snapshots?)\b/i)
+  );
+
+  // Rule 2: If query is transport or procedural and user did not explicitly ask for photos, suppress
+  if (isTransportOrProcedural && !hasPhotoIntent) {
+    return null;
+  }
+
+  // Suppression guard for specific valleys that do not have verified photos in the catalog
+  if (userLower.match(/\b(doodhpathri|doodh\s*pathri|valley\s*of\s*milk|baisaran(\s*valley|\s*meadow)?|mini\s*switzerland|betaab(\s*valley)?)\b/i)) {
+    return null;
+  }
+
+  // Check if query is targeting Bhawan / Shrine vs Katra town
+  const isBhawanQuery = Boolean(userLower.match(/\b(bhawan|vaishno\s*devi|shrine|holy\s*cave)\b/i));
+
+  // Rule 3: Generic Katra inquiries without photo intent receive no photographs
+  if (userLower.match(/\bkatra\b/i) && !isBhawanQuery && !hasPhotoIntent) {
+    return null;
+  }
 
   const sortedAliases = Object.keys(DESTINATION_ALIASES).sort((a, b) => b.length - a.length);
 
+  // Helper to filter gallery if special destination
+  const getFilteredEntry = (canonName, aliasMatched) => {
+    const entry = VERIFIED_DESTINATION_GALLERIES[canonName];
+    if (!entry || !Array.isArray(entry.images) || entry.images.length === 0) return null;
+
+    let filteredImages = entry.images;
+    if (canonName === 'Kashmir Valley') {
+      if (aliasMatched.match(/\baru(\s*valley)?\b/i) || userLower.match(/\baru(\s*valley)?\b/i)) {
+        filteredImages = entry.images.filter(img => /aru/i.test(img.title || '') || /aru/i.test(img.image_url || ''));
+      } else if (aliasMatched.match(/\bchandanwari\b/i) || userLower.match(/\bchandanwari\b/i)) {
+        filteredImages = entry.images.filter(img => /chandanwari/i.test(img.title || '') || /chandanwari/i.test(img.image_url || ''));
+      }
+    } else if (canonName === 'Katra') {
+      if (isBhawanQuery || aliasMatched.match(/\b(bhawan|holy\s*cave|vaishno\s*devi)\b/i)) {
+        // Bhawan-specific query: return ONLY genuine Bhawan/Holy Cave photographs (excluding Katra municipal overviews)
+        filteredImages = entry.images.filter(img => /bhawan|holy\s*cave/i.test(img.title || '') || /bhawan/i.test(img.image_url || ''));
+      } else if (hasPhotoIntent) {
+        // Ordinary Katra destination with explicit photo intent: return Katra municipal overview photos, NEVER Bhawan-only photographs
+        filteredImages = entry.images.filter(img => !(/bhawan|holy\s*cave/i.test(img.title || '') || /bhawan/i.test(img.image_url || '')));
+      } else {
+        return null;
+      }
+    }
+
+    if (!filteredImages || filteredImages.length === 0) return null;
+
+    const isBhawanResult = (canonName === 'Katra' && (isBhawanQuery || Boolean(aliasMatched.match(/\b(bhawan|holy\s*cave|vaishno\s*devi)\b/i))));
+    return {
+      destination: {
+        name: isBhawanResult ? 'Holy Cave Bhawan (Mata Vaishno Devi)' : entry.name,
+        id: entry.id
+      },
+      images: filteredImages.slice(0, 4),
+    };
+  };
+
+  // 1. Search user query first
   for (const alias of sortedAliases) {
-    const escaped = alias.replace(/[.*+?^$\{}()|[\]\\/]/g, '\\$&');
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
     const regex = new RegExp('(\\b|[^a-zA-Z0-9])' + escaped + '(\\b|[^a-zA-Z0-9]|$)', 'i');
-    if (regex.test(combined)) {
+    if (regex.test(userLower)) {
       const canonName = DESTINATION_ALIASES[alias];
-      const entry = VERIFIED_DESTINATION_GALLERIES[canonName];
-      if (entry && Array.isArray(entry.images) && entry.images.length > 0) {
-        return {
-          destination: { name: entry.name, id: entry.id },
-          images: entry.images.slice(0, 4),
-        };
+      const res = getFilteredEntry(canonName, alias);
+      if (res) return res;
+    }
+  }
+
+  // 2. Only inspect assistantText IF userText had explicit photo intent AND is not procedural
+  if (hasPhotoIntent && assistantText) {
+    const asstLower = String(assistantText).toLowerCase();
+    for (const alias of sortedAliases) {
+      if (alias === 'katra' || alias === 'jammu') continue;
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+      const regex = new RegExp('(\\b|[^a-zA-Z0-9])' + escaped + '(\\b|[^a-zA-Z0-9]|$)', 'i');
+      if (regex.test(asstLower)) {
+        const canonName = DESTINATION_ALIASES[alias];
+        const res = getFilteredEntry(canonName, alias);
+        if (res) return res;
       }
     }
   }

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Menu,
   History,
   Plus,
   MessageSquare,
@@ -54,18 +55,19 @@ export default function ChatHeader({
     >
       {/* Left: History Button + Brand Identity */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        {/* Compact History Toggle Button */}
+        {/* Prominent Sidebar Hamburger Menu Toggle Button */}
         <button
           type="button"
           data-testid="chat-history-toggle-btn"
+          id="sidebar-toggle-btn"
           onClick={onToggleHistory}
-          aria-label={isHistoryOpen ? 'Close conversation history' : 'Open conversation history'}
+          aria-label={isHistoryOpen ? 'Close navigation sidebar menu' : 'Open navigation sidebar menu'}
           aria-expanded={isHistoryOpen}
           style={{
             background: isHistoryOpen ? 'var(--soft-plum-surface, #F0E3E7)' : 'var(--surface-white, #FFFCF9)',
             border: `1px solid ${isHistoryOpen ? 'var(--royal-plum, #54152D)' : 'var(--border-default, #E9DED6)'}`,
             borderRadius: '10px',
-            padding: '6px 10px',
+            padding: '6px 12px',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
@@ -74,11 +76,17 @@ export default function ChatHeader({
             color: 'var(--royal-plum, #54152D)',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
+            boxShadow: '0 1px 3px rgba(84, 21, 45, 0.05)',
           }}
-          title="View saved conversations & trip history"
+          title="Open navigation menu, services & saved conversations"
         >
-          <History size={16} strokeWidth={2.2} />
-          <span className="hide-on-mobile">History</span>
+          <span
+            data-testid="sidebar-toggle-btn"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Menu size={18} strokeWidth={2.2} />
+            <span style={{ fontWeight: 700 }}>Menu</span>
+          </span>
         </button>
 
         {/* New Chat Button */}

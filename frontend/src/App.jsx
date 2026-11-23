@@ -73,6 +73,15 @@ export default function App() {
   const [hasMountedBooking, setHasMountedBooking] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // Active chat session key to allow pristine reset on "New Chat" while preserving streams across navigation
+  const [activeChatSessionId, setActiveChatSessionId] = useState(() => {
+    try {
+      return sessionStorage.getItem('yatra_session_id') || `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    } catch {
+      return `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    }
+  });
+
   // Landing Screen Gate: First-time devotees see the simplified landing screen until they begin
   const [hasStartedJourney, setHasStartedJourney] = useState(() => {
     try {
@@ -153,6 +162,9 @@ export default function App() {
 
   const handleOpenConversation = (convData) => {
     setActiveConversation(convData);
+    if (convData?.conversation_id) {
+      setActiveChatSessionId(convData.conversation_id);
+    }
     setShowSavedTripsModal(false);
     setIsHistoryOpen(false);
     setActiveTab('assistant');
@@ -162,11 +174,13 @@ export default function App() {
     setActiveConversation(null);
     setAssistantInitialQuery(null);
     setActiveTab('assistant');
+    const newSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setActiveChatSessionId(newSid);
     try {
-      const newSid = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       sessionStorage.setItem('yatra_session_id', newSid);
       sessionStorage.removeItem('yatra_chat_messages');
       sessionStorage.removeItem('yatra_chat_messages_session_id');
+      sessionStorage.removeItem('yatra_chat_state');
     } catch {
       // ignore
     }
@@ -412,17 +426,29 @@ export default function App() {
           </div>
         )}
 
-        {/* 1. Primary AI Assistant View (Full-Screen Conversational Experience) */}
-        {hasStartedJourney && (activeTab === 'assistant' || activeTab === 'home') && (
-          <AIChat
-            user={currentUser}
-            initialMessage={assistantInitialQuery}
-            loadedConversation={activeConversation}
-            onClearLoadedConversation={() => setActiveConversation(null)}
-            sharedSessionId={activeConversation?.conversation_id || null}
-            onNavigateToBooking={(payload) => handleStartBooking(payload)}
-            onExplorePlace={(placeName) => handleExplorePlaceQuery(`Tell me about ${placeName}`)}
-          />
+        {/* 1. Primary AI Assistant View (Persistently mounted so active requests & streaming survive navigation) */}
+        {hasStartedJourney && (
+          <div
+            style={{
+              display: (activeTab === 'assistant' || activeTab === 'home') ? 'flex' : 'none',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+              height: '100%',
+              width: '100%',
+            }}
+          >
+            <AIChat
+              key={activeConversation?.conversation_id || activeChatSessionId}
+              user={currentUser}
+              initialMessage={assistantInitialQuery}
+              loadedConversation={activeConversation}
+              onClearLoadedConversation={() => setActiveConversation(null)}
+              sharedSessionId={activeConversation?.conversation_id || activeChatSessionId}
+              onNavigateToBooking={(payload) => handleStartBooking(payload)}
+              onExplorePlace={(placeName) => handleExplorePlaceQuery(`Tell me about ${placeName}`)}
+            />
+          </div>
         )}
 
         {/* 2. Guided Darshan Booking Experience */}

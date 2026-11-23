@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Compass, MapPin, Calendar, Users, Train, CheckCircle2, Clock, Coins, Footprints, Building2, Mountain, ArrowRight } from 'lucide-react';
+import InteractiveDatePicker from './common/InteractiveDatePicker';
 
 const POPULAR_HUBS = [
   'Delhi', 'Jammu', 'Mumbai', 'Ahmedabad', 'Amritsar', 
@@ -9,8 +10,17 @@ const POPULAR_HUBS = [
 ];
 
 export default function TravelSearch({ onSearch, loading = false, initialValues = {} }) {
+  const todayISO = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
+
   const [origin, setOrigin] = useState(initialValues.origin || '');
-  const [startDate, setStartDate] = useState(initialValues.startDate || initialValues.start_date || '2026-11-10');
+  const [startDate, setStartDate] = useState(initialValues.startDate || initialValues.start_date || todayISO);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [pax, setPax] = useState(initialValues.pax || 2);
   const [mode, setMode] = useState(initialValues.mode || 'any');
   const [category, setCategory] = useState(initialValues.category || 'Normal Darshan');
@@ -178,34 +188,114 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
           </div>
 
           {/* Travel Date */}
-          <div>
-            <label htmlFor="travel-start-date" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              <Calendar size={14} /> Yatra Start Date
-            </label>
-            <input
-              id="travel-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{ padding: '0.55rem 0.75rem' }}
-            />
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label htmlFor="travel-start-date" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', margin: 0 }}>
+                <Calendar size={14} /> Yatra Start Date
+              </label>
+              <button
+                type="button"
+                data-testid="toggle-date-picker-btn"
+                onClick={() => setShowDatePicker((prev) => !prev)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--burgundy)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0,
+                }}
+              >
+                {showDatePicker ? 'Close Calendar' : 'Open Calendar'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                id="travel-start-date"
+                type="date"
+                value={startDate}
+                min={todayISO}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val || val >= todayISO) {
+                    setStartDate(val);
+                  }
+                }}
+                style={{ flex: 1, padding: '0.55rem 0.75rem' }}
+              />
+            </div>
+            {showDatePicker && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 40,
+                  marginTop: '8px',
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+                  borderRadius: '14px',
+                }}
+              >
+                <InteractiveDatePicker
+                  initialDeparture={startDate || todayISO}
+                  initialReturn={returnDate}
+                  onSelectDates={(dates) => {
+                    if (dates.startDate) setStartDate(dates.startDate);
+                    if (dates.durationDays) setDuration(dates.durationDays);
+                    setShowDatePicker(false);
+                  }}
+                  onClose={() => setShowDatePicker(false)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Pilgrims */}
           <div>
-            <label htmlFor="travel-pax" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              <Users size={14} /> Pilgrims (Pax)
-            </label>
-            <select
-              id="travel-pax"
-              value={pax}
-              onChange={(e) => setPax(e.target.value)}
-              style={{ padding: '0.55rem 0.75rem' }}
-            >
-              {[1, 2, 3, 4, 5, 6, 8, 10].map((num) => (
-                <option key={num} value={num}>{num} {num === 1 ? 'Pilgrim' : 'Pilgrims'}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label htmlFor="travel-pax" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', margin: 0 }}>
+                <Users size={14} /> Pilgrims (Pax)
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                id="travel-pax"
+                value={pax}
+                onChange={(e) => setPax(parseInt(e.target.value, 10) || 1)}
+                style={{ flex: 1, padding: '0.55rem 0.75rem' }}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 20, 25, 30, 40, 50].map((num) => (
+                  <option key={num} value={num}>{num} {num === 1 ? 'Pilgrim' : 'Pilgrims'}</option>
+                ))}
+                {!([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 20, 25, 30, 40, 50].includes(Number(pax))) && (
+                  <option value={pax}>{pax} Pilgrims</option>
+                )}
+              </select>
+              <input
+                id="travel-pax-input"
+                type="number"
+                min="1"
+                step="1"
+                value={pax}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) {
+                    setPax(val);
+                  } else if (e.target.value === '') {
+                    setPax('');
+                  }
+                }}
+                onBlur={() => {
+                  if (!pax || pax < 1) setPax(1);
+                }}
+                aria-label="Custom Pilgrim Count"
+                title="Enter custom pilgrim count"
+                placeholder="Qty"
+                style={{ width: '65px', padding: '0.55rem 0.5rem', textAlign: 'center' }}
+              />
+            </div>
           </div>
 
           {/* Transport Mode */}
@@ -245,19 +335,50 @@ export default function TravelSearch({ onSearch, loading = false, initialValues 
 
           {/* Duration */}
           <div>
-            <label htmlFor="travel-duration" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '4px' }}>
-              <Clock size={14} /> Trip Duration
-            </label>
-            <select
-              id="travel-duration"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              style={{ padding: '0.55rem 0.75rem' }}
-            >
-              {[2, 3, 4, 5, 6, 7].map((days) => (
-                <option key={days} value={days}>{days} Days ({days - 1} Nights)</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label htmlFor="travel-duration" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', margin: 0 }}>
+                <Clock size={14} /> Trip Duration
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                id="travel-duration"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value, 10) || 1)}
+                style={{ flex: 1, padding: '0.55rem 0.75rem' }}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 20, 30].map((days) => (
+                  <option key={days} value={days}>
+                    {days} {days === 1 ? 'Day (Express Same-Day)' : `${days} Days (${days - 1} Nights)`}
+                  </option>
+                ))}
+                {!([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 20, 30].includes(Number(duration))) && (
+                  <option value={duration}>{duration} Days ({duration - 1} Nights)</option>
+                )}
+              </select>
+              <input
+                id="travel-duration-input"
+                type="number"
+                min="1"
+                step="1"
+                value={duration}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) {
+                    setDuration(val);
+                  } else if (e.target.value === '') {
+                    setDuration('');
+                  }
+                }}
+                onBlur={() => {
+                  if (!duration || duration < 1) setDuration(1);
+                }}
+                aria-label="Custom Trip Duration Days"
+                title="Enter custom duration in days"
+                placeholder="Days"
+                style={{ width: '65px', padding: '0.55rem 0.5rem', textAlign: 'center' }}
+              />
+            </div>
           </div>
 
           {/* Budget Scope */}

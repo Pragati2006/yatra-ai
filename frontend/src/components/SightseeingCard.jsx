@@ -24,13 +24,33 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
   const travelRequirement = TRAVEL_NOTES[place.category] || null;
   const isReligious = place.category_type === 'religious_site' || (!place.category_type && !['Nature', 'Hill station', 'Hill station / adventure', 'Kashmir', 'nature_destination', 'historical_site', 'tourist_attraction', 'trekking_destination'].includes(place.category));
 
-  // Resolve primary image URL: prefers verified external HTTPS image_url, then local image, then gallery first item
+  // Resolve primary image URL: prefers verified external HTTPS image_url, then gallery, then local encoded image
   const gallery = place.image_gallery || [];
+  const formatLocalPath = (img) => {
+    if (!img) return null;
+    if (img.startsWith('http')) return img;
+    const clean = img.startsWith('/') ? img.slice(1) : img;
+    return '/' + encodeURI(clean);
+  };
   const primaryImage = place.image_url
     ? place.image_url
-    : place.image
-      ? (place.image.startsWith('http') ? place.image : '/' + place.image)
-      : (gallery[0]?.thumbnail_url || gallery[0]?.image_url || null);
+    : (gallery[0]?.thumbnail_url || gallery[0]?.image_url || formatLocalPath(place.image) || null);
+  const fallbackImage = (gallery[1]?.thumbnail_url || gallery[1]?.image_url || formatLocalPath(place.image) || null);
+
+  const [activeImg, setActiveImg] = useState(primaryImage);
+
+  React.useEffect(() => {
+    setActiveImg(primaryImage);
+    setImageFailed(false);
+  }, [primaryImage]);
+
+  const handleImageError = () => {
+    if (fallbackImage && activeImg !== fallbackImage) {
+      setActiveImg(fallbackImage);
+    } else {
+      setImageFailed(true);
+    }
+  };
   const primaryPhotoMeta = gallery[0] || null;
 
   return (
@@ -60,16 +80,16 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
           borderRadius: '12px',
           overflow: 'hidden',
           marginBottom: '12px',
-          cursor: primaryImage && !imageFailed ? 'pointer' : 'default',
+          cursor: activeImg && !imageFailed ? 'pointer' : 'default',
         }}
-        onClick={() => primaryImage && !imageFailed && setShowLightbox(true)}
+        onClick={() => activeImg && !imageFailed && setShowLightbox(true)}
       >
-        {primaryImage && !imageFailed ? (
+        {activeImg && !imageFailed ? (
           <img
-            src={primaryImage}
+            src={activeImg}
             alt={place.name}
             loading="lazy"
-            onError={() => setImageFailed(true)}
+            onError={handleImageError}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
@@ -468,7 +488,7 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
       </div>
 
       {/* Lightbox Modal */}
-      {showLightbox && primaryImage && (
+      {showLightbox && (activeImg || primaryImage) && (
         <div
           data-testid={`place-lightbox-${cardId}`}
           onClick={(e) => {
@@ -541,7 +561,7 @@ export default function SightseeingCard({ place, isSelected, onToggleSelect, onE
               }}
             >
               <img
-                src={primaryImage}
+                src={activeImg || primaryImage}
                 alt={place.name}
                 style={{
                   maxWidth: '100%',

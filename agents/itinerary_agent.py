@@ -12,6 +12,7 @@ Supports:
 """
 
 import copy
+import logging
 import os
 import re
 from datetime import datetime, timedelta
@@ -19,6 +20,8 @@ from datetime import datetime, timedelta
 import agent as legacy_agent
 import explore_data
 import yatra_info
+
+logger = logging.getLogger(__name__)
 
 CANONICAL_PLACES = {
     "bhairavnath": "Bhairavnath Temple",
@@ -767,6 +770,125 @@ def evaluate_sightseeing_feasibility(places: list, duration_days: int, pace: str
     return {"feasible": feasible, "infeasible": infeasible}
 
 
+def validate_duration(duration_val, allow_none: bool = True):
+    """
+    Validates itinerary duration against application constraints.
+    - None or omitted: permitted when allow_none=True (caller applies default).
+    - Explicitly supplied empty, non-numeric, decimal, zero, or negative: raises ValueError.
+    - Integer values 1..90: preserved exactly.
+    - Values > 90: raises ValueError (technical limit).
+    - Decimals are rejected; never silently truncated.
+    """
+    if duration_val is None:
+        if allow_none:
+            return None
+        raise ValueError("Itinerary duration cannot be empty. Must be a whole number between 1 and 90 days.")
+
+    # Guard booleans (bool is a subclass of int in Python)
+    if isinstance(duration_val, bool):
+        raise ValueError("Itinerary duration must be a valid whole number between 1 and 90 days.")
+
+    # Reject float/decimal
+    if isinstance(duration_val, float):
+        raise ValueError(
+            f"Invalid itinerary duration ({duration_val}). Duration must be a whole number of days, not a decimal."
+        )
+
+    # String parsing
+    if isinstance(duration_val, str):
+        trimmed = duration_val.strip()
+        if not trimmed:
+            raise ValueError("Itinerary duration cannot be empty. Must be a whole number between 1 and 90 days.")
+        if "." in trimmed:
+            raise ValueError(
+                f"Invalid itinerary duration ('{duration_val}'). Duration must be a whole number of days, not a decimal."
+            )
+        try:
+            val_int = int(trimmed)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"Invalid itinerary duration ('{duration_val}'). Must be a valid integer between 1 and 90 days."
+            )
+    elif isinstance(duration_val, int):
+        val_int = duration_val
+    else:
+        raise ValueError(
+            f"Invalid itinerary duration ({duration_val}). Must be a valid integer between 1 and 90 days."
+        )
+
+    if val_int < 1:
+        raise ValueError(
+            f"Invalid itinerary duration ({val_int} days). Duration must be a positive whole number of at least 1 day."
+        )
+    if val_int > 90:
+        raise ValueError(
+            f"Itinerary duration ({val_int} days) exceeds the supported technical limit of 90 days (3 months). "
+            "The interactive itinerary generator supports trips up to 90 days to ensure optimal device performance "
+            "and stay within local storage safety limits. For longer journeys, please plan separate regional segments."
+        )
+
+    return val_int
+
+
+def validate_pax(pax_val, allow_none: bool = True):
+    """
+    Validates pilgrim (pax) count against application constraints.
+    - None or omitted: permitted when allow_none=True (caller applies default).
+    - Explicitly supplied empty, non-numeric, decimal, zero, or negative: raises ValueError.
+    - Integer values 1..200: preserved exactly.
+    - Values > 200: raises ValueError (technical limit).
+    - Decimals are rejected; never silently truncated.
+    - Never swallow conversion errors.
+    """
+    if pax_val is None:
+        if allow_none:
+            return None
+        raise ValueError("Pilgrim count cannot be empty. Must be a whole number between 1 and 200.")
+
+    # Guard booleans
+    if isinstance(pax_val, bool):
+        raise ValueError("Pilgrim count must be a valid whole number between 1 and 200.")
+
+    # Reject float/decimal
+    if isinstance(pax_val, float):
+        raise ValueError(
+            f"Invalid pilgrim count ({pax_val}). Pilgrim count must be a whole number, not a decimal."
+        )
+
+    # String parsing
+    if isinstance(pax_val, str):
+        trimmed = pax_val.strip()
+        if not trimmed:
+            raise ValueError("Pilgrim count cannot be empty. Must be a whole number between 1 and 200.")
+        if "." in trimmed:
+            raise ValueError(
+                f"Invalid pilgrim count ('{pax_val}'). Pilgrim count must be a whole number, not a decimal."
+            )
+        try:
+            val_int = int(trimmed)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"Invalid pilgrim count ('{pax_val}'). Must be a valid integer between 1 and 200."
+            )
+    elif isinstance(pax_val, int):
+        val_int = pax_val
+    else:
+        raise ValueError(
+            f"Invalid pilgrim count ({pax_val}). Must be a valid integer between 1 and 200."
+        )
+
+    if val_int < 1:
+        raise ValueError(f"Invalid passenger count ({val_int}). Must be at least 1.")
+    if val_int > 200:
+        raise ValueError(
+            f"Pilgrim count ({val_int}) exceeds the application technical limit of 200 pilgrims per booking request. "
+            "Online booking supports groups up to 200 pilgrims to ensure accurate accommodation allocation. "
+            "For larger congregations, please contact group reservation support directly."
+        )
+
+    return val_int
+
+
 def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None, request=None):
     """
     Builds a realistic, deterministic day-wise itinerary list matching exact trip duration.
@@ -783,11 +905,17 @@ def build_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places=None,
     s = opt.get("slot") or {"category": "Normal Darshan", "slot_time": "12:00 PM", "slot_date": tr.get("travel_date", "")}
     req = request or {}
 
-    duration = req.get("duration_days")
-    if not duration:
+    raw_duration = req.get("duration_days") if "duration_days" in req else req.get("duration")
+    if raw_duration is None:
         base_days = 2 + (1 if sightseeing_places else 0) + (1 if hotel or hotel_nights else 0)
         duration = max(3, base_days)
-    duration = max(1, int(duration))
+    else:
+        duration = validate_duration(raw_duration, allow_none=False)
+
+    # Validate pax count if specified in request
+    raw_pax = req.get("pax") if "pax" in req else req.get("pax_count")
+    if raw_pax is not None:
+        pax_int = validate_pax(raw_pax, allow_none=False)
 
     travel_date = tr.get("travel_date") or req.get("start_date") or datetime.now().strftime("%Y-%m-%d")
     origin = tr.get("origin") or req.get("origin") or "your departure point"
@@ -1141,7 +1269,11 @@ def format_itinerary_text(days):
 def generate_default_itinerary(request):
     """Generates a structured day-wise itinerary list matching request parameters."""
     req = request or {}
-    duration = req.get("duration_days", 4) or 4
+    raw_duration = req.get("duration_days") if "duration_days" in req else req.get("duration")
+    if raw_duration is not None:
+        duration = validate_duration(raw_duration, allow_none=False)
+    else:
+        duration = 4
     origin = req.get("origin") or "your departure point"
     mode = (req.get("mode") or "train").lower()
     cat = req.get("category") or "Normal Darshan"
@@ -1169,7 +1301,7 @@ def generate_default_itinerary(request):
     return build_itinerary(
         dummy_option,
         hotel=None,
-        hotel_nights=max(1, int(duration) - 1),
+        hotel_nights=max(1, duration - 1),
         sightseeing_places=req.get("sightseeing_places", []),
         request=req,
     )
@@ -1177,8 +1309,9 @@ def generate_default_itinerary(request):
 
 def sync_itinerary_duration(itinerary, new_duration, request=None):
     """Synchronizes itinerary length when trip duration changes, strictly enforcing N days."""
+    valid_duration = validate_duration(new_duration, allow_none=False)
     req = dict(request or {})
-    req["duration_days"] = new_duration
+    req["duration_days"] = valid_duration
     return generate_default_itinerary(req)
 
 

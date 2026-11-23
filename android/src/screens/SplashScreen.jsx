@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   heroSection: {
     alignItems: 'center',
@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     gap: spacing.md,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   primaryBtn: {
     backgroundColor: colors.burgundy,
