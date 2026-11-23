@@ -20,7 +20,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (specifier === '../utils/storage' || specifier.endsWith('/storage') || specifier.endsWith('/storage.js') || specifier === '@react-native-async-storage/async-storage' || specifier === 'expo-secure-store') {
     return {
-      url: 'data:text/javascript,export const getAuthToken = async () => null; export const saveAuthToken = async () => {}; export const clearAuthToken = async () => {}; export const getStoredBackendUrl = async () => null; export const setStoredBackendUrl = async () => {}; export const saveLocalChatMessages = async () => {}; export const saveLocalGuestConversation = async () => {}; export const getLocalChatMessages = async () => []; export const getLocalGuestConversations = async () => []; export default {};',
+      url: 'data:text/javascript,export const getAuthToken = async () => null; export const saveAuthToken = async () => {}; export const clearAuthToken = async () => {}; export const getStoredBackendUrl = async () => null; export const setStoredBackendUrl = async () => {}; export const saveLocalChatMessages = async () => {}; export const saveLocalGuestConversation = async () => {}; export const getLocalChatMessages = async () => []; export const getLocalGuestConversations = async () => []; export const sanitizeMessageForStorage = (m) => m; export default {};',
       shortCircuit: true,
     };
   }

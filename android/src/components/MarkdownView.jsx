@@ -141,105 +141,126 @@ function MarkdownTable({ headers, alignments, dataRows, columnWidths, numCols, t
   );
 }
 
-export default function MarkdownView({ content = '', textColor = colors.textPrimary }) {
+function MarkdownView({ content = '', textColor = colors.textPrimary }) {
   if (!content || typeof content !== 'string') return null;
 
-  // Complete any dangling streaming tokens before parsing structure
-  const safeContent = completeIncompleteStreamingTokens(content);
-  const blocks = parseMarkdownStructure(safeContent);
+  try {
+    // Complete any dangling streaming tokens before parsing structure
+    const safeContent = completeIncompleteStreamingTokens(content);
+    const blocks = parseMarkdownStructure(safeContent);
 
-  return (
-    <View style={styles.container}>
-      {blocks.map((block, idx) => {
-        switch (block.type) {
-          case 'empty':
-            return <View key={`empty-${idx}`} style={{ height: 6 }} />;
+    return (
+      <View style={styles.container}>
+        {blocks.map((block, idx) => {
+          try {
+            switch (block.type) {
+              case 'empty':
+                return <View key={`empty-${idx}`} style={{ height: 6 }} />;
 
-          case 'code':
+              case 'code':
+                return (
+                  <View key={`code-${idx}`} style={styles.codeBlock}>
+                    <Text style={styles.codeBlockText}>{block.code}</Text>
+                  </View>
+                );
+
+              case 'heading': {
+                const hStyle =
+                  block.level === 1
+                    ? styles.h1
+                    : block.level === 2
+                    ? styles.h2
+                    : block.level === 3
+                    ? styles.h3
+                    : block.level === 4
+                    ? styles.h4
+                    : block.level === 5
+                    ? styles.h5
+                    : styles.h6;
+                const headingColor =
+                  block.level === 6
+                    ? colors.champagneTaupe || '#A3826C'
+                    : colors.royalPlum || '#54152D';
+                return (
+                  <Text key={`h-${idx}`} style={[hStyle, { color: headingColor }]}>
+                    {renderInlineSpans(block.text, headingColor)}
+                  </Text>
+                );
+              }
+
+              case 'quote':
+                return (
+                  <View key={`quote-${idx}`} style={styles.quoteBlock}>
+                    <Text style={styles.quoteText}>
+                      {renderInlineSpans(block.text, colors.royalPlum || '#54152D')}
+                    </Text>
+                  </View>
+                );
+
+              case 'hr':
+                return <View key={`hr-${idx}`} style={styles.hr} />;
+
+              case 'table':
+                return (
+                  <MarkdownTable
+                    key={`tbl-${idx}`}
+                    headers={block.headers}
+                    alignments={block.alignments}
+                    dataRows={block.dataRows}
+                    columnWidths={block.columnWidths}
+                    numCols={block.numCols}
+                    textColor={textColor}
+                  />
+                );
+
+              case 'bullet':
+                return (
+                  <View key={`bullet-${idx}`} style={styles.bulletRow}>
+                    <Text style={styles.bulletDot}>•</Text>
+                    <Text style={[styles.bulletText, { color: textColor }]}>
+                      {renderInlineSpans(block.text, textColor)}
+                    </Text>
+                  </View>
+                );
+
+              case 'numbered':
+                return (
+                  <View key={`num-${idx}`} style={styles.bulletRow}>
+                    <Text style={styles.numDot}>{block.num}.</Text>
+                    <Text style={[styles.bulletText, { color: textColor }]}>
+                      {renderInlineSpans(block.text, textColor)}
+                    </Text>
+                  </View>
+                );
+
+              case 'paragraph':
+              default:
+                return (
+                  <Text key={`p-${idx}`} style={[styles.paragraph, { color: textColor }]}>
+                    {renderInlineSpans(block.text, textColor)}
+                  </Text>
+                );
+            }
+          } catch {
             return (
-              <View key={`code-${idx}`} style={styles.codeBlock}>
-                <Text style={styles.codeBlockText}>{block.code}</Text>
-              </View>
-            );
-
-          case 'heading': {
-            const hStyle =
-              block.level === 1
-                ? styles.h1
-                : block.level === 2
-                ? styles.h2
-                : block.level === 3
-                ? styles.h3
-                : block.level === 4
-                ? styles.h4
-                : block.level === 5
-                ? styles.h5
-                : styles.h6;
-            const headingColor = block.level === 6 ? (colors.champagneTaupe || '#A3826C') : (colors.royalPlum || '#54152D');
-            return (
-              <Text key={`h-${idx}`} style={[hStyle, { color: headingColor }]}>
-                {renderInlineSpans(block.text, headingColor)}
+              <Text key={`fallback-${idx}`} style={[styles.paragraph, { color: textColor }]}>
+                {block.text || ''}
               </Text>
             );
           }
-
-          case 'quote':
-            return (
-              <View key={`quote-${idx}`} style={styles.quoteBlock}>
-                <Text style={styles.quoteText}>
-                  {renderInlineSpans(block.text, colors.royalPlum || '#54152D')}
-                </Text>
-              </View>
-            );
-
-          case 'hr':
-            return <View key={`hr-${idx}`} style={styles.hr} />;
-
-          case 'table':
-            return (
-              <MarkdownTable
-                key={`tbl-${idx}`}
-                headers={block.headers}
-                alignments={block.alignments}
-                dataRows={block.dataRows}
-                columnWidths={block.columnWidths}
-                numCols={block.numCols}
-                textColor={textColor}
-              />
-            );
-
-          case 'bullet':
-            return (
-              <View key={`bullet-${idx}`} style={styles.bulletRow}>
-                <Text style={styles.bulletDot}>•</Text>
-                <Text style={[styles.bulletText, { color: textColor }]}>
-                  {renderInlineSpans(block.text, textColor)}
-                </Text>
-              </View>
-            );
-
-          case 'numbered':
-            return (
-              <View key={`num-${idx}`} style={styles.bulletRow}>
-                <Text style={styles.numDot}>{block.num}.</Text>
-                <Text style={[styles.bulletText, { color: textColor }]}>
-                  {renderInlineSpans(block.text, textColor)}
-                </Text>
-              </View>
-            );
-
-          case 'paragraph':
-          default:
-            return (
-              <Text key={`p-${idx}`} style={[styles.paragraph, { color: textColor }]}>
-                {renderInlineSpans(block.text, textColor)}
-              </Text>
-            );
-        }
-      })}
-    </View>
-  );
+        })}
+      </View>
+    );
+  } catch {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.paragraph, { color: textColor }]}>{content}</Text>
+      </View>
+    );
+  }
 }
+
+export default React.memo(MarkdownView);
 
 /**
  * Tokenizes bold, italic, inline code, strikethrough, and sanitized links.
@@ -248,149 +269,156 @@ export default function MarkdownView({ content = '', textColor = colors.textPrim
  * (e.g. `booking_id`, `pax_count`, `session_123_abc`) and URL parameters are never
  * converted to italic or bold spans.
  */
-export function renderInlineSpans(text, defaultColor = colors.textPrimary) {
+export function renderInlineSpans(text, defaultColor = colors.textPrimary, depth = 0) {
   if (!text) return null;
+  if (depth > 2) {
+    return <Text style={{ color: defaultColor }}>{String(text)}</Text>;
+  }
 
-  // 1. Protect escaped characters
-  const ESC_BACKSLASH = '\uE000';
-  const ESC_ASTERISK = '\uE001';
-  const ESC_UNDERSCORE = '\uE002';
-  const ESC_HASH = '\uE003';
-  const ESC_BACKTICK = '\uE004';
-  const ESC_BRACKET_L = '\uE005';
-  const ESC_BRACKET_R = '\uE006';
+  try {
+    // 1. Protect escaped characters
+    const ESC_BACKSLASH = '\uE000';
+    const ESC_ASTERISK = '\uE001';
+    const ESC_UNDERSCORE = '\uE002';
+    const ESC_HASH = '\uE003';
+    const ESC_BACKTICK = '\uE004';
+    const ESC_BRACKET_L = '\uE005';
+    const ESC_BRACKET_R = '\uE006';
 
-  let s = String(text)
-    .replace(/\\\\/g, ESC_BACKSLASH)
-    .replace(/\\\*/g, ESC_ASTERISK)
-    .replace(/\\_/g, ESC_UNDERSCORE)
-    .replace(/\\#/g, ESC_HASH)
-    .replace(/\\`/g, ESC_BACKTICK)
-    .replace(/\\\[/g, ESC_BRACKET_L)
-    .replace(/\\\]/g, ESC_BRACKET_R);
+    let s = String(text)
+      .replace(/\\\\/g, ESC_BACKSLASH)
+      .replace(/\\\*/g, ESC_ASTERISK)
+      .replace(/\\_/g, ESC_UNDERSCORE)
+      .replace(/\\#/g, ESC_HASH)
+      .replace(/\\`/g, ESC_BACKTICK)
+      .replace(/\\\[/g, ESC_BRACKET_L)
+      .replace(/\\\]/g, ESC_BRACKET_R);
 
-  // Complete any trailing incomplete token
-  s = completeIncompleteStreamingTokens(s);
+    // Complete any trailing incomplete token
+    s = completeIncompleteStreamingTokens(s);
 
-  const restoreEscapes = (str) => {
-    if (typeof str !== 'string') return str;
-    return str
-      .replace(new RegExp(ESC_BACKSLASH, 'g'), '\\')
-      .replace(new RegExp(ESC_ASTERISK, 'g'), '*')
-      .replace(new RegExp(ESC_UNDERSCORE, 'g'), '_')
-      .replace(new RegExp(ESC_HASH, 'g'), '#')
-      .replace(new RegExp(ESC_BACKTICK, 'g'), '`')
-      .replace(new RegExp(ESC_BRACKET_L, 'g'), '[')
-      .replace(new RegExp(ESC_BRACKET_R, 'g'), ']');
-  };
+    const restoreEscapes = (str) => {
+      if (typeof str !== 'string') return str;
+      return str
+        .replace(new RegExp(ESC_BACKSLASH, 'g'), '\\')
+        .replace(new RegExp(ESC_ASTERISK, 'g'), '*')
+        .replace(new RegExp(ESC_UNDERSCORE, 'g'), '_')
+        .replace(new RegExp(ESC_HASH, 'g'), '#')
+        .replace(new RegExp(ESC_BACKTICK, 'g'), '`')
+        .replace(new RegExp(ESC_BRACKET_L, 'g'), '[')
+        .replace(new RegExp(ESC_BRACKET_R, 'g'), ']');
+    };
 
-  // Comprehensive tokenizer regex
-  const INLINE_TOKEN_REGEX = /(`[^`]+`|\[[^\]]+\]\([^\s)]+\)|https?:\/\/[^\s<]+[^<.,:;"')\]\s]|\*\*\*[^*\n]+?\*\*\*|___[^_\n]+?___|\*\*_[^*_\n]+?_\*\*|\*\*[^*\n]+?\*\*|(?<![a-zA-Z0-9])__(?:[^\s_][^_\n]*?[^\s_]|[^_\s\n])__(?![a-zA-Z0-9])|(?<!\*)\*(?!\s)[^*\n]+?(?<!\s)\*(?!\*)|(?<![a-zA-Z0-9])_(?!\s)[^_\n]+?(?<!\s)_(?![a-zA-Z0-9])|~~[^~\n]+?~~)/g;
+    // Comprehensive tokenizer regex
+    const INLINE_TOKEN_REGEX = /(`[^`]+`|\[[^\]]+\]\([^\s)]+\)|https?:\/\/[^\s<]+[^<.,:;"')\]\s]|\*\*\*[^*\n]+?\*\*\*|___[^_\n]+?___|\*\*_[^*_\n]+?_\*\*|\*\*[^*\n]+?\*\*|(?<![a-zA-Z0-9])__(?:[^\s_][^_\n]*?[^\s_]|[^_\s\n])__(?![a-zA-Z0-9])|(?<!\*)\*(?!\s)[^*\n]+?(?<!\s)\*(?!\*)|(?<![a-zA-Z0-9])_(?!\s)[^_\n]+?(?<!\s)_(?![a-zA-Z0-9])|~~[^~\n]+?~~)/g;
 
-  const parts = s.split(INLINE_TOKEN_REGEX);
+    const parts = s.split(INLINE_TOKEN_REGEX);
 
-  return parts.map((part, idx) => {
-    if (!part) return null;
+    return parts.map((part, idx) => {
+      if (!part) return null;
 
-    // 1. Inline code `code`
-    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
-      return (
-        <Text key={idx} style={styles.inlineCode}>
-          {restoreEscapes(part.slice(1, -1))}
-        </Text>
-      );
-    }
-
-    // 2. Markdown link [label](url)
-    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (linkMatch) {
-      const rawUrl = (linkMatch[2] || '').trim();
-      const isSafe = /^(https?:|mailto:|tel:)/i.test(rawUrl);
-      if (!isSafe) {
+      // 1. Inline code `code`
+      if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
         return (
-          <Text key={idx} style={{ color: defaultColor }}>
-            {renderInlineSpans(linkMatch[1], defaultColor)}
+          <Text key={idx} style={styles.inlineCode}>
+            {restoreEscapes(part.slice(1, -1))}
           </Text>
         );
       }
-      return (
-        <Text
-          key={idx}
-          style={styles.link}
-          onPress={() => Linking.openURL(rawUrl).catch(() => {})}
-        >
-          {renderInlineSpans(linkMatch[1], colors.royalPlum || '#54152D')}
-        </Text>
-      );
-    }
 
-    // 3. Raw URL https://... (preserving underscores and hashes)
-    if (/^https?:\/\//i.test(part)) {
-      const cleanUrl = restoreEscapes(part);
-      return (
-        <Text
-          key={idx}
-          style={styles.link}
-          onPress={() => Linking.openURL(cleanUrl).catch(() => {})}
-        >
-          {cleanUrl}
-        </Text>
-      );
-    }
+      // 2. Markdown link [label](url)
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        const rawUrl = (linkMatch[2] || '').trim();
+        const isSafe = /^(https?:|mailto:|tel:)/i.test(rawUrl);
+        if (!isSafe) {
+          return (
+            <Text key={idx} style={{ color: defaultColor }}>
+              {renderInlineSpans(linkMatch[1], defaultColor, depth + 1)}
+            </Text>
+          );
+        }
+        return (
+          <Text
+            key={idx}
+            style={styles.link}
+            onPress={() => Linking.openURL(rawUrl).catch(() => {})}
+          >
+            {renderInlineSpans(linkMatch[1], colors.royalPlum || '#54152D', depth + 1)}
+          </Text>
+        );
+      }
 
-    // 4. Bold + Italic (***text*** or ___text___ or **_text_**)
-    if (
-      (part.startsWith('***') && part.endsWith('***') && part.length > 6) ||
-      (part.startsWith('___') && part.endsWith('___') && part.length > 6) ||
-      (part.startsWith('**_') && part.endsWith('_**') && part.length > 6)
-    ) {
-      const inner = part.slice(3, -3);
-      return (
-        <Text key={idx} style={[styles.bold, styles.italic, { color: colors.royalPlum || '#54152D' }]}>
-          {renderInlineSpans(inner, colors.royalPlum || '#54152D')}
-        </Text>
-      );
-    }
+      // 3. Raw URL https://... (preserving underscores and hashes)
+      if (/^https?:\/\//i.test(part)) {
+        const cleanUrl = restoreEscapes(part);
+        return (
+          <Text
+            key={idx}
+            style={styles.link}
+            onPress={() => Linking.openURL(cleanUrl).catch(() => {})}
+          >
+            {cleanUrl}
+          </Text>
+        );
+      }
 
-    // 5. Bold (**text** or __text__)
-    if (
-      (part.startsWith('**') && part.endsWith('**') && part.length > 4) ||
-      (part.startsWith('__') && part.endsWith('__') && part.length > 4)
-    ) {
-      const inner = part.slice(2, -2);
-      return (
-        <Text key={idx} style={[styles.bold, { color: colors.royalPlum || '#54152D' }]}>
-          {renderInlineSpans(inner, colors.royalPlum || '#54152D')}
-        </Text>
-      );
-    }
+      // 4. Bold + Italic (***text*** or ___text___ or **_text_**)
+      if (
+        (part.startsWith('***') && part.endsWith('***') && part.length > 6) ||
+        (part.startsWith('___') && part.endsWith('___') && part.length > 6) ||
+        (part.startsWith('**_') && part.endsWith('_**') && part.length > 6)
+      ) {
+        const inner = part.slice(3, -3);
+        return (
+          <Text key={idx} style={[styles.bold, styles.italic, { color: colors.royalPlum || '#54152D' }]}>
+            {renderInlineSpans(inner, colors.royalPlum || '#54152D', depth + 1)}
+          </Text>
+        );
+      }
 
-    // 6. Italic (*text* or _text_)
-    if (
-      (part.startsWith('*') && part.endsWith('*') && part.length > 2) ||
-      (part.startsWith('_') && part.endsWith('_') && part.length > 2)
-    ) {
-      const inner = part.slice(1, -1);
-      return (
-        <Text key={idx} style={[styles.italic, { color: defaultColor }]}>
-          {renderInlineSpans(inner, defaultColor)}
-        </Text>
-      );
-    }
+      // 5. Bold (**text** or __text__)
+      if (
+        (part.startsWith('**') && part.endsWith('**') && part.length > 4) ||
+        (part.startsWith('__') && part.endsWith('__') && part.length > 4)
+      ) {
+        const inner = part.slice(2, -2);
+        return (
+          <Text key={idx} style={[styles.bold, { color: colors.royalPlum || '#54152D' }]}>
+            {renderInlineSpans(inner, colors.royalPlum || '#54152D', depth + 1)}
+          </Text>
+        );
+      }
 
-    // 7. Strikethrough (~~text~~)
-    if (part.startsWith('~~') && part.endsWith('~~') && part.length > 4) {
-      const inner = part.slice(2, -2);
-      return (
-        <Text key={idx} style={styles.strikethrough}>
-          {renderInlineSpans(inner, defaultColor)}
-        </Text>
-      );
-    }
+      // 6. Italic (*text* or _text_)
+      if (
+        (part.startsWith('*') && part.endsWith('*') && part.length > 2) ||
+        (part.startsWith('_') && part.endsWith('_') && part.length > 2)
+      ) {
+        const inner = part.slice(1, -1);
+        return (
+          <Text key={idx} style={[styles.italic, { color: defaultColor }]}>
+            {renderInlineSpans(inner, defaultColor, depth + 1)}
+          </Text>
+        );
+      }
 
-    // 8. Plain text node
-    return <Text key={idx}>{restoreEscapes(part)}</Text>;
-  });
+      // 7. Strikethrough (~~text~~)
+      if (part.startsWith('~~') && part.endsWith('~~') && part.length > 4) {
+        const inner = part.slice(2, -2);
+        return (
+          <Text key={idx} style={styles.strikethrough}>
+            {renderInlineSpans(inner, defaultColor, depth + 1)}
+          </Text>
+        );
+      }
+
+      // 8. Plain text node
+      return <Text key={idx}>{restoreEscapes(part)}</Text>;
+    });
+  } catch {
+    return <Text style={{ color: defaultColor }}>{String(text)}</Text>;
+  }
 }
 
 const styles = StyleSheet.create({

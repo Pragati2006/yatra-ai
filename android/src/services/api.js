@@ -246,20 +246,24 @@ export const sendChat = async (messageData) => {
 
 export const sendChatMessage = async (text, sessionId = null) => {
   const res = await sendChat({ message: text, session_id: sessionId });
-  if (res && res.response) {
+  if (!res) {
     return {
-      ...res,
-      session_id: res.session_id || sessionId,
+      response: 'Jai Mata Di',
+      session_id: sessionId,
+      status: 'ERROR',
     };
   }
   return {
-    response: res?.reply || res?.message || (typeof res === 'string' ? res : 'Jai Mata Di'),
-    session_id: res?.session_id || sessionId,
-    status: res?.status,
-    request: res?.request || res?.requirements,
-    plan: res?.plan,
-    itinerary: res?.itinerary,
-    recommendation: res?.recommendation,
+    ...res,
+    response: res.response || res.reply || res.message || (typeof res === 'string' ? res : 'Jai Mata Di'),
+    session_id: res.session_id || sessionId,
+    status: res.status,
+    request: res.request || res.requirements,
+    plan: res.plan,
+    itinerary: res.itinerary,
+    recommendation: res.recommendation,
+    destination_images: res.destination_images || null,
+    matched_destination: res.matched_destination || null,
   };
 };
 

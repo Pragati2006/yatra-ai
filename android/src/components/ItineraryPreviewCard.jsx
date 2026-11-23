@@ -24,7 +24,7 @@ import {
  * 6. Primary Action: Prominent "View Full Itinerary" button
  * 7. Secondary Action: Direct "Proceed with Booking" button
  */
-export default function ItineraryPreviewCard({
+function ItineraryPreviewCard({
   recommendation,
   itinerary,
   plan,
@@ -46,10 +46,11 @@ export default function ItineraryPreviewCard({
   const startDate = prof.start_date || request?.start_date || null;
   const endDate = prof.end_date || request?.end_date || null;
 
-  const grandTotal =
+  const rawGrandTotal =
     plan?.budget_evaluation?.grand_total ||
     recommendation?.estimated_total_budget ||
     null;
+  const grandTotal = typeof rawGrandTotal === 'number' && !isNaN(rawGrandTotal) ? rawGrandTotal : null;
   const estTotalStr = grandTotal
     ? `₹${Math.round(grandTotal).toLocaleString('en-IN')}`
     : '₹14,500';
@@ -61,6 +62,7 @@ export default function ItineraryPreviewCard({
   const dayHighlights = [];
   if (itinDays && itinDays.length > 0) {
     itinDays.forEach((d, idx) => {
+      if (!d) return;
       const dayNum = d.day_number || d.day || idx + 1;
       const title =
         d.title ||
@@ -365,3 +367,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+export default React.memo(ItineraryPreviewCard);

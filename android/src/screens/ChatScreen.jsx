@@ -97,13 +97,23 @@ export default function ChatScreen({ navigation, route }) {
 
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  const safeScrollToEnd = (animated = true) => {
+    try {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToEnd({ animated });
+      }
+    } catch {
+      // ignore scroll layout exceptions during rapid keyboard/message transitions
+    }
+  };
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, () => {
       setIsKeyboardVisible(true);
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        safeScrollToEnd(true);
       }, 100);
     });
     const hideSub = Keyboard.addListener(hideEvent, () => {
@@ -145,26 +155,18 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   useEffect(() => {
+    // Note: Local storage persistence is managed by chatManager.persistMessages.
+    // Sync remote authenticated conversation if user is logged in:
     if (messages.length > 1 && sessionId) {
-      saveLocalChatMessages(messages);
-      const firstUserMsg = messages.find((m) => m.role === 'user');
-      const title = firstUserMsg?.content
-        ? firstUserMsg.content.slice(0, 45) + (firstUserMsg.content.length > 45 ? '...' : '')
-        : 'Pilgrimage Consultation';
-
-      saveLocalGuestConversation({
-        conversation_id: sessionId,
-        title,
-        messages,
-        trip_request: activeTripRequest,
-        preview: firstUserMsg?.content || 'Pilgrimage consultation with Yatra AI',
-      }).catch(() => {});
-
       getAuthToken().then((token) => {
         if (token) {
+          const firstUserMsg = messages.find((m) => m.role === 'user');
+          const title = firstUserMsg?.content
+            ? firstUserMsg.content.slice(0, 45) + (firstUserMsg.content.length > 45 ? '...' : '')
+            : 'Pilgrimage Consultation';
           saveConversation(title, messages, sessionId, activeTripRequest, null).catch(() => {});
         }
-      });
+      }).catch(() => {});
     }
   }, [messages, sessionId]);
 
@@ -314,8 +316,8 @@ export default function ChatScreen({ navigation, route }) {
             />
           )}
           contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => safeScrollToEnd(true)}
+          onLayout={() => safeScrollToEnd(false)}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           ListFooterComponent={

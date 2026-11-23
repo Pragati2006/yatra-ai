@@ -21,6 +21,7 @@ import {
   getAuthToken,
   getLocalChatMessages,
 } from '../utils/storage.js';
+import { resolveDestinationImages } from '../utils/destinationImages.js';
 
 export const INITIAL_WELCOME_MESSAGE = {
   id: 'welcome-1',
@@ -124,23 +125,86 @@ class ChatManager {
 
   formatIncomingMessages(rawList) {
     if (!Array.isArray(rawList) || rawList.length === 0) return [INITIAL_WELCOME_MESSAGE];
-    return rawList.map((m, idx) => ({
-      id: m.id || `msg-${idx}-${Date.now()}`,
-      role: m.role || 'assistant',
-      content: m.content || '',
-      recommendation: m.recommendation || null,
-      itinerary: m.itinerary || (m.plan ? m.plan.itinerary : null),
-      plan: m.plan || null,
-      request: m.request || null,
-      destination_images: m.destination_images || null,
-      matched_destination: m.matched_destination || null,
-      bookingHandoff: m.bookingHandoff || null,
-      timestamp:
-        m.timestamp ||
-        (m.created_at
-          ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-    }));
+    return rawList
+      .map((m, idx) => {
+        if (!m) return null;
+        const compactPlan = m.plan
+          ? {
+              budget_evaluation: {
+                grand_total:
+                  m.plan.budget_evaluation?.grand_total ||
+                  m.recommendation?.estimated_total_budget ||
+                  14500,
+              },
+              itinerary: m.itinerary || m.plan.itinerary || null,
+            }
+          : null;
+        const compactRecommendation = m.recommendation
+          ? {
+              profile: m.recommendation.profile || null,
+              suggested_places: Array.isArray(m.recommendation.suggested_places)
+                ? m.recommendation.suggested_places
+                : [],
+              estimated_total_budget:
+                m.recommendation.estimated_total_budget ||
+                m.plan?.budget_evaluation?.grand_total ||
+                null,
+            }
+          : null;
+        const compactRequest = m.request
+          ? {
+              origin: m.request.origin || null,
+              destination: m.request.destination || null,
+              start_date: m.request.start_date || null,
+              end_date: m.request.end_date || null,
+              duration_days: m.request.duration_days || null,
+              pax: m.request.pax || null,
+              group_type: m.request.group_type || null,
+            }
+          : null;
+
+        let destImages =
+          Array.isArray(m.destination_images) && m.destination_images.length > 0
+            ? m.destination_images.slice(0, 6)
+            : Array.isArray(m.metadata?.destination_images) && m.metadata.destination_images.length > 0
+            ? m.metadata.destination_images.slice(0, 6)
+            : Array.isArray(m.meta?.destination_images) && m.meta.destination_images.length > 0
+            ? m.meta.destination_images.slice(0, 6)
+            : null;
+
+        let matchedDest =
+          m.matched_destination ||
+          m.metadata?.matched_destination ||
+          m.meta?.matched_destination ||
+          null;
+
+        if (!destImages && m.role === 'assistant' && m.content) {
+          const localResolved = resolveDestinationImages('', m.content);
+          if (localResolved) {
+            destImages = localResolved.images;
+            matchedDest = matchedDest || localResolved.destination;
+          }
+        }
+
+        return {
+          id: m.id || `msg-${idx}-${Date.now()}`,
+          role: m.role || 'assistant',
+          content: m.content || '',
+          recommendation: compactRecommendation,
+          itinerary: m.itinerary || (compactPlan ? compactPlan.itinerary : null),
+          plan: compactPlan,
+          request: compactRequest,
+          destination_images: destImages,
+          matched_destination: matchedDest,
+          bookingHandoff: m.bookingHandoff || null,
+          timestamp:
+            m.timestamp ||
+            (m.created_at
+              ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+        };
+      })
+      .filter(Boolean);
   }
 
   /**
@@ -183,16 +247,68 @@ class ChatManager {
           response.response.toLowerCase().includes('booking handoff') ||
           response.response.toLowerCase().includes('parchi');
 
+        // Compact massive nested backend responses to avoid Hermes OOM & Android SQLite CursorWindow crash
+        const compactPlan = response.plan
+          ? {
+              budget_evaluation: {
+                grand_total:
+                  response.plan.budget_evaluation?.grand_total ||
+                  response.recommendation?.estimated_total_budget ||
+                  14500,
+              },
+              itinerary: response.itinerary || response.plan.itinerary || null,
+            }
+          : null;
+
+        const compactRecommendation = response.recommendation
+          ? {
+              profile: response.recommendation.profile || null,
+              suggested_places: Array.isArray(response.recommendation.suggested_places)
+                ? response.recommendation.suggested_places
+                : [],
+              estimated_total_budget:
+                response.recommendation.estimated_total_budget ||
+                response.plan?.budget_evaluation?.grand_total ||
+                null,
+            }
+          : null;
+
+        const compactRequest = response.request
+          ? {
+              origin: response.request.origin || null,
+              destination: response.request.destination || null,
+              start_date: response.request.start_date || null,
+              end_date: response.request.end_date || null,
+              duration_days: response.request.duration_days || null,
+              pax: response.request.pax || null,
+              group_type: response.request.group_type || null,
+            }
+          : null;
+
+        let destImages =
+          Array.isArray(response.destination_images) && response.destination_images.length > 0
+            ? response.destination_images.slice(0, 6)
+            : null;
+        let destMeta = response.matched_destination || null;
+
+        if (!destImages) {
+          const localResolved = resolveDestinationImages(cleanText, response.response);
+          if (localResolved) {
+            destImages = localResolved.images;
+            destMeta = localResolved.destination;
+          }
+        }
+
         const aiMessage = {
           id: `ai-${Date.now()}`,
           role: 'assistant',
           content: response.response,
-          recommendation: response.recommendation || null,
-          itinerary: response.itinerary || (response.plan ? response.plan.itinerary : null),
-          plan: response.plan || null,
-          request: response.request || null,
-          destination_images: response.destination_images || null,
-          matched_destination: response.matched_destination || null,
+          recommendation: compactRecommendation,
+          itinerary: response.itinerary || (compactPlan ? compactPlan.itinerary : null),
+          plan: compactPlan,
+          request: compactRequest,
+          destination_images: destImages,
+          matched_destination: destMeta,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           bookingHandoff: hasBooking
             ? {

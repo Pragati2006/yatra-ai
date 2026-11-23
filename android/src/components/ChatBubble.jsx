@@ -7,7 +7,7 @@ import ItineraryPreviewCard from './ItineraryPreviewCard';
 import YatraLogo from './YatraLogo';
 import { VolumeIcon, SquareIcon, TicketIcon, MountainIcon, CloseIcon } from './Icons';
 
-export default function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullItinerary }) {
+function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullItinerary }) {
   const isUser = message.role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activePhoto, setActivePhoto] = useState(null);
@@ -29,21 +29,34 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
 
   const toggleSpeech = async () => {
     if (isSpeaking) {
-      Speech.stop();
+      try {
+        Speech.stop();
+      } catch {
+        // ignore
+      }
       setIsSpeaking(false);
       return;
     }
 
     if (!message.content) return;
-    const cleanText = message.content.replace(/<[^>]+>/g, '').replace(/[*#_`]/g, '');
-    setIsSpeaking(true);
-    Speech.speak(cleanText, {
-      language: 'en-IN',
-      rate: 0.95,
-      onDone: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
-      onStopped: () => setIsSpeaking(false),
-    });
+    try {
+      const cleanText = message.content.replace(/<[^>]+>/g, '').replace(/[*#_`]/g, '');
+      // Cap long text to prevent native Android TextToSpeech audio buffer crashes on multi-thousand character itineraries
+      const safeTtsText =
+        cleanText.length > 800
+          ? cleanText.slice(0, 800) + '... To view the complete pilgrimage itinerary, please review the cards below.'
+          : cleanText;
+      setIsSpeaking(true);
+      Speech.speak(safeTtsText, {
+        language: 'en-IN',
+        rate: 0.95,
+        onDone: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+      });
+    } catch {
+      setIsSpeaking(false);
+    }
   };
 
   const hasBookingHandoff =
@@ -169,7 +182,7 @@ export default function ChatBubble({ message, onNavigateToBooking, onActionPress
                 </View>
 
                 <Image
-                  source={{ uri: activePhoto.image_url || activePhoto.thumbnail_url }}
+                  source={{ uri: activePhoto.thumbnail_url || activePhoto.image_url }}
                   style={styles.lightboxFullImage}
                   resizeMode="contain"
                 />
@@ -459,3 +472,5 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
+
+export default React.memo(ChatBubble);

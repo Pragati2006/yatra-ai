@@ -229,8 +229,8 @@ def _resolve_destination_images(user_text, detected_place=None, specific_places=
         if found:
             target_name = found[0].get("name")
 
-    # Guard: Do not display town landscape for generic Katra queries unless asked about Katra town itself
-    if target_name == "Katra" and user_text and not re.search(r"\b(about katra|what is katra|tell me about katra|katra town|visit katra|katra sightseeing|explore katra|in katra|photos of katra|pictures of katra)\b", user_text, re.I):
+    # Guard: Do not display town landscape for generic Katra queries unless asked about Katra town or Vaishno Devi shrine/bhawan photos
+    if target_name == "Katra" and user_text and not re.search(r"\b(about katra|what is katra|tell me about katra|katra town|visit katra|katra sightseeing|explore katra|in katra|photos of katra|pictures of katra|vaishno devi|bhawan|shrine|pictures of vaishno|photos of vaishno|pictures of bhawan|photos of bhawan)\b", user_text, re.I):
         target_name = None
 
     if target_name:
