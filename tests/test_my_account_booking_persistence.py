@@ -189,7 +189,7 @@ class TestMyAccountBookingPersistence(unittest.TestCase):
         saved_b = db_bookings[0]
         self.assertEqual(saved_b["booking_id"], booking_id)
         self.assertEqual(saved_b["user_id"], user["user_id"], "Booking must contain the authenticated user's ID")
-        self.assertEqual(saved_b["status"], "SIMULATED_CONFIRMED")
+        self.assertIn(saved_b["status"], ("SIMULATED_ISSUED", "SIMULATED_CONFIRMED"))
 
         # Test 3 & 4: My Bookings API returns the newly completed booking with count = 1
         api_res = self.client.get("/api/auth/saved-bookings", headers=headers)

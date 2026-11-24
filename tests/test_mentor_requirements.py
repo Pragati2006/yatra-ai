@@ -5,7 +5,7 @@ Targeted automated test suite verifying all 4 mentor-specified changes:
 2. TEST B - Voice Query: simulation of speech recognition text routing through coordinator,
    response generation, session state and cache persistence without loss.
 3. TEST C - Accommodation: in-workflow Step 3 hotel search, selection, persistence across steps.
-4. TEST D - Sightseeing: all 29 sightseeing places displayed from dataset, multi-selection,
+4. TEST D - Sightseeing: all 43 sightseeing places displayed from dataset, multi-selection,
    integration into itinerary generation.
 5. TEST E - Complete Booking Flow: End-to-end Search -> Transport -> Accommodation ->
    Sightseeing -> Itinerary -> Review -> Authorization -> Confirmation without state loss.
@@ -107,9 +107,9 @@ class TestMentorRequirements(unittest.TestCase):
         self.assertEqual(saved_row["hotel_category"], sample_hotel["category"])
 
     def test_d_sightseeing_all_destinations(self):
-        """Test D: All 29 sightseeing destinations from dataset are accessible and multi-selectable."""
+        """Test D: All 43 sightseeing destinations from dataset are accessible and multi-selectable."""
         all_places = coordinator.get_sightseeing_places()
-        self.assertEqual(len(all_places), 29, "All 29 sightseeing destinations must be available")
+        self.assertEqual(len(all_places), 43, "All 43 sightseeing destinations must be available")
 
         # Check key places specified by mentor
         names = [p["name"] for p in all_places]

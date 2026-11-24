@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, Info, X, Train, Plane, Bus, CheckCircle2, Building2, Mountain, Coins, Calendar, Compass, MapPin, Clock, ArrowRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit3, Info, X, Train, Plane, Bus, CheckCircle2, Building2, Mountain, Coins, Calendar, Compass, MapPin, Clock, ArrowRight, Check, ChevronDown, ChevronUp, Car, Users } from 'lucide-react';
 import ItineraryTimeline from './ItineraryTimeline';
 import InteractiveDatePicker from './common/InteractiveDatePicker';
 
@@ -42,9 +42,14 @@ export default function RecommendedYatra({
 
   const req = tripRequest || planData?.request || {};
   const origin = req.origin || tr.origin || '';
-  const pax = req.pax || req.pilgrims || 1;
+  const pilgrimsList = planData?.pilgrims || req.pilgrims || [];
+  const pax = pilgrimsList.length > 0 ? pilgrimsList.length : (req.pax || req.pilgrims || 1);
   const initialDuration = req.duration_days || req.duration || req.days || (itinerary.length > 0 ? itinerary.length : 4);
   const initialTravelDate = req.start_date || tr.travel_date || '2026-11-25';
+
+  const ownVehicle = Boolean(req.own_vehicle || req.ownVehicle || planData?.own_vehicle || planData?.ownVehicle);
+  const transportSelected = planData?.transport_selected !== undefined ? planData.transport_selected : (req.transport_selected !== undefined ? req.transport_selected : (req.transportSelected !== undefined ? req.transportSelected : true));
+  const hotelSelected = planData?.hotel_selected !== undefined ? planData.hotel_selected : (req.hotel_selected !== undefined ? req.hotel_selected : (req.hotelSelected !== undefined ? req.hotelSelected : true));
 
   const [currentHotel, setCurrentHotel] = useState(hotel);
   const [currentTravelDate, setCurrentTravelDate] = useState(initialTravelDate);
@@ -52,7 +57,7 @@ export default function RecommendedYatra({
 
   const durationDays = currentDurationDays;
   const travelDate = currentTravelDate;
-  const activeHotel = currentHotel || hotel;
+  const activeHotel = hotelSelected ? (currentHotel || hotel) : null;
   const hotelNights = Math.max(1, durationDays - 1);
   const roomsCount = Math.ceil(pax / 2);
 
@@ -131,14 +136,21 @@ export default function RecommendedYatra({
   const hotelPricePerNight = activeHotel?.price_per_night || 0;
   const hotelTotal = hotelPricePerNight * roomsCount * hotelNights;
 
+  // Flexible Service Segregation
+  const isTransportActive = transportSelected && !ownVehicle;
+  const isHotelActive = hotelSelected && Boolean(activeHotel);
+
+  const effectiveTransportFareTotal = isTransportActive ? transportFareTotal : 0;
+  const effectiveHotelTotal = isHotelActive ? hotelTotal : 0;
+
   // Financial Summary from budgetEval or deterministic formula
-  const verifiedDirectTotal = (transportFareTotal || 0) + darshanTotal + hotelTotal;
-  const roadTransferEst = budgetEval?.estimated_costs?.items?.local_road_transfer || (mode === 'FLIGHT' ? 1500 * pax : 350 * pax);
+  const verifiedDirectTotal = (effectiveTransportFareTotal || 0) + darshanTotal + effectiveHotelTotal;
+  const roadTransferEst = ownVehicle ? 0 : (budgetEval?.estimated_costs?.items?.local_road_transfer || (mode === 'FLIGHT' ? 1500 * pax : 350 * pax));
   const mealsEst = budgetEval?.estimated_costs?.items?.meals_and_refreshments || (350 * pax * durationDays);
   const totalEstimated = roadTransferEst + mealsEst;
 
-  const isBudgetIncomplete = isFareUnavailable || budgetEval.grand_total == null || budgetEval.is_complete === false;
-  const grandTotal = isBudgetIncomplete ? null : (budgetEval.grand_total || (verifiedDirectTotal + totalEstimated));
+  const isBudgetIncomplete = isTransportActive && (isFareUnavailable || budgetEval.grand_total == null || budgetEval.is_complete === false);
+  const grandTotal = isBudgetIncomplete ? null : (verifiedDirectTotal + totalEstimated);
   const costPerPerson = grandTotal !== null && pax > 0 ? Math.round(grandTotal / pax) : null;
   const targetBudget = req.total_budget ? Number(req.total_budget) : (budgetEval.total_budget ? Number(budgetEval.total_budget) : null);
   const remainingBudget = (targetBudget !== null && grandTotal !== null) ? targetBudget - grandTotal : null;
@@ -329,6 +341,20 @@ export default function RecommendedYatra({
                 </button>
               </div>
             </div>
+            {pilgrimsList.length > 0 && (
+              <div style={{ marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>
+                  Devotee Records ({pilgrimsList.length})
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {pilgrimsList.map((p, idx) => (
+                    <span key={idx} className="pill pill-gold" style={{ fontSize: '0.72rem' }}>
+                      {idx + 1}. {p.full_name || 'Pilgrim'} ({p.age ? `${p.age}y` : '—'})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {showDatePicker && (
               <div style={{ marginTop: '12px', borderTop: '1px solid var(--gold-border)', paddingTop: '10px' }}>
                 <InteractiveDatePicker
@@ -341,67 +367,129 @@ export default function RecommendedYatra({
           </div>
 
           {/* 2. Selected Transport Service Card */}
-          <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    {mode === 'FLIGHT' ? <><Plane size={12} /> FLIGHT</> : (mode === 'BUS' ? <><Bus size={12} /> BUS</> : <><Train size={12} /> TRAIN</>)}
-                  </span>
-                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
-                    {operator} {serviceNo && `· ${serviceNo}`}
-                  </span>
+          {ownVehicle ? (
+            <div className="card" style={{ background: '#FFFDF9', border: '1.5px solid #F59E0B' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill" style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800 }}>
+                      <Car size={13} /> OWN VEHICLE / PRIVATE CAR
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--burgundy)', marginTop: '4px' }}>
+                    Self-Driven Route ({origin} → Katra Base)
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Public carrier tickets bypassed. Multi-level vehicle parking available at Katra Municipal & Shrine Board lots.
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  Departure: <b>{origin}</b> <ArrowRight size={12} /> Arrival: <b>{tr.destination || 'Katra'}</b>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onEditCategory('dates')}
+                  className="btn btn-outline"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                >
+                  Change
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => onEditCategory('transport')}
-                className="btn btn-outline"
-                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-              >
-                Change
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', borderTop: '1px solid #FDE68A', paddingTop: '6px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Public Carrier Fare:</span>
+                <b style={{ color: '#155724', fontSize: '0.92rem' }}>₹0 (Own Vehicle)</b>
+              </div>
             </div>
+          ) : !transportSelected ? (
+            <div className="card" style={{ background: '#F8FAFC', border: '1.5px solid #CBD5E1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill" style={{ background: '#E2E8F0', color: '#475569', fontSize: '0.72rem', fontWeight: 700 }}>
+                      SELF-ARRANGED TRANSPORT
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>
+                    Arriving Independently at Katra
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Public transport ticket booking is excluded from this booking.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onEditCategory('transport')}
+                  className="btn btn-outline"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                >
+                  Change
+                </button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', borderTop: '1px solid #E2E8F0', paddingTop: '6px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Transport Fare:</span>
+                <b style={{ color: '#334155', fontSize: '0.92rem' }}>₹0 (Self-Arranged)</b>
+              </div>
+            </div>
+          ) : (
+            <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {mode === 'FLIGHT' ? <><Plane size={12} /> FLIGHT</> : (mode === 'BUS' ? <><Bus size={12} /> BUS</> : <><Train size={12} /> TRAIN</>)}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
+                      {operator} {serviceNo && `· ${serviceNo}`}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Departure: <b>{origin}</b> <ArrowRight size={12} /> Arrival: <b>{tr.destination || 'Katra'}</b>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onEditCategory('transport')}
+                  className="btn btn-outline"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                >
+                  Change
+                </button>
+              </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
-              <div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>{depTime}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{origin}</div>
-              </div>
-              <div style={{ textAlign: 'center', padding: '0 8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
-                  {durationStr ? <><Clock size={11} /> {durationStr}</> : 'Scheduled'}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>{depTime}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{origin}</div>
                 </div>
-                <div style={{ color: 'var(--gold-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ArrowRight size={14} />
+                <div style={{ textAlign: 'center', padding: '0 8px' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                    {durationStr ? <><Clock size={11} /> {durationStr}</> : 'Scheduled'}
+                  </div>
+                  <div style={{ color: 'var(--gold-primary)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ArrowRight size={14} />
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>{arrTime}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr.destination || 'Katra'}</div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-dark)' }}>{arrTime}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr.destination || 'Katra'}</div>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>
-                {isFareUnavailable ? 'Transport Tariff:' : `Transport Fare (${pax}x ₹${farePerPerson}):`}
-              </span>
-              <b style={{ color: 'var(--burgundy)', fontSize: '0.92rem' }}>
-                {isFareUnavailable
-                  ? (isFlight
-                      ? 'Airfare on airline portal (dynamic pricing)'
-                      : (isTrain
-                          ? 'Fare on IRCTC portal (dynamic pricing)'
-                          : (tr.indicative_fare_min
-                              ? `Statutory slab approx ₹${tr.indicative_fare_min}–₹${tr.indicative_fare_max || 110} (Counter)`
-                              : 'Tariff payable at counter')))
-                  : `₹${transportFareTotal.toLocaleString('en-IN')}`}
-              </b>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {isFareUnavailable ? 'Transport Tariff:' : `Transport Fare (${pax}x ₹${farePerPerson}):`}
+                </span>
+                <b style={{ color: 'var(--burgundy)', fontSize: '0.92rem' }}>
+                  {isFareUnavailable
+                    ? (isFlight
+                        ? 'Airfare on airline portal (dynamic pricing)'
+                        : (isTrain
+                            ? 'Fare on IRCTC portal (dynamic pricing)'
+                            : (tr.indicative_fare_min
+                                ? `Statutory slab approx ₹${tr.indicative_fare_min}–₹${tr.indicative_fare_max || 110} (Counter)`
+                                : 'Tariff payable at counter')))
+                    : `₹${transportFareTotal.toLocaleString('en-IN')}`}
+                </b>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 3. Selected Darshan Slot Guidance Card */}
           <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
@@ -443,115 +531,147 @@ export default function RecommendedYatra({
           </div>
 
           {/* 4. Selected Accommodation Card */}
-          <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <Building2 size={12} /> HOTEL
-                  </span>
-                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
-                    {activeHotel?.name || 'Katra Stay Reserved'}
-                  </span>
+          {!hotelSelected ? (
+            <div className="card" style={{ background: '#F8FAFC', border: '1.5px solid #CBD5E1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill" style={{ background: '#E2E8F0', color: '#475569', fontSize: '0.72rem', fontWeight: 700 }}>
+                      SELF-ARRANGED ACCOMMODATION
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>
+                    No Katra Hotel Reserved
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Hotel booking excluded (e.g. same-day return or staying with family / self-arranged).
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {activeHotel?.location || 'Central Katra Base'} · {activeHotel?.category || 'Standard'} Category
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
                 <button
                   type="button"
-                  data-testid="change-hotel-btn"
-                  onClick={() => setShowHotelSelector(!showHotelSelector)}
+                  onClick={() => onEditCategory('accommodation')}
                   className="btn btn-outline"
-                  style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
                 >
-                  Select Another Hotel {showHotelSelector ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  Change
                 </button>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', borderTop: '1px solid #E2E8F0', paddingTop: '6px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Hotel Total:</span>
+                <b style={{ color: '#334155', fontSize: '0.92rem' }}>₹0 (Excluded)</b>
+              </div>
             </div>
-
-            {activeHotel ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.82rem', marginTop: '6px' }}>
+          ) : (
+            <div className="card" style={{ background: '#FFFFFF', border: '1.5px solid var(--gold-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Room Configuration</span>
-                  <b>{roomsCount} room(s) for {pax} guest(s)</b>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill pill-gold" style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Building2 size={12} /> HOTEL
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--burgundy)' }}>
+                      {activeHotel?.name || 'Katra Stay Reserved'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {activeHotel?.location || 'Central Katra Base'} · {activeHotel?.category || 'Standard'} Category
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Stay Duration</span>
-                  <b>{hotelNights} Night(s)</b>
-                </div>
-                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px', marginTop: '4px' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Hotel Total ({roomsCount} rm x {hotelNights} n):</span>
-                  <b style={{ color: 'var(--burgundy)' }}>₹{hotelTotal.toLocaleString('en-IN')}</b>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    data-testid="change-hotel-btn"
+                    onClick={() => setShowHotelSelector(!showHotelSelector)}
+                    className="btn btn-outline"
+                    style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    Select Another Hotel {showHotelSelector ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
                 </div>
               </div>
-            ) : (
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
-                No Katra hotel reserved (day-excursion or self-arranged stay).
-              </div>
-            )}
 
-            {showHotelSelector && (
-              <div
-                data-testid="inline-hotel-selector"
-                style={{
-                  marginTop: '10px',
-                  borderTop: '1px solid var(--gold-border)',
-                  paddingTop: '10px',
-                }}
-              >
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '8px' }}>
-                  Select Katra Accommodation:
+              {activeHotel ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.82rem', marginTop: '6px' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Room Configuration</span>
+                    <b>{roomsCount} room(s) for {pax} guest(s)</b>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>Stay Duration</span>
+                    <b>{hotelNights} Night(s)</b>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px', marginTop: '4px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Hotel Total ({roomsCount} rm x {hotelNights} n):</span>
+                    <b style={{ color: 'var(--burgundy)' }}>₹{hotelTotal.toLocaleString('en-IN')}</b>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                  {hotelList.map((h, i) => {
-                    const isSelected = activeHotel?.name === h.name;
-                    return (
-                      <div
-                        key={i}
-                        data-testid={`hotel-option-${i}`}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: isSelected ? '1.5px solid var(--burgundy)' : '1px solid #E0E0E0',
-                          background: isSelected ? 'rgba(88, 17, 26, 0.04)' : '#FFFFFF',
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.84rem', color: isSelected ? 'var(--burgundy)' : '#222' }}>
-                            {h.name}
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {h.category} · ₹{(h.price_per_night || 1200).toLocaleString('en-IN')}/night · {h.location || 'Katra'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectHotel(h)}
+              ) : (
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
+                  No Katra hotel reserved (day-excursion or self-arranged stay).
+                </div>
+              )}
+
+              {showHotelSelector && (
+                <div
+                  data-testid="inline-hotel-selector"
+                  style={{
+                    marginTop: '10px',
+                    borderTop: '1px solid var(--gold-border)',
+                    paddingTop: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--burgundy)', marginBottom: '8px' }}>
+                    Select Katra Accommodation:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                    {hotelList.map((h, i) => {
+                      const isSelected = activeHotel?.name === h.name;
+                      return (
+                        <div
+                          key={i}
+                          data-testid={`hotel-option-${i}`}
                           style={{
-                            padding: '4px 10px',
-                            fontSize: '0.72rem',
-                            borderRadius: '6px',
-                            background: isSelected ? 'var(--burgundy)' : 'rgba(88, 17, 26, 0.08)',
-                            color: isSelected ? '#FFFFFF' : 'var(--burgundy)',
-                            border: '1px solid var(--gold-border)',
-                            cursor: 'pointer',
-                            fontWeight: 700,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: isSelected ? '1.5px solid var(--burgundy)' : '1px solid #E0E0E0',
+                            background: isSelected ? 'rgba(88, 17, 26, 0.04)' : '#FFFFFF',
                           }}
                         >
-                          {isSelected ? 'Selected' : 'Select'}
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.84rem', color: isSelected ? 'var(--burgundy)' : '#222' }}>
+                              {h.name}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              {h.category} · ₹{(h.price_per_night || 1200).toLocaleString('en-IN')}/night · {h.location || 'Katra'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectHotel(h)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              borderRadius: '6px',
+                              background: isSelected ? 'var(--burgundy)' : 'rgba(88, 17, 26, 0.08)',
+                              color: isSelected ? '#FFFFFF' : 'var(--burgundy)',
+                              border: '1px solid var(--gold-border)',
+                              cursor: 'pointer',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {isSelected ? 'Selected' : 'Select'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Sightseeing & Itinerary + Itemised Budget */}

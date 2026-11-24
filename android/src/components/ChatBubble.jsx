@@ -61,7 +61,8 @@ function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullIti
 
   const hasBookingHandoff =
     !isUser &&
-    (message.bookingHandoff ||
+    (message.booking_handoff ||
+      message.bookingHandoff ||
       message.action === 'NAVIGATE_TO_BOOKING' ||
       message.status === 'NAVIGATE_TO_BOOKING');
 
@@ -212,7 +213,7 @@ function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullIti
         {hasBookingHandoff && handleBookingHandoff && (
           <TouchableOpacity
             style={styles.handoffCard}
-            onPress={() => handleBookingHandoff(message.bookingHandoff || message.pending_options || null)}
+            onPress={() => handleBookingHandoff(message.booking_handoff || message.bookingHandoff || message.pending_options || message)}
           >
             <View style={styles.handoffRow}>
               <View style={styles.handoffIconWrapper}>

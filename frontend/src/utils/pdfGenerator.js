@@ -37,7 +37,7 @@ export function generatePilgrimPassPDF(bookingData, bookingSummary = {}) {
     '/F1 18 Tf 50 740 Td (SHRI MATA VAISHNO DEVI SHRINE - PILGRIM YATRA PASS) Tj',
     '/F2 9 Tf 0 -20 Td (DEMO -- LOCAL MOCK PORTAL -- NOT AN OFFICIAL SHRINE BOARD BOOKING) Tj',
     `/F1 13 Tf 0 -35 Td (OFFICIAL BOOKING REFERENCE: ${escapePdf(bid)}) Tj`,
-    '/F2 10 Tf 0 -22 Td (Status: SIMULATED / CONFIRMED   |   Security: OTP Verified [X] & CAPTCHA Solved [X]) Tj',
+    '/F2 10 Tf 0 -22 Td (Status: SIMULATED_ISSUED   |   Security: OTP Verified [X] & CAPTCHA Solved [X]) Tj',
     '/F1 11 Tf 0 -30 Td (PILGRIM & DARSHAN PARTICULARS:) Tj',
     `/F2 10 Tf 0 -18 Td (Primary Devotee: ${escapePdf(userName)}     Total Devotees: ${escapePdf(pax)} Pilgrim(s)) Tj`,
     `/F2 10 Tf 0 -18 Td (Darshan Date: ${escapePdf(slotDate)}     Category: ${escapePdf(category)}) Tj`,

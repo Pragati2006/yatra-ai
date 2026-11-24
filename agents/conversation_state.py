@@ -544,6 +544,232 @@ def extract_accessibility_needs(text: str) -> List[str]:
     return needs
 
 
+MONTH_NAME_TO_NUM = {
+    "jan": 1, "january": 1,
+    "feb": 2, "february": 2,
+    "mar": 3, "march": 3,
+    "apr": 4, "april": 4,
+    "may": 5,
+    "jun": 6, "june": 6,
+    "jul": 7, "july": 7,
+    "aug": 8, "august": 8,
+    "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10,
+    "nov": 11, "november": 11,
+    "dec": 12, "december": 12,
+}
+
+
+def extract_travel_dates(text: str) -> Tuple[Optional[str], Optional[str], bool]:
+    """
+    Extracts start_date and return_date as YYYY-MM-DD.
+    Returns (start_date, return_date, is_ambiguous).
+    Detects ambiguous slash/dot formats like 05/06/2026.
+    """
+    if not text:
+        return None, None, False
+
+    t = text.strip()
+    is_ambiguous = False
+    start_date = None
+    return_date = None
+
+    # Check for ambiguous numerical slash/dot date (e.g. 05/06/2026 or 06/05/2026)
+    slash_match = re.search(r"\b(\d{1,2})[/\.](\d{1,2})[/\.](\d{4})\b", t)
+    if slash_match:
+        n1, n2, y = int(slash_match.group(1)), int(slash_match.group(2)), int(slash_match.group(3))
+        if 1 <= n1 <= 12 and 1 <= n2 <= 12 and n1 != n2:
+            is_ambiguous = True
+
+    months_pat = "|".join(MONTH_NAME_TO_NUM.keys())
+    # Match "15 December 2026" or "15th Dec 2026"
+    dm_match = re.findall(
+        rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({months_pat})\b(?:\s*,?\s*(\d{{4}}))?",
+        t,
+        re.I
+    )
+    # Match "December 15, 2026"
+    md_match = re.findall(
+        rf"\b({months_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?:\s*,?\s*(\d{{4}}))?",
+        t,
+        re.I
+    )
+
+    found_dates = []
+    for day_str, m_str, y_str in dm_match:
+        d = int(day_str)
+        m = MONTH_NAME_TO_NUM[m_str.lower()]
+        y = int(y_str) if y_str else 2026
+        if 1 <= d <= 31:
+            found_dates.append(f"{y:04d}-{m:02d}-{d:02d}")
+
+    for m_str, day_str, y_str in md_match:
+        d = int(day_str)
+        m = MONTH_NAME_TO_NUM[m_str.lower()]
+        y = int(y_str) if y_str else 2026
+        if 1 <= d <= 31:
+            ds = f"{y:04d}-{m:02d}-{d:02d}"
+            if ds not in found_dates:
+                found_dates.append(ds)
+
+    # ISO dates: YYYY-MM-DD
+    iso_match = re.findall(r"\b(\d{4})-(\d{2})-(\d{2})\b", t)
+    for y, m, d in iso_match:
+        ds = f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+        if ds not in found_dates:
+            found_dates.append(ds)
+
+    if found_dates:
+        start_date = found_dates[0]
+        if len(found_dates) > 1:
+            return_date = found_dates[1]
+
+    return start_date, return_date, is_ambiguous
+
+
+def extract_own_vehicle(text: str) -> bool:
+    """Extracts whether the user is travelling using their own vehicle/car."""
+    if not text:
+        return False
+    t = text.lower()
+    return bool(re.search(
+        r"\b(own\s+vehicle|own\s+car|our\s+own\s+vehicle|our\s+own\s+car|my\s+own\s+car|my\s+own\s+vehicle|"
+        r"personal\s+vehicle|personal\s+car|driving\s+down|driving\s+our\s+car|driving\s+by\s+car|"
+        r"by\s+own\s+car|by\s+our\s+car|with\s+our\s+car|in\s+our\s+own\s+vehicle|in\s+my\s+own\s+car|"
+        r"drive\s+down|driving\s+to\s+katra|by\s+road\s+in\s+my\s+car)\b",
+        t
+    ))
+
+
+def extract_hotel_preference(text: str) -> Tuple[Optional[bool], Optional[str], Optional[int]]:
+    """
+    Extracts hotel booking selection, category, and night count.
+    Returns (hotel_selected, category, nights).
+    """
+    if not text:
+        return None, None, None
+    t = text.lower()
+    hotel_selected = None
+    hotel_cat = None
+    nights = None
+
+    if re.search(r"\b(no\s+hotel|without\s+hotel|don't\s+need\s+(a\s+)?hotel|dont\s+need\s+(a\s+)?hotel|no\s+stay|own\s+stay|own\s+arrangement\s+for\s+stay|stay\s+with\s+(friends?|relatives?|family)|no\s+accommodation)\b", t):
+        hotel_selected = False
+    elif re.search(r"\b(need\s+(a\s+)?hotel|book\s+(a\s+)?hotel|hotel\s+booking|require\s+(a\s+)?hotel|with\s+hotel|hotel\s+in\s+katra|standard\s+hotel|budget\s+hotel|luxury\s+hotel|hotel\s+stay|need\s+accommodation)\b", t):
+        hotel_selected = True
+
+    nm = re.search(r"\b(\d+)\s*(?:nights?|night\s+stay)\b", t)
+    if nm:
+        nights = int(nm.group(1))
+
+    if re.search(r"\b(luxury|5\s*star|deluxe)\b", t):
+        hotel_cat = "Luxury"
+    elif re.search(r"\b(budget|dormitory|cheap)\b", t):
+        hotel_cat = "Budget"
+    elif re.search(r"\b(standard|moderate)\b", t):
+        hotel_cat = "Standard"
+
+    return hotel_selected, hotel_cat, nights
+
+
+def extract_transport_preference(text: str) -> Tuple[Optional[bool], Optional[str]]:
+    """
+    Extracts transport booking selection and mode.
+    Returns (transport_selected, mode).
+    """
+    if not text:
+        return None, None
+    t = text.lower()
+    if extract_own_vehicle(text):
+        return False, "own_vehicle"
+    if re.search(r"\b(no\s+transport|without\s+transport|don't\s+need\s+transport|dont\s+need\s+transport)\b", t):
+        return False, None
+    if re.search(r"\b(train|flight|bus|cab|taxi|helicopter|transport\s+needed|book\s+transport|need\s+transport|travel\s+by\s+train|travel\s+by\s+flight|travel\s+by\s+bus)\b", t):
+        mode = "train"
+        if "flight" in t or "air" in t:
+            mode = "flight"
+        elif "bus" in t:
+            mode = "bus"
+        elif "cab" in t or "taxi" in t:
+            mode = "cab"
+        elif "helicopter" in t:
+            mode = "helicopter"
+        return True, mode
+    return None, None
+
+
+def extract_pilgrim_records(text: str, total_pax: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Extracts individual pilgrim records from conversation.
+    Returns a list of dicts: [{'full_name': '...', 'age': ...}]
+    """
+    if not text:
+        return []
+
+    pilgrims = []
+
+    # 1. Primary booker phrasing: "My name is X and I am Y" / "I am X, age Y"
+    me_match = re.search(
+        r"(?:my\s+name\s+is|i\s+am|myself)\s+([A-Za-z]+)(?:\s*,?\s*(?:and\s+)?(?:i\s+am\s+)?(?:age\s+)?(\d{1,3}))?",
+        text,
+        re.I
+    )
+    if me_match:
+        p_name = me_match.group(1).strip().capitalize()
+        p_age = int(me_match.group(2)) if me_match.group(2) else None
+        if p_name.lower() not in ("planning", "travelling", "going", "looking", "interested", "from", "with"):
+            pilgrims.append({"full_name": p_name, "age": p_age})
+
+    # 2. Pattern for lists: "Name, age 20", "Name - 20", "Name (20)", "Name: 20", "Name is 20"
+    list_items = re.findall(
+        r"\b([A-Z][a-zA-Z]+)\s*(?:,|:|-|\()?\s*(?:age|aged|is)?\s*(\d{1,3})\s*(?:\)|years?\s*old)?\b",
+        text
+    )
+    for name, age_str in list_items:
+        clean_name = name.strip().capitalize()
+        if clean_name.lower() in (
+            "we", "are", "people", "person", "pilgrim", "pilgrims", "adult", "adults",
+            "december", "january", "november", "october", "katra", "delhi", "jammu",
+            "hotel", "yatra", "train", "flight", "bus", "car", "start", "travel"
+        ):
+            continue
+        age = int(age_str)
+        if 1 <= age <= 120:
+            if not any(p["full_name"].lower() == clean_name.lower() for p in pilgrims):
+                pilgrims.append({"full_name": clean_name, "age": age})
+
+    return pilgrims
+
+
+def extract_primary_contact(text: str, pilgrims: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """Extracts primary contact booker information (name, phone, email)."""
+    contact = {"name": "", "phone": "", "email": ""}
+    if not text:
+        return contact
+
+    pm = re.search(r"\b(?:\+?91[\s-]?)?([6-9]\d{9})\b", text)
+    if pm:
+        contact["phone"] = pm.group(1)
+
+    em = re.search(r"\b([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\b", text)
+    if em:
+        contact["email"] = em.group(1)
+
+    nm = re.search(
+        r"(?:my\s+name\s+is|i\s+am|contact(?:\s+person)?(?:\s+is)?|booker(?:\s+is)?)\s+([A-Za-z]+)",
+        text,
+        re.I
+    )
+    if nm:
+        cand = nm.group(1).strip().capitalize()
+        if cand.lower() not in ("planning", "travelling", "going", "looking", "interested", "from", "on", "with"):
+            contact["name"] = cand
+    elif pilgrims and len(pilgrims) > 0 and pilgrims[0].get("full_name"):
+        contact["name"] = pilgrims[0]["full_name"]
+
+    return contact
+
+
 # -----------------------------------------------------------------------------
 # 4. Nationwide Connecting Transit Guidance (Part D)
 # -----------------------------------------------------------------------------
@@ -846,6 +1072,76 @@ def update_conversation_state(text: str, current_state: Optional[Dict[str, Any]]
         req["accessibility_requirements"] = existing_acc
         explicit_fields.add("accessibility_requirements")
 
+    # 9. Travel Dates (start_date, return_date, date ambiguity)
+    start_d, return_d, date_ambiguous = extract_travel_dates(text)
+    if date_ambiguous:
+        st["pending_date_ambiguity"] = True
+        req["pending_date_ambiguity"] = True
+    else:
+        if start_d:
+            req["start_date"] = start_d
+            req["travel_date"] = start_d
+            req["_date_explicit"] = True
+            explicit_fields.add("start_date")
+            st["pending_date_ambiguity"] = False
+            req["pending_date_ambiguity"] = False
+        if return_d:
+            req["return_date"] = return_d
+            explicit_fields.add("return_date")
+
+    # 10. Own Vehicle Preference
+    if extract_own_vehicle(text):
+        req["own_vehicle"] = True
+        req["transport_selected"] = False
+        req["mode"] = "own_vehicle"
+        req["transport_preference"] = "own_vehicle"
+        explicit_fields.add("own_vehicle")
+
+    # 11. Hotel Preference
+    h_sel, h_cat, h_nights = extract_hotel_preference(text)
+    if h_sel is not None:
+        req["hotel_selected"] = h_sel
+        explicit_fields.add("hotel_selected")
+    if h_cat:
+        req["hotel_category"] = h_cat
+        req["accommodation_preference"] = h_cat
+        explicit_fields.add("hotel_category")
+    if h_nights:
+        req["hotel_nights"] = h_nights
+        explicit_fields.add("hotel_nights")
+
+    # 12. Transport Selection
+    t_sel, t_mode = extract_transport_preference(text)
+    if t_sel is not None:
+        req["transport_selected"] = t_sel
+        explicit_fields.add("transport_selected")
+    if t_mode and not req.get("own_vehicle"):
+        req["mode"] = t_mode
+        req["transport_preference"] = t_mode
+        explicit_fields.add("mode")
+
+    # 13. Individual Pilgrim Records
+    extracted_pilgrims = extract_pilgrim_records(text, total_pax=req.get("pax"))
+    if extracted_pilgrims:
+        existing_pilgrims = list(req.get("pilgrims") or [])
+        if len(extracted_pilgrims) >= len(existing_pilgrims):
+            req["pilgrims"] = extracted_pilgrims
+        else:
+            merged = {p["full_name"].lower(): p for p in existing_pilgrims if p.get("full_name")}
+            for p in extracted_pilgrims:
+                merged[p["full_name"].lower()] = p
+            req["pilgrims"] = list(merged.values())
+        explicit_fields.add("pilgrims")
+
+    # 14. Primary Contact / Booker Information
+    contact = extract_primary_contact(text, pilgrims=req.get("pilgrims"))
+    existing_contact = dict(req.get("primary_contact") or {})
+    for k in ("name", "phone", "email"):
+        if contact.get(k):
+            existing_contact[k] = contact[k]
+            explicit_fields.add(f"primary_contact_{k}")
+    req["primary_contact"] = existing_contact
+
     req["_explicit_fields"] = list(explicit_fields)
     st["requirements"] = req
     if is_full_session:
@@ -862,6 +1158,11 @@ def evaluate_missing_slots(state: Dict[str, Any]) -> List[str]:
     req = state.get("requirements") or {}
     explicit = set(req.get("_explicit_fields") or [])
     missing = []
+
+    # Date ambiguity clarification takes immediate priority
+    if state.get("pending_date_ambiguity") or req.get("pending_date_ambiguity"):
+        missing.append("date_clarification")
+        return missing
 
     # Destination: required if explicitly None or ambiguous in trip request
     if "destination" in req and req.get("destination") is None:
@@ -941,6 +1242,12 @@ def generate_smart_missing_prompt(missing_slots: List[str], state: Dict[str, Any
     pax_str = f"{pax} pilgrims" if pax > 1 else "solo pilgrim"
     if pax == 2:
         pax_str = "two adults"
+
+    if "date_clarification" in missing_slots:
+        return (
+            "🙏 **Jai Mata Di!** To ensure your travel dates are accurate, could you please clarify your date with the month name? "
+            "(For example: '15 December 2026' or '5 June 2026')."
+        )
 
     if "destination" in missing_slots:
         return (

@@ -283,7 +283,7 @@ class TestAccountPersistence(unittest.TestCase):
         self.assertEqual(found_booking["user_id"], user["user_id"])
         self.assertEqual(found_booking["category"], "VIP_DARSHAN")
         self.assertEqual(found_booking["pax_count"], 2)
-        self.assertEqual(found_booking["status"], "SIMULATED_CONFIRMED")
+        self.assertIn(found_booking["status"], ("SIMULATED_ISSUED", "SIMULATED_CONFIRMED"))
         self.assertEqual(found_booking["payment_status"], "COMPLETED_SANDBOX")
 
     # -------------------------------------------------------------------------
@@ -348,7 +348,7 @@ class TestAccountPersistence(unittest.TestCase):
 
         # Retrieve booking
         rec = client.get(f"/api/auth/saved-bookings/{bid}", headers=user["headers"]).json()["booking"]
-        self.assertEqual(rec["status"], "SIMULATED_CONFIRMED")
+        self.assertIn(rec["status"], ("SIMULATED_ISSUED", "SIMULATED_CONFIRMED"))
         self.assertEqual(rec["payment_status"], "COMPLETED_SANDBOX")
         self.assertIn("LOCAL MOCK PORTAL", rec["receipt"]["portal_label"])
         self.assertIn("Simulated", rec["receipt"]["title"])

@@ -103,6 +103,56 @@ export default function YatraBooking({
   const [selectedOption, setSelectedOption] = useState(() => initialSearchParams?.selected_option || (initialSearchParams?.options && initialSearchParams.options.length > 0 ? initialSearchParams.options[0] : null));
   const [budgetEvaluation, setBudgetEvaluation] = useState(() => initialSearchParams?.budget_evaluation || null);
 
+  // Flexible Service Preferences & Pilgrims State (Phase 8.8.54A)
+  const [includeHotel, setIncludeHotel] = useState(() => {
+    if (initialSearchParams?.hotelSelected !== undefined) return initialSearchParams.hotelSelected;
+    if (initialSearchParams?.hotel_selected !== undefined) return initialSearchParams.hotel_selected;
+    if (initialSearchParams?.booking_handoff?.hotel_selected !== undefined) return initialSearchParams.booking_handoff.hotel_selected;
+    return true;
+  });
+  const [includeTransport, setIncludeTransport] = useState(() => {
+    if (initialSearchParams?.transportSelected !== undefined) return initialSearchParams.transportSelected;
+    if (initialSearchParams?.transport_selected !== undefined) return initialSearchParams.transport_selected;
+    if (initialSearchParams?.booking_handoff?.transport_selected !== undefined) return initialSearchParams.booking_handoff.transport_selected;
+    return true;
+  });
+  const [ownVehicle, setOwnVehicle] = useState(() => {
+    if (initialSearchParams?.ownVehicle !== undefined) return initialSearchParams.ownVehicle;
+    if (initialSearchParams?.own_vehicle !== undefined) return initialSearchParams.own_vehicle;
+    if (initialSearchParams?.booking_handoff?.own_vehicle !== undefined) return initialSearchParams.booking_handoff.own_vehicle;
+    return false;
+  });
+
+  const initialPaxCount = Math.max(1, parseInt(initialSearchParams?.request?.pax || initialSearchParams?.pax || 2, 10));
+  const [pilgrims, setPilgrims] = useState(() => {
+    if (Array.isArray(initialSearchParams?.pilgrims) && initialSearchParams.pilgrims.length > 0) {
+      return initialSearchParams.pilgrims;
+    }
+    if (Array.isArray(initialSearchParams?.booking_handoff?.pilgrims) && initialSearchParams.booking_handoff.pilgrims.length > 0) {
+      return initialSearchParams.booking_handoff.pilgrims;
+    }
+    const primaryName = initialSearchParams?.booking_handoff?.primary_contact?.name || activeUser?.name || '';
+    const primaryAge = initialSearchParams?.booking_handoff?.primary_contact?.age || '';
+    const list = [{ full_name: primaryName, age: primaryAge ? String(primaryAge) : '', gender: 'Male' }];
+    while (list.length < initialPaxCount) {
+      list.push({ full_name: '', age: '', gender: 'Male' });
+    }
+    return list;
+  });
+
+  const [primaryContact, setPrimaryContact] = useState(() => {
+    return initialSearchParams?.primary_contact || initialSearchParams?.booking_handoff?.primary_contact || {
+      name: activeUser?.name || '',
+      email: activeUser?.email || '',
+      phone: activeUser?.phone || '',
+    };
+  });
+
+  const [prefilledFields, setPrefilledFields] = useState(() => {
+    const raw = initialSearchParams?.prefilled_fields || initialSearchParams?.booking_handoff?.prefilled_fields || [];
+    return new Set(Array.isArray(raw) ? raw : []);
+  });
+
   // Accommodation State
   const [hotels, setHotels] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState(() => initialSearchParams?.hotel || null);
@@ -138,6 +188,11 @@ export default function YatraBooking({
     setLoading(true);
     setErrorMsg('');
     setPlanRevisionNotice('');
+    if (params.hotelSelected !== undefined) setIncludeHotel(params.hotelSelected);
+    if (params.transportSelected !== undefined) setIncludeTransport(params.transportSelected);
+    if (params.ownVehicle !== undefined) setOwnVehicle(params.ownVehicle);
+    if (Array.isArray(params.pilgrims) && params.pilgrims.length > 0) setPilgrims(params.pilgrims);
+    if (params.primaryContact) setPrimaryContact(params.primaryContact);
     try {
       const result = await searchYatra(params.queryText);
       const req = {
@@ -153,6 +208,11 @@ export default function YatraBooking({
         travel_style: params.travel_style || 'balanced',
         accommodation_preference: params.accommodation_preference || 'Standard',
         sightseeing_choice: params.sightseeing_choice || 'recommend',
+        hotel_selected: params.hotelSelected !== undefined ? params.hotelSelected : includeHotel,
+        transport_selected: params.transportSelected !== undefined ? params.transportSelected : includeTransport,
+        own_vehicle: params.ownVehicle !== undefined ? params.ownVehicle : ownVehicle,
+        pilgrims: params.pilgrims || pilgrims,
+        primary_contact: params.primaryContact || primaryContact,
         ...result.request,
       };
       setTripRequest(req);
@@ -270,6 +330,49 @@ export default function YatraBooking({
     if (payload.budget_evaluation) {
       setBudgetEvaluation(payload.budget_evaluation);
     }
+    if (payload.hotelSelected !== undefined) {
+      setIncludeHotel(payload.hotelSelected);
+    } else if (payload.hotel_selected !== undefined) {
+      setIncludeHotel(payload.hotel_selected);
+    } else if (payload.booking_handoff?.hotel_selected !== undefined) {
+      setIncludeHotel(payload.booking_handoff.hotel_selected);
+    }
+
+    if (payload.transportSelected !== undefined) {
+      setIncludeTransport(payload.transportSelected);
+    } else if (payload.transport_selected !== undefined) {
+      setIncludeTransport(payload.transport_selected);
+    } else if (payload.booking_handoff?.transport_selected !== undefined) {
+      setIncludeTransport(payload.booking_handoff.transport_selected);
+    }
+
+    if (payload.ownVehicle !== undefined) {
+      setOwnVehicle(payload.ownVehicle);
+    } else if (payload.own_vehicle !== undefined) {
+      setOwnVehicle(payload.own_vehicle);
+    } else if (payload.booking_handoff?.own_vehicle !== undefined) {
+      setOwnVehicle(payload.booking_handoff.own_vehicle);
+    }
+
+    if (Array.isArray(payload.pilgrims) && payload.pilgrims.length > 0) {
+      setPilgrims(payload.pilgrims);
+    } else if (Array.isArray(payload.booking_handoff?.pilgrims) && payload.booking_handoff.pilgrims.length > 0) {
+      setPilgrims(payload.booking_handoff.pilgrims);
+    }
+
+    if (payload.primaryContact) {
+      setPrimaryContact(payload.primaryContact);
+    } else if (payload.primary_contact) {
+      setPrimaryContact(payload.primary_contact);
+    } else if (payload.booking_handoff?.primary_contact) {
+      setPrimaryContact(payload.booking_handoff.primary_contact);
+    }
+
+    if (payload.prefilledFields || payload.prefilled_fields || payload.booking_handoff?.prefilled_fields) {
+      const raw = payload.prefilledFields || payload.prefilled_fields || payload.booking_handoff?.prefilled_fields;
+      setPrefilledFields(new Set(Array.isArray(raw) ? raw : []));
+    }
+
     if (payload.step) {
       setCurrentStep(payload.step);
     } else if ((payload.options && payload.options.length > 0) || (payload.itinerary && payload.itinerary.length > 0)) {
@@ -514,16 +617,31 @@ export default function YatraBooking({
       }
 
       const userName = activeUser.name || activeUser.email || activeUser.phone || 'Devotee';
+      const formattedPilgrims = pilgrims && pilgrims.length > 0 ? pilgrims.map(p => ({
+        full_name: (p.full_name || '').trim() || 'Devotee',
+        age: parseInt(p.age, 10) || 30,
+        gender: p.gender || 'Male',
+      })) : [{ full_name: userName, age: 35, gender: 'Male' }];
+
       const data = await confirmBooking({
         option: selectedOption,
-        pax: tripRequest?.pax || 1,
+        pax: tripRequest?.pax || formattedPilgrims.length || 1,
         user_name: userName,
         hotel: selectedHotel,
-        hotel_nights: 2,
+        hotel_nights: Math.max(1, (tripRequest?.duration_days || 4) - 1),
         sightseeing_places: selectedPlaces.map((p) => p.name),
         human_authorized: true,
         session_id: sessionId,
         plan_version: planVersion || 1,
+        pilgrims: formattedPilgrims,
+        primary_contact: primaryContact,
+        hotel_selected: includeHotel,
+        transport_selected: includeTransport,
+        own_vehicle: ownVehicle,
+        start_date: selectedOption?.slot?.slot_date || tripRequest?.start_date,
+        return_date: tripRequest?.return_date,
+        duration: tripRequest?.duration_days,
+        budget: tripRequest?.total_budget,
       });
 
       if (data && data.status === 'success') {
@@ -534,16 +652,24 @@ export default function YatraBooking({
           try {
             await saveBooking({
               booking_id: data.booking_id,
-              pax_count: tripRequest?.pax || 1,
+              pax_count: tripRequest?.pax || formattedPilgrims.length || 1,
               slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
               category: selectedOption?.slot?.category || 'Normal Darshan',
               slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
-              transport_mode: selectedOption?.transport?.mode || 'Train',
-              transport_info: selectedOption?.transport?.name || 'Express Service',
-              hotel_name: selectedHotel?.name || 'Katra Stay',
+              transport_mode: ownVehicle ? 'Own Vehicle' : (!includeTransport ? 'Self-arranged' : (selectedOption?.transport?.mode || 'Train')),
+              transport_info: ownVehicle ? 'Personal Vehicle / Car' : (!includeTransport ? 'Self-arranged Transport' : (selectedOption?.transport?.name || 'Express Service')),
+              hotel_name: includeHotel && selectedHotel?.name ? selectedHotel.name : 'Accommodation not selected',
               total_price: data.total_price || selectedOption?.total_price || 0,
               session_id: sessionId,
               plan_version: planVersion || 1,
+              pilgrims: formattedPilgrims,
+              primary_contact: primaryContact,
+              hotel_selected: includeHotel,
+              transport_selected: includeTransport,
+              own_vehicle: ownVehicle,
+              start_date: selectedOption?.slot?.slot_date || tripRequest?.start_date,
+              return_date: tripRequest?.return_date,
+              duration: tripRequest?.duration_days,
               receipt: data.receipt || {},
             });
           } catch (e) {
@@ -1173,8 +1299,9 @@ export default function YatraBooking({
                 loading={loading}
                 initialValues={{
                   origin: tripRequest?.origin || '',
-                  pax: tripRequest?.pax || 2,
+                  pax: tripRequest?.pax || pilgrims.length || 2,
                   startDate: tripRequest?.start_date || '2026-10-20',
+                  returnDate: tripRequest?.return_date || '',
                   mode: tripRequest?.mode || 'any',
                   category: tripRequest?.category || 'Normal Darshan',
                   duration: tripRequest?.duration_days || 4,
@@ -1183,6 +1310,12 @@ export default function YatraBooking({
                   travelStyle: tripRequest?.travel_style || 'balanced',
                   accommodationPreference: tripRequest?.accommodation_preference || 'Standard',
                   sightseeingChoice: sightseeingChoice || tripRequest?.sightseeing_choice || 'recommend',
+                  hotelSelected: includeHotel,
+                  transportSelected: includeTransport,
+                  ownVehicle: ownVehicle,
+                  pilgrims: pilgrims,
+                  primaryContact: primaryContact,
+                  prefilledFields: prefilledFields,
                 }}
               />
             </div>
@@ -1201,8 +1334,18 @@ export default function YatraBooking({
                 feasible_places: feasiblePlaces,
                 infeasible_places: infeasiblePlaces,
                 budget_evaluation: budgetEvaluation,
+                hotel_selected: includeHotel,
+                transport_selected: includeTransport,
+                own_vehicle: ownVehicle,
+                pilgrims: pilgrims,
               }}
-              tripRequest={tripRequest}
+              tripRequest={{
+                ...tripRequest,
+                hotel_selected: includeHotel,
+                transport_selected: includeTransport,
+                own_vehicle: ownVehicle,
+                pilgrims: pilgrims,
+              }}
               sessionId={sessionId}
               planVersion={planVersion}
               planRevisionNotice={planRevisionNotice}
@@ -1462,7 +1605,7 @@ export default function YatraBooking({
             <Authorization
               bookingSummary={{
                 option: selectedOption,
-                pax: tripRequest?.pax || 1,
+                pax: tripRequest?.pax || pilgrims.length || 1,
                 hotel: selectedHotel,
                 hotelNights: Math.max(1, (tripRequest?.duration_days || 4) - 1),
                 sightseeingPlaces: selectedPlaces,
@@ -1473,6 +1616,11 @@ export default function YatraBooking({
                 planVersion: planVersion,
                 tripRequest: tripRequest,
                 itineraryDays: itineraryDays,
+                pilgrims: pilgrims,
+                primaryContact: primaryContact,
+                hotelSelected: includeHotel,
+                transportSelected: includeTransport,
+                ownVehicle: ownVehicle,
               }}
               currentUser={activeUser}
               onRequireAuth={() => {
@@ -1488,34 +1636,52 @@ export default function YatraBooking({
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (activeUser && confirmedResult?.booking_id) {
                   const bPrice = confirmedResult.total_price || selectedOption?.total_price || 0;
+                  const formattedPilgrims = pilgrims && pilgrims.length > 0 ? pilgrims.map(p => ({
+                    full_name: (p.full_name || '').trim() || 'Devotee',
+                    age: parseInt(p.age, 10) || 30,
+                    gender: p.gender || 'Male',
+                  })) : [{ full_name: activeUser?.name || 'Devotee', age: 35, gender: 'Male' }];
                   saveBooking({
                     booking_id: confirmedResult.booking_id,
-                    pax_count: tripRequest?.pax || 1,
+                    pax_count: tripRequest?.pax || formattedPilgrims.length || 1,
                     slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
                     category: selectedOption?.slot?.category || 'Normal Darshan',
                     slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
-                    transport_mode: selectedOption?.transport?.mode || 'Train',
-                    transport_info: selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`),
-                    hotel_name: selectedHotel?.name || 'Accommodation not selected',
+                    transport_mode: ownVehicle ? 'Own Vehicle' : (!includeTransport ? 'Self-arranged' : (selectedOption?.transport?.mode || 'Train')),
+                    transport_info: ownVehicle ? 'Personal Vehicle / Car' : (!includeTransport ? 'Self-arranged Transport' : (selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`))),
+                    hotel_name: includeHotel && selectedHotel?.name ? selectedHotel.name : 'Accommodation not selected',
                     total_price: bPrice,
                     session_id: sessionId,
                     plan_version: planVersion || 1,
+                    pilgrims: formattedPilgrims,
+                    primary_contact: primaryContact,
+                    hotel_selected: includeHotel,
+                    transport_selected: includeTransport,
+                    own_vehicle: ownVehicle,
+                    start_date: selectedOption?.slot?.slot_date || tripRequest?.start_date,
+                    return_date: tripRequest?.return_date,
+                    duration: tripRequest?.duration_days,
                     receipt: {
                       booking_id: confirmedResult.booking_id,
                       user_name: activeUser?.name || activeUser?.email || 'Pilgrim Devotee',
                       email: activeUser?.email,
-                      pax_count: tripRequest?.pax || 1,
+                      pax_count: tripRequest?.pax || formattedPilgrims.length || 1,
                       origin: tripRequest?.origin || '',
                       destination: 'Katra (Shri Mata Vaishno Devi)',
                       slot_date: selectedOption?.slot?.slot_date || tripRequest?.start_date || '2026-10-20',
                       category: selectedOption?.slot?.category || 'Normal Darshan',
                       slot_time: selectedOption?.slot?.slot_time || 'Morning (06:00)',
-                      transport_info: selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`),
-                      hotel_name: selectedHotel?.name || 'Accommodation not selected',
+                      transport_info: ownVehicle ? 'Personal Vehicle / Car' : (!includeTransport ? 'Self-arranged Transport' : (selectedOption?.transport?.name || (tripRequest?.origin ? `${selectedOption?.transport?.mode || 'Train'} from ${tripRequest.origin}` : `${selectedOption?.transport?.mode || 'Train'} to Katra`))),
+                      hotel_name: includeHotel && selectedHotel?.name ? selectedHotel.name : 'Accommodation not selected',
                       total_price: bPrice,
                       confirmed_at: new Date().toISOString(),
                       portal_label: 'LOCAL MOCK PORTAL / DEMO',
                       disclaimer: 'NOT AN OFFICIAL SHRINE BOARD BOOKING',
+                      pilgrims: formattedPilgrims,
+                      primary_contact: primaryContact,
+                      hotel_selected: includeHotel,
+                      transport_selected: includeTransport,
+                      own_vehicle: ownVehicle,
                     },
                   }).catch((err) => console.warn('Account sync notice:', err));
                 }
@@ -1548,11 +1714,16 @@ export default function YatraBooking({
               confirmationData={confirmationData}
               bookingSummary={{
                 option: selectedOption,
-                pax: tripRequest?.pax || 1,
+                pax: tripRequest?.pax || pilgrims.length || 1,
                 hotel: selectedHotel,
                 hotelNights: Math.max(1, (tripRequest?.duration_days || 4) - 1),
                 origin: tripRequest?.origin || '',
                 tripRequest: tripRequest,
+                pilgrims: pilgrims,
+                primaryContact: primaryContact,
+                hotelSelected: includeHotel,
+                transportSelected: includeTransport,
+                ownVehicle: ownVehicle,
               }}
               onReturnHome={onReturnHome}
               onStartNewBooking={() => {

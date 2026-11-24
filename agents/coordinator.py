@@ -870,16 +870,37 @@ def build_final_itinerary(option, hotel=None, hotel_nights=0, sightseeing_places
     return itinerary_agent.build_itinerary(option, hotel=hotel, hotel_nights=hotel_nights, sightseeing_places=sightseeing_places, request=request)
 
 
-def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightseeing_places=None):
+def confirm_booking(
+    option,
+    pax,
+    user_name,
+    hotel=None,
+    hotel_nights=0,
+    sightseeing_places=None,
+    pilgrims=None,
+    primary_contact=None,
+    hotel_selected=True,
+    transport_selected=True,
+    own_vehicle=False,
+    **kwargs
+):
     """Delegates to the existing, tested booking logic, then adds a
     devotional confirmation message on top."""
     if isinstance(option, dict) and "flight" not in option and "transport" in option:
         option = dict(option)
         option["flight"] = option["transport"]
     booking_id = legacy_agent.confirm_booking(
-        option, pax, user_name,
-        hotel=hotel, hotel_nights=hotel_nights,
+        option,
+        pax,
+        user_name,
+        hotel=hotel,
+        hotel_nights=hotel_nights,
         sightseeing_places=sightseeing_places,
+        pilgrims=pilgrims,
+        primary_contact=primary_contact,
+        hotel_selected=hotel_selected,
+        transport_selected=transport_selected,
+        own_vehicle=own_vehicle,
     )
     blessing = conversation_agent.confirmation_blessing()
     return booking_id, blessing

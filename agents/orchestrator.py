@@ -1772,6 +1772,11 @@ def handle_booking_navigation_intent(
     curr_version = state.get("plan_version", 1)
 
     # 1. Update any user-supplied requirements from the text (e.g. "for 2 pilgrims")
+    from agents import conversation_state
+    session_data = conversation_state.update_conversation_state(user_text, session_data)
+    state = session_data.get("state", state)
+    req = dict(state.get("requirements", req))
+
     parsed_req = legacy_agent.parse_request(user_text, current_request=req)
     for k, v in parsed_req.items():
         if v is not None and v != "":
@@ -1921,6 +1926,35 @@ def handle_booking_navigation_intent(
         except Exception as exc:
             logger.warning("Failed to update session for booking intent: %s", exc)
 
+    pax_count = req.get("pax") or 1
+    hotel_sel = req.get("hotel_selected")
+    if hotel_sel is None:
+        hotel_sel = True if hotel else True
+    own_veh = bool(req.get("own_vehicle", False))
+    trans_sel = req.get("transport_selected")
+    if trans_sel is None:
+        trans_sel = False if own_veh else True
+
+    booking_handoff = {
+        "primary_contact": req.get("primary_contact") or {"name": "", "phone": "", "email": ""},
+        "pax": pax_count,
+        "pilgrims": req.get("pilgrims") or [],
+        "start_date": req.get("start_date") or req.get("travel_date") or "2026-11-10",
+        "return_date": req.get("return_date"),
+        "duration": req.get("duration_days") or 4,
+        "origin": req.get("origin") or "Delhi",
+        "destination": req.get("destination") or "Katra",
+        "hotel_selected": hotel_sel,
+        "selected_hotel": hotel if (hotel_sel and hotel and isinstance(hotel, dict) and hotel.get("name")) else None,
+        "hotel_nights": req.get("hotel_nights") or max(1, (req.get("duration_days") or 4) - 1),
+        "transport_selected": trans_sel,
+        "selected_transport": (selected_option.get("transport") or selected_option.get("flight")) if (trans_sel and not own_veh and selected_option) else None,
+        "own_vehicle": own_veh,
+        "budget": req.get("total_budget") or budget_eval.get("grand_total"),
+        "accessibility": req.get("accessibility_requirements") or [],
+        "prefilled_fields": list(req.get("_explicit_fields") or []),
+    }
+
     return {
         "intent": "BOOKING_INTENT",
         "status": "NAVIGATE_TO_BOOKING",
@@ -1937,6 +1971,13 @@ def handle_booking_navigation_intent(
         "budget_evaluation": budget_eval,
         "feasible_places": feasible,
         "infeasible_places": infeasible,
+        "booking_handoff": booking_handoff,
+        "bookingHandoff": booking_handoff,
+        "primary_contact": booking_handoff["primary_contact"],
+        "pilgrims": booking_handoff["pilgrims"],
+        "own_vehicle": own_veh,
+        "hotel_selected": hotel_sel,
+        "transport_selected": trans_sel,
         "step": 2,
     }
 

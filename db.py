@@ -317,28 +317,21 @@ def _load_bookings_df():
 
 
 def create_booking(user_name, pax_count, yatra_slot, transport, total_price, hotel=None, hotel_nights=0,
-                    sightseeing_places=None):
+                    sightseeing_places=None, pilgrims=None, primary_contact=None, own_vehicle=False, **kwargs):
     """
     yatra_slot: dict from search_yatra_slots (has id, category, slot_date, slot_time, price)
-    transport: dict from search_flights/search_trains/search_buses (has mode,
-               transport_no, operator, origin, destination, travel_date,
-               departure_time, price, seats_available)
-    hotel: optional dict from search_hotels (has id, name, category,
-           price_per_night, rooms_available). One room is booked
-           regardless of pax_count (simplification - see README).
-    hotel_nights: number of nights, used only for the total_price already
-                  computed by the caller and for display in the booking.
-    sightseeing_places: optional list of place names (from
-               explore_data.get_places()) the pilgrim plans to visit
-               after darshan. Informational only - not bookable/priced,
-               same as the rest of the Explore Katra content - so it
-               doesn't affect total_price. Stored as a single
-               semicolon-joined string for simple CSV/Airtable storage.
+    transport: optional dict from search_flights/search_trains/search_buses or None
+    hotel: optional dict from search_hotels or None
+    hotel_nights: number of nights
+    sightseeing_places: optional list of place names
+    pilgrims: optional list of devotee records [{'full_name': '...', 'age': ...}]
+    primary_contact: optional dict of contact information
+    own_vehicle: bool indicating personal vehicle travel
     """
     ensure_live_data()
     booking_id = "VD" + uuid.uuid4().hex[:8].upper()
 
-    if yatra_slot and yatra_slot.get("id"):
+    if yatra_slot and isinstance(yatra_slot, dict) and yatra_slot.get("id"):
         slots = pd.read_csv(YATRA_LIVE)
         idx = slots.index[slots["id"] == yatra_slot["id"]]
         if len(idx) and slots.loc[idx[0], "seats_available"] >= pax_count:
@@ -346,15 +339,15 @@ def create_booking(user_name, pax_count, yatra_slot, transport, total_price, hot
             slots.to_csv(YATRA_LIVE, index=False)
 
     live_map = {"flight": FLIGHTS_LIVE, "train": TRAINS_LIVE, "bus": BUSES_LIVE}
-    live_path = live_map.get(transport.get("mode"))
-    if live_path and transport.get("id"):
+    live_path = live_map.get(transport.get("mode")) if (transport and isinstance(transport, dict)) else None
+    if live_path and transport and transport.get("id"):
         tdf = pd.read_csv(live_path)
         idx = tdf.index[tdf["id"] == transport["id"]]
         if len(idx) and tdf.loc[idx[0], "seats_available"] >= pax_count:
             tdf.loc[idx[0], "seats_available"] -= pax_count
             tdf.to_csv(live_path, index=False)
 
-    if hotel and hotel.get("id"):
+    if hotel and isinstance(hotel, dict) and hotel.get("id"):
         hdf = pd.read_csv(HOTELS_LIVE)
         idx = hdf.index[hdf["id"] == hotel["id"]]
         if len(idx) and hdf.loc[idx[0], "rooms_available"] >= 1:
@@ -365,25 +358,25 @@ def create_booking(user_name, pax_count, yatra_slot, transport, total_price, hot
         "booking_id": booking_id,
         "user_name": user_name,
         "pax_count": pax_count,
-        "yatra_slot_id": yatra_slot.get("id") if yatra_slot else None,
-        "category": yatra_slot.get("category") if yatra_slot else None,
-        "slot_date": yatra_slot.get("slot_date") if yatra_slot else None,
-        "slot_time": yatra_slot.get("slot_time") if yatra_slot else None,
-        "transport_mode": transport.get("mode"),
-        "transport_no": transport.get("transport_no"),
-        "transport_operator": transport.get("operator"),
-        "origin": transport.get("origin"),
-        "destination": transport.get("destination"),
-        "transport_date": transport.get("travel_date"),
-        "departure_time": transport.get("departure_time"),
-        "transport_price": transport.get("price"),
-        "yatra_price": yatra_slot.get("price") if yatra_slot else None,
-        "hotel_id": hotel.get("id") if hotel else None,
-        "hotel_name": hotel.get("name") if hotel else None,
-        "hotel_category": hotel.get("category") if hotel else None,
-        "hotel_price_per_night": hotel.get("price_per_night") if hotel else None,
-        "hotel_nights": hotel_nights if hotel else None,
-        "hotel_total": (hotel.get("price_per_night", 0) * hotel_nights) if hotel else None,
+        "yatra_slot_id": yatra_slot.get("id") if (yatra_slot and isinstance(yatra_slot, dict)) else None,
+        "category": yatra_slot.get("category") if (yatra_slot and isinstance(yatra_slot, dict)) else None,
+        "slot_date": yatra_slot.get("slot_date") if (yatra_slot and isinstance(yatra_slot, dict)) else None,
+        "slot_time": yatra_slot.get("slot_time") if (yatra_slot and isinstance(yatra_slot, dict)) else None,
+        "transport_mode": transport.get("mode") if (transport and isinstance(transport, dict)) else ("own_vehicle" if own_vehicle else None),
+        "transport_no": transport.get("transport_no") if (transport and isinstance(transport, dict)) else None,
+        "transport_operator": transport.get("operator") if (transport and isinstance(transport, dict)) else None,
+        "origin": transport.get("origin") if (transport and isinstance(transport, dict)) else None,
+        "destination": transport.get("destination") if (transport and isinstance(transport, dict)) else None,
+        "transport_date": transport.get("travel_date") if (transport and isinstance(transport, dict)) else None,
+        "departure_time": transport.get("departure_time") if (transport and isinstance(transport, dict)) else None,
+        "transport_price": transport.get("price") if (transport and isinstance(transport, dict)) else None,
+        "yatra_price": yatra_slot.get("price") if (yatra_slot and isinstance(yatra_slot, dict)) else None,
+        "hotel_id": hotel.get("id") if (hotel and isinstance(hotel, dict)) else None,
+        "hotel_name": hotel.get("name") if (hotel and isinstance(hotel, dict)) else None,
+        "hotel_category": hotel.get("category") if (hotel and isinstance(hotel, dict)) else None,
+        "hotel_price_per_night": hotel.get("price_per_night") if (hotel and isinstance(hotel, dict)) else None,
+        "hotel_nights": hotel_nights if (hotel and isinstance(hotel, dict)) else None,
+        "hotel_total": (hotel.get("price_per_night", 0) * hotel_nights) if (hotel and isinstance(hotel, dict)) else None,
         "sightseeing_places": "; ".join(sightseeing_places) if sightseeing_places else None,
         "total_price": total_price,
         "status": "CONFIRMED",

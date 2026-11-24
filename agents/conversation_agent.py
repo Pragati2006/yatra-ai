@@ -164,11 +164,13 @@ _BOOKING_INFO_PATTERNS = [
 # Booking Intent / Navigation Requests (expressing desire to proceed to booking with recommended Yatra)
 # Must trigger navigation to guided booking experience — NEVER auto-confirm or execute RPA
 _BOOKING_INTENT_PATTERNS = [
-    r"\b(i\s+want\s+to|help\s+me|let\s+me|can\s+i|ready\s+to|like\s+to|want\s+to|please)\b.{0,40}\b(proceed\s+with\s+(the\s+)?booking|continue\s+with\s+(the\s+)?booking|continue\s+to\s+booking|proceed\s+to\s+booking|book\s+(this|the)\s+(recommended|plan|yatra|trip|itinerary)|book\s+this|book\s+now)\b",
+    r"\b(book\s+my\s+yatra|book\s+tickets|book\s+yatra|book\s+now|book\s+this)\b",
     r"\b(proceed\s+with\s+booking|proceed\s+to\s+booking|continue\s+with\s+booking|continue\s+to\s+booking|continue\s+with\s+the\s+booking)\b",
+    r"\b(i\s+want\s+to|help\s+me|let\s+me|can\s+i|ready\s+to|like\s+to|want\s+to|please)\b.{0,40}\b(proceed\s+with\s+(the\s+)?booking|continue\s+with\s+(the\s+)?booking|continue\s+to\s+booking|proceed\s+to\s+booking|book\s+(this|the)\s+(recommended|plan|yatra|trip|itinerary)|book\s+this|book\s+now|book\s+tickets)\b",
     r"\b(book\s+this\s+(plan|itinerary|yatra|trip|recommendation)|book\s+the\s+recommended\s+(yatra|trip|plan|itinerary))\b",
     r"\b(i\s+want\s+to\s+book|want\s+to\s+book\s+this|help\s+me\s+book|help\s+me\s+continue\s+with\s+the\s+booking)\b",
     r"\b(proceed\s+with\s+the\s+recommended\s+itinerary|proceed\s+with\s+the\s+recommended\s+yatra)\b",
+    r"^(book\s+my\s+yatra|proceed\s+with\s+booking|book\s+tickets|continue\s+to\s+booking|book\s+now)\.?$",
 ]
 
 # Explicit Confirmation of Booking Authorization (only when user explicitly confirms)

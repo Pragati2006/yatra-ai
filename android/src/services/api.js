@@ -432,6 +432,16 @@ export const confirmBooking = async (confirmData) => {
       human_authorized: confirmData.human_authorized === true || confirmData.authorized === true,
       session_id: confirmData.session_id || null,
       plan_version: confirmData.plan_version || null,
+      pilgrims: confirmData.pilgrims || null,
+      primary_contact: confirmData.primary_contact || null,
+      hotel_selected: confirmData.hotel_selected !== undefined ? confirmData.hotel_selected : null,
+      transport_selected: confirmData.transport_selected !== undefined ? confirmData.transport_selected : null,
+      own_vehicle: confirmData.own_vehicle !== undefined ? confirmData.own_vehicle : null,
+      start_date: confirmData.start_date || null,
+      return_date: confirmData.return_date || null,
+      duration: confirmData.duration || null,
+      budget: confirmData.budget || null,
+      accessibility_needs: confirmData.accessibility_needs || null,
     },
   });
 };

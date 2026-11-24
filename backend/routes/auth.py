@@ -181,6 +181,14 @@ class SaveBookingRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="Associated session ID")
     plan_version: Optional[int] = Field(default=1, description="Associated plan version")
     receipt: Optional[Dict[str, Any]] = Field(default=None, description="Receipt payload")
+    pilgrims: Optional[List[Dict[str, Any]]] = Field(default=None, description="Individual pilgrim records")
+    primary_contact: Optional[Dict[str, Any]] = Field(default=None, description="Primary booker contact details")
+    hotel_selected: Optional[bool] = Field(default=None, description="Whether hotel accommodation is booked")
+    transport_selected: Optional[bool] = Field(default=None, description="Whether transport is booked")
+    own_vehicle: Optional[bool] = Field(default=None, description="Whether travelling via own vehicle")
+    start_date: Optional[str] = Field(default=None, description="Yatra start date")
+    return_date: Optional[str] = Field(default=None, description="Yatra return date")
+    duration: Optional[int] = Field(default=None, description="Trip duration in days")
 
 
 class TransferConversationRequest(BaseModel):

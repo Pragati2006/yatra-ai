@@ -624,7 +624,7 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
                 hotel_name TEXT,
                 total_price REAL NOT NULL DEFAULT 0.0,
                 payment_status TEXT NOT NULL DEFAULT 'COMPLETED_SANDBOX',
-                status TEXT NOT NULL DEFAULT 'SIMULATED_CONFIRMED',
+                status TEXT NOT NULL DEFAULT 'SIMULATED_ISSUED',
                 created_at TEXT NOT NULL,
                 receipt_json TEXT
             );
@@ -1606,7 +1606,7 @@ class AuthService:
         """
         Persists a verified simulated booking record associated with an authenticated user.
         Idempotent: Re-saving an existing booking_id updates the record without creating duplicates.
-        Enforces that booking status is SIMULATED_CONFIRMED and masks/excludes sensitive tokens.
+        Enforces that booking status is SIMULATED_ISSUED (or legacy SIMULATED_CONFIRMED) and masks/excludes sensitive tokens.
         """
         if not user_id:
             raise ValueError("user_id is strictly required to save a booking")
@@ -1628,7 +1628,7 @@ class AuthService:
         hotel_name = booking_data.get("hotel_name")
         total_price = float(booking_data.get("total_price") or 0.0)
         payment_status = booking_data.get("payment_status") or "COMPLETED_SANDBOX"
-        status = "SIMULATED_CONFIRMED"
+        status = str(booking_data.get("status") or "SIMULATED_ISSUED")
         session_id = booking_data.get("session_id")
         plan_version = int(booking_data.get("plan_version") or 1)
         receipt = booking_data.get("receipt") or booking_data.get("receipt_data") or {}
@@ -1639,6 +1639,22 @@ class AuthService:
             receipt.setdefault("title", "Simulated Yatra Booking Confirmation")
             receipt.setdefault("pass_type", "Demo Pilgrim Pass (Local Simulation)")
             receipt.setdefault("booking_id", bid)
+            if booking_data.get("pilgrims"):
+                receipt.setdefault("pilgrims", booking_data["pilgrims"])
+            if booking_data.get("primary_contact"):
+                receipt.setdefault("primary_contact", booking_data["primary_contact"])
+            if booking_data.get("hotel_selected") is not None:
+                receipt.setdefault("hotel_selected", booking_data["hotel_selected"])
+            if booking_data.get("transport_selected") is not None:
+                receipt.setdefault("transport_selected", booking_data["transport_selected"])
+            if booking_data.get("own_vehicle") is not None:
+                receipt.setdefault("own_vehicle", booking_data["own_vehicle"])
+            if booking_data.get("start_date"):
+                receipt.setdefault("start_date", booking_data["start_date"])
+            if booking_data.get("return_date"):
+                receipt.setdefault("return_date", booking_data["return_date"])
+            if booking_data.get("duration") is not None:
+                receipt.setdefault("duration", booking_data["duration"])
 
         if self.is_mongodb():
             from agents import mongo_store
@@ -1737,8 +1753,10 @@ class AuthService:
                 (user_id,),
             )
             rows = cursor.fetchall()
-            return [
-                {
+            out = []
+            for r in rows:
+                receipt = json.loads(r[16]) if r[16] else {}
+                out.append({
                     "booking_id": r[0],
                     "user_id": r[1],
                     "session_id": r[2],
@@ -1755,10 +1773,17 @@ class AuthService:
                     "payment_status": r[13],
                     "status": r[14],
                     "created_at": r[15],
-                    "receipt": json.loads(r[16]) if r[16] else {},
-                }
-                for r in rows
-            ]
+                    "receipt": receipt,
+                    "pilgrims": receipt.get("pilgrims") or [],
+                    "primary_contact": receipt.get("primary_contact") or {},
+                    "hotel_selected": receipt.get("hotel_selected"),
+                    "transport_selected": receipt.get("transport_selected"),
+                    "own_vehicle": receipt.get("own_vehicle"),
+                    "start_date": receipt.get("start_date") or r[6],
+                    "return_date": receipt.get("return_date"),
+                    "duration": receipt.get("duration"),
+                })
+            return out
 
     def get_user_booking(self, user_id: str, booking_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves a single booking record strictly verifying user ownership."""
@@ -1783,6 +1808,7 @@ class AuthService:
             r = cursor.fetchone()
             if not r:
                 return None
+            receipt = json.loads(r[16]) if r[16] else {}
             return {
                 "booking_id": r[0],
                 "user_id": r[1],
@@ -1800,7 +1826,15 @@ class AuthService:
                 "payment_status": r[13],
                 "status": r[14],
                 "created_at": r[15],
-                "receipt": json.loads(r[16]) if r[16] else {},
+                "receipt": receipt,
+                "pilgrims": receipt.get("pilgrims") or [],
+                "primary_contact": receipt.get("primary_contact") or {},
+                "hotel_selected": receipt.get("hotel_selected"),
+                "transport_selected": receipt.get("transport_selected"),
+                "own_vehicle": receipt.get("own_vehicle"),
+                "start_date": receipt.get("start_date") or r[6],
+                "return_date": receipt.get("return_date"),
+                "duration": receipt.get("duration"),
             }
 
     # -------------------------------------------------------------------------

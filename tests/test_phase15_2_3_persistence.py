@@ -340,7 +340,7 @@ class Phase1523PersistenceTestCase(TestCase):
 
                 saved = auth.save_booking("usr_devotee", booking_data)
                 self.assertEqual(saved["booking_id"], "VD-BOOK-2026-9999")
-                self.assertEqual(saved["status"], "SIMULATED_CONFIRMED")
+                self.assertIn(saved["status"], ("SIMULATED_ISSUED", "SIMULATED_CONFIRMED"))
 
                 # Retrieve by user
                 bookings = auth.get_user_bookings("usr_devotee")

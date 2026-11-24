@@ -43,15 +43,25 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
   const { booking_id, message, receipt } = confirmationData;
   const { option, pax = 1, hotel, hotelNights = 2, origin = '', tripRequest } = bookingSummary || {};
 
+  const pilgrims = receipt?.pilgrims || bookingSummary?.pilgrims || tripRequest?.pilgrims || [];
+  const primaryContact = receipt?.primary_contact || bookingSummary?.primaryContact || tripRequest?.primary_contact || null;
+  const ownVehicle = Boolean(receipt?.own_vehicle || bookingSummary?.ownVehicle || tripRequest?.own_vehicle);
+  const transportSelected = receipt?.transport_selected !== undefined ? receipt.transport_selected : (bookingSummary?.transportSelected !== undefined ? bookingSummary.transportSelected : (tripRequest?.transport_selected !== undefined ? tripRequest.transport_selected : true));
+  const hotelSelected = receipt?.hotel_selected !== undefined ? receipt.hotel_selected : (bookingSummary?.hotelSelected !== undefined ? bookingSummary.hotelSelected : (tripRequest?.hotel_selected !== undefined ? tripRequest.hotel_selected : true));
+
   const tr = option?.transport || option?.flight || {};
   const slot = option?.slot || {};
   const mode = (tr.mode || 'Train').toUpperCase();
-  const operator = tr.operator || tr.name || 'Express Service';
-  const depTime = tr.departure_time || 'Check schedule';
+  const operator = ownVehicle
+    ? 'Own Vehicle / Private Conveyance'
+    : (!transportSelected ? 'Self-Arranged Transport' : (tr.operator || tr.name || 'Express Service'));
+  const depTime = ownVehicle
+    ? 'Self-Drive'
+    : (!transportSelected ? 'Self-Arranged' : (tr.departure_time || 'Check schedule'));
   const travelDate = tr.travel_date || tripRequest?.start_date || '2026-10-20';
   const slotCategory = slot.category || confirmationData.category || 'Normal Darshan';
   const slotTime = slot.slot_time || confirmationData.slot_time || 'General Queue (RFID Card)';
-  const hotelName = hotel ? hotel.name : 'Self-arranged Katra stay';
+  const hotelName = !hotelSelected ? 'Self-arranged lodging (₹0)' : (hotel ? hotel.name : 'Self-arranged Katra stay');
   const totalAmount = confirmationData.total_price != null ? confirmationData.total_price : (bookingSummary?.total_price != null ? bookingSummary.total_price : (receipt?.total_price != null ? receipt.total_price : null));
 
   const [downloading, setDownloading] = useState(false);
@@ -302,6 +312,48 @@ export default function BookingConfirmation({ confirmationData, bookingSummary, 
             </div>
           </div>
         </div>
+
+        {/* Individual Pilgrim Pass Cards */}
+        {pilgrims && pilgrims.length > 0 && (
+          <div style={{ marginTop: '1.5rem', borderTop: '1.5px dashed var(--gold-border, #E5D2AD)', paddingTop: '1.25rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--burgundy, #58111A)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Registered Devotees & Access Token Allocation ({pilgrims.length})
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+              {pilgrims.map((p, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: '#FAF8F5',
+                    border: '1px solid #E5D2AD',
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-dark, #2D3748)' }}>
+                      {idx + 1}. {p.full_name || `Devotee #${idx + 1}`}
+                    </span>
+                    <span className="badge" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: '8px' }}>
+                      PASS #{booking_id ? booking_id.slice(-4) : 'YATR'}-{idx + 1}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Age: <b>{p.age || '—'}</b> · Gender: <b>{p.gender || 'Not specified'}</b>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {primaryContact && (primaryContact.name || primaryContact.phone || primaryContact.email) && (
+              <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Primary Contact: <b>{primaryContact.name}</b> {primaryContact.phone ? `(${primaryContact.phone})` : ''} {primaryContact.email ? `— ${primaryContact.email}` : ''}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* RFID Access Card Notice */}
         <div

@@ -754,24 +754,61 @@ def build_plan(request):
     }
 
 
-def confirm_booking(option, pax, user_name, hotel=None, hotel_nights=0, sightseeing_places=None):
-    """Executes the mock booking for a chosen option from PLAN_READY['options'],
-    optionally including a hotel stay and a list of sightseeing places
-    (hotel cost is added to the total; sightseeing places are informational,
-    not priced, since they aren't bookable through this app)."""
-    total = option.get("total_price") or 0.0
-    if hotel:
-        total += (hotel.get("price_per_night") or 0.0) * hotel_nights
+def confirm_booking(
+    option,
+    pax,
+    user_name,
+    hotel=None,
+    hotel_nights=0,
+    sightseeing_places=None,
+    pilgrims=None,
+    primary_contact=None,
+    hotel_selected=True,
+    transport_selected=True,
+    own_vehicle=False,
+    **kwargs
+):
+    """Executes the mock booking for a chosen option,
+    honoring independent optionality for hotel and transport.
+    Unselected services contribute 0.0 to the booking total."""
+    option = option or {}
+    total = 0.0
+
+    # 1. Transport cost (only if transport selected and not own vehicle)
+    if transport_selected and not own_vehicle:
+        tr = option.get("flight") or option.get("transport") or {}
+        tr_fare = tr.get("total_fare") or tr.get("total_price") or tr.get("price") or 0.0
+        total += float(tr_fare)
+
+    # Slot fee (darshan slot)
+    slot = option.get("slot") or {}
+    total += float(slot.get("price") or 0.0)
+
+    # 2. Hotel cost (only if hotel selected)
+    if hotel_selected and hotel:
+        total += float(hotel.get("price_per_night") or 0.0) * hotel_nights
+
+    # Safe retrieval of transport dict (None if unselected)
+    transport_dict = None
+    if transport_selected and not own_vehicle:
+        transport_dict = option.get("flight") or option.get("transport")
+    elif own_vehicle:
+        transport_dict = {"mode": "own_vehicle", "operator": "Personal Vehicle", "name": "Own Vehicle"}
+
+    yatra_slot_dict = option.get("slot")
 
     booking_id = db.create_booking(
         user_name=user_name,
         pax_count=pax,
-        yatra_slot=option["slot"],
-        transport=option["flight"],
+        yatra_slot=yatra_slot_dict,
+        transport=transport_dict,
         total_price=total,
-        hotel=hotel,
-        hotel_nights=hotel_nights,
+        hotel=hotel if hotel_selected else None,
+        hotel_nights=hotel_nights if hotel_selected else 0,
         sightseeing_places=sightseeing_places,
+        pilgrims=pilgrims,
+        primary_contact=primary_contact,
+        own_vehicle=own_vehicle,
     )
     return booking_id
 

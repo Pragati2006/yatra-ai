@@ -28,6 +28,7 @@ export default function BookingHandoffCard({
   const totalAmount = bgt?.grand_total ? `₹${Math.round(bgt.grand_total).toLocaleString('en-IN')}` : null;
 
   const handleProceed = () => {
+    const handoff = message.booking_handoff || message.bookingHandoff || chatState?.booking_handoff || null;
     const navPayload = {
       sessionId: message.session_id || chatState?.session_id,
       planVersion: message.plan_version || chatState?.plan_version || 1,
@@ -40,8 +41,18 @@ export default function BookingHandoffCard({
       selected_option: selOpt,
       hotel: htl,
       budget_evaluation: bgt,
+      booking_handoff: handoff,
+      pilgrims: handoff?.pilgrims || null,
+      primary_contact: handoff?.primary_contact || null,
+      hotel_selected: handoff?.hotel_selected !== undefined ? handoff.hotel_selected : undefined,
+      transport_selected: handoff?.transport_selected !== undefined ? handoff.transport_selected : undefined,
+      own_vehicle: handoff?.own_vehicle !== undefined ? handoff.own_vehicle : undefined,
+      start_date: handoff?.start_date || null,
+      return_date: handoff?.return_date || null,
+      duration: handoff?.duration || null,
+      prefilled_fields: handoff?.prefilled_fields || [],
       planningMode: 'form',
-      step: 2, // Step 2: Recommended Yatra Review
+      step: 1, // Step 1: Guided Intake & Pilgrim Details
     };
 
     if (onNavigateToBooking) {

@@ -161,6 +161,16 @@ class ConfirmBookingRequest(BaseModel):
     human_authorized: bool = False
     session_id: str | None = None
     plan_version: int | None = None
+    pilgrims: list[dict] | None = None
+    primary_contact: dict | None = None
+    hotel_selected: bool | None = None
+    transport_selected: bool | None = None
+    own_vehicle: bool | None = None
+    start_date: str | None = None
+    return_date: str | None = None
+    duration: int | None = None
+    budget: float | None = None
+    accessibility_needs: list[str] | None = None
 
 
 class AuthorizePlanRequest(BaseModel):
@@ -251,6 +261,40 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
     else:
         validated_pax = 1
 
+    # 0b. Strict individual pilgrim details validation
+    if request.pilgrims is not None:
+        if not isinstance(request.pilgrims, list):
+            raise HTTPException(status_code=400, detail="Pilgrims must be a list of individual devotee records.")
+        if len(request.pilgrims) != validated_pax:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pilgrim records count ({len(request.pilgrims)}) does not match the selected pilgrim count ({validated_pax}). Each pilgrim must have an individual record."
+            )
+        for idx, p in enumerate(request.pilgrims):
+            if not isinstance(p, dict):
+                raise HTTPException(status_code=400, detail=f"Invalid record structure for Pilgrim #{idx+1}.")
+            p_name = str(p.get("full_name") or "").strip()
+            if not p_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Missing full name for Pilgrim #{idx+1}. A separate full name is required for every pilgrim."
+                )
+            p_age_raw = p.get("age")
+            if p_age_raw is None or str(p_age_raw).strip() == "":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Missing age for Pilgrim #{idx+1} ('{p_name}'). Age is required for every pilgrim."
+                )
+            try:
+                p_age = int(str(p_age_raw).strip())
+                if p_age <= 0 or p_age > 125:
+                    raise ValueError
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid age ('{p_age_raw}') for Pilgrim #{idx+1} ('{p_name}'). Age must be a positive whole number between 1 and 125."
+                )
+
     # 1. Require session_id - cannot bypass authorization by omitting session_id
     if not request.session_id:
         return {
@@ -335,9 +379,14 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
             option=request.option,
             pax=validated_pax,
             user_name=request.user_name,
-            hotel=request.hotel,
-            hotel_nights=request.hotel_nights,
+            hotel=request.hotel if request.hotel_selected is not False else None,
+            hotel_nights=request.hotel_nights if request.hotel_selected is not False else 0,
             sightseeing_places=request.sightseeing_places,
+            pilgrims=request.pilgrims,
+            primary_contact=request.primary_contact,
+            hotel_selected=request.hotel_selected,
+            transport_selected=request.transport_selected,
+            own_vehicle=request.own_vehicle,
         )
 
         booking_history = list(state.get("booking_history") or [])
@@ -366,20 +415,35 @@ def confirm_booking(request: ConfirmBookingRequest, http_request: Request = None
                         "plan_version": curr_version,
                         "user_name": request.user_name,
                         "pax_count": validated_pax,
-                        "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or "2026-10-20",
+                        "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or request.start_date or "2026-10-20",
                         "category": (request.option.get("slot") or {}).get("category") or request.option.get("category") or "Normal Darshan",
                         "slot_time": (request.option.get("slot") or {}).get("slot_time") or request.option.get("slot_time") or "Morning (06:00)",
-                        "transport_mode": (request.option.get("transport") or {}).get("mode") or "Train",
-                        "transport_info": str(request.option.get("transport") or "Train (Vande Bharat Express)"),
-                        "hotel_name": (request.hotel or {}).get("name") if request.hotel else None,
+                        "transport_mode": "Own Vehicle" if request.own_vehicle else ((request.option.get("transport") or {}).get("mode") or ("Train" if request.transport_selected is not False else "None")),
+                        "transport_info": "Personal Vehicle (Drive Yourself)" if request.own_vehicle else str(request.option.get("transport") or "None" if request.transport_selected is False else "Train (Vande Bharat Express)"),
+                        "hotel_name": (request.hotel or {}).get("name") if (request.hotel and request.hotel_selected is not False) else None,
                         "total_price": float(request.option.get("total_price") or 0.0),
                         "payment_status": "COMPLETED_SANDBOX",
-                        "status": "SIMULATED_CONFIRMED",
+                        "status": "SIMULATED_ISSUED",
+                        "pilgrims": request.pilgrims or [],
+                        "primary_contact": request.primary_contact or {"name": request.user_name},
+                        "hotel_selected": request.hotel_selected,
+                        "transport_selected": request.transport_selected,
+                        "own_vehicle": request.own_vehicle,
+                        "start_date": request.start_date,
+                        "return_date": request.return_date,
+                        "duration": request.duration,
                         "receipt": {
                             "booking_id": booking_id,
                             "user_name": request.user_name,
                             "pax_count": validated_pax,
-                            "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or "2026-10-20",
+                            "pilgrims": request.pilgrims or [],
+                            "primary_contact": request.primary_contact or {"name": request.user_name},
+                            "hotel_selected": request.hotel_selected,
+                            "transport_selected": request.transport_selected,
+                            "own_vehicle": request.own_vehicle,
+                            "start_date": request.start_date,
+                            "return_date": request.return_date,
+                            "slot_date": (request.option.get("slot") or {}).get("slot_date") or request.option.get("slot_date") or request.start_date or "2026-10-20",
                             "category": (request.option.get("slot") or {}).get("category") or request.option.get("category") or "Normal Darshan",
                             "total_price": float(request.option.get("total_price") or 0.0),
                             "confirmed_at": datetime.now(timezone.utc).isoformat(),
@@ -730,7 +794,7 @@ def start_user_controlled_workflow_route(request: StartWorkflowRequest, http_req
                             "hotel_name": b_hotel_name,
                             "total_price": float(request.total_price or 0.0),
                             "payment_status": "COMPLETED_SANDBOX",
-                            "status": "SIMULATED_CONFIRMED",
+                            "status": "SIMULATED_ISSUED",
                             "receipt": {
                                 "booking_id": result["booking_id"],
                                 "user_name": request.user_name,
@@ -950,7 +1014,7 @@ def resume_workflow_route(request: ResumeWorkflowRequest, http_request: Request 
                         "hotel_name": b_hotel_name,
                         "total_price": b_total_price,
                         "payment_status": "COMPLETED_SANDBOX",
-                        "status": "SIMULATED_CONFIRMED",
+                        "status": "SIMULATED_ISSUED",
                         "receipt": {
                             "booking_id": result["booking_id"],
                             "user_name": b_user_name,

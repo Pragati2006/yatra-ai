@@ -453,10 +453,18 @@ def save_booking(user_id: str, booking_data: Dict[str, Any]) -> Dict[str, Any]:
         "hotel_name": booking_data.get("hotel_name"),
         "total_price": float(booking_data.get("total_price") or 0.0),
         "payment_status": str(booking_data.get("payment_status") or "COMPLETED_SANDBOX"),
-        "status": "SIMULATED_CONFIRMED",
+        "status": str(booking_data.get("status") or "SIMULATED_ISSUED"),
         "created_at": created_at,
         "updated_at": now_iso,
         "receipt": booking_data.get("receipt") or {},
+        "pilgrims": booking_data.get("pilgrims") or [],
+        "primary_contact": booking_data.get("primary_contact") or {},
+        "hotel_selected": booking_data.get("hotel_selected"),
+        "transport_selected": booking_data.get("transport_selected"),
+        "own_vehicle": booking_data.get("own_vehicle"),
+        "start_date": booking_data.get("start_date") or str(booking_data.get("slot_date") or ""),
+        "return_date": booking_data.get("return_date"),
+        "duration": booking_data.get("duration"),
     }
 
     coll.update_one({"booking_id": bid}, {"$set": doc}, upsert=True)
@@ -486,6 +494,14 @@ def get_user_bookings(user_id: str) -> List[Dict[str, Any]]:
             "status": d.get("status"),
             "created_at": d.get("created_at"),
             "receipt": d.get("receipt") or {},
+            "pilgrims": d.get("pilgrims") or (d.get("receipt") or {}).get("pilgrims") or [],
+            "primary_contact": d.get("primary_contact") or (d.get("receipt") or {}).get("primary_contact") or {},
+            "hotel_selected": d.get("hotel_selected"),
+            "transport_selected": d.get("transport_selected"),
+            "own_vehicle": d.get("own_vehicle"),
+            "start_date": d.get("start_date"),
+            "return_date": d.get("return_date"),
+            "duration": d.get("duration"),
         })
     return results
 

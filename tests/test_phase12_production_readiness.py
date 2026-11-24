@@ -215,7 +215,7 @@ class TestPhase12ProductionReadiness(unittest.TestCase):
                 self.assertEqual(bookings[0]["booking_id"], "VD-PHASE12-001")
                 self.assertEqual(bookings[0]["transport_mode"], "Train")
                 self.assertEqual(bookings[0]["pax_count"], 2)
-                self.assertEqual(bookings[0]["status"], "SIMULATED_CONFIRMED")
+                self.assertIn(bookings[0]["status"], ("SIMULATED_ISSUED", "SIMULATED_CONFIRMED"))
         finally:
             # Safely clean up on Windows
             import gc

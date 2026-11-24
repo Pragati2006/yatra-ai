@@ -139,6 +139,12 @@ export default function Authorization({
     itineraryDays: _itineraryDays = [],
   } = bookingSummary;
 
+  const pilgrims = bookingSummary?.pilgrims || tripRequest?.pilgrims || [];
+  const primaryContact = bookingSummary?.primaryContact || tripRequest?.primary_contact || null;
+  const ownVehicle = Boolean(bookingSummary?.ownVehicle || tripRequest?.own_vehicle);
+  const transportSelected = bookingSummary?.transportSelected !== undefined ? bookingSummary.transportSelected : (tripRequest?.transport_selected !== undefined ? tripRequest.transport_selected : true);
+  const hotelSelected = bookingSummary?.hotelSelected !== undefined ? bookingSummary.hotelSelected : (tripRequest?.hotel_selected !== undefined ? tripRequest.hotel_selected : true);
+
   // Transport details
   const tr = option?.transport || option?.flight || {};
   const slot = option?.slot || {};
@@ -164,27 +170,29 @@ export default function Authorization({
     (tr.fare == null && tr.price == null && tr.fare_per_person == null);
 
   const farePerPerson = isFareUnavailable ? null : (tr.fare_per_person || tr.price || null);
-  const transportFareTotal = farePerPerson !== null ? (tr.total_fare || (farePerPerson * pax)) : null;
+  const rawTransportFareTotal = farePerPerson !== null ? (tr.total_fare || (farePerPerson * pax)) : null;
+  const isTransportActive = transportSelected && !ownVehicle;
+  const transportFareTotal = isTransportActive ? rawTransportFareTotal : 0;
   const slotPricePerPerson = slot.price || 0;
   const slotTotal = slotPricePerPerson * pax;
 
   // Accommodation math
   const roomsCount = Math.max(1, Math.ceil(pax / 2));
-  const hotelNightlyRate = hotel ? (hotel.price_per_night || 0) : 0;
-  const hotelTotal = hotel ? hotelNightlyRate * hotelNights * roomsCount : 0;
+  const hotelNightlyRate = (hotel && hotelSelected) ? (hotel.price_per_night || 0) : 0;
+  const hotelTotal = (hotel && hotelSelected) ? hotelNightlyRate * hotelNights * roomsCount : 0;
 
   // Direct verified costs
-  const totalVerified = (transportFareTotal || 0) + slotTotal + hotelTotal;
+  const totalVerified = (isTransportActive ? (transportFareTotal || 0) : 0) + slotTotal + (hotelSelected ? hotelTotal : 0);
 
   // Estimated discretionary costs
-  const roadTransferEst = tr.mode === 'flight' ? 1500 : 500;
+  const roadTransferEst = ownVehicle ? 0 : (tr.mode === 'flight' ? 1500 : 500);
   const durationDays = tripRequest?.duration_days || (hotelNights + 1) || 4;
   const mealsEst = 350 * pax * durationDays;
   const totalEstimated = roadTransferEst + mealsEst;
 
   // Grand Total & Per Person
   const grandTotal = totalVerified + totalEstimated;
-  const perPersonCost = !isFareUnavailable && grandTotal && pax > 0 ? Math.round(grandTotal / pax) : null;
+  const perPersonCost = (!isFareUnavailable || !isTransportActive) && grandTotal && pax > 0 ? Math.round(grandTotal / pax) : null;
 
   // Target Budget comparison
   const targetBudget = tripRequest?.total_budget || null;
@@ -440,6 +448,26 @@ export default function Authorization({
               <span>·</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Users size={12} /> {pax} {pax === 1 ? 'Pilgrim' : 'Pilgrims'}</span>
             </div>
+            {pilgrims && pilgrims.length > 0 && (
+              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #E5D2AD' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--burgundy)', fontWeight: 700, marginBottom: '4px' }}>
+                  Registered Devotees ({pilgrims.length}):
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {pilgrims.map((p, idx) => (
+                    <div key={idx} style={{ fontSize: '0.78rem', color: 'var(--text-dark)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span><b>{idx + 1}. {p.full_name || `Pilgrim ${idx + 1}`}</b></span>
+                      <span style={{ color: 'var(--text-muted)' }}>Age: {p.age || '—'} · {p.gender || 'Not specified'}</span>
+                    </div>
+                  ))}
+                </div>
+                {primaryContact && (primaryContact.name || primaryContact.phone || primaryContact.email) && (
+                  <div style={{ marginTop: '6px', fontSize: '0.74rem', color: '#666', borderTop: '1px solid #F0ECE1', paddingTop: '4px' }}>
+                    Primary Contact: <b>{primaryContact.name}</b> {primaryContact.phone ? `· ${primaryContact.phone}` : ''} {primaryContact.email ? `· ${primaryContact.email}` : ''}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 2. Transport Particulars */}
@@ -448,20 +476,50 @@ export default function Authorization({
               <div style={{ fontSize: '0.74rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Selected Transport Service
               </div>
-              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>Verified Fare</span>
+              <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>
+                {ownVehicle ? 'Own Vehicle' : (!transportSelected ? 'Self-Arranged' : 'Verified Fare')}
+              </span>
             </div>
-            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
-              {operator} {serviceNo ? `· ${serviceNo}` : ''} ({mode})
-            </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Departs: <b>{depTime}</b> from {origin} · Arrives: <b>{arrTime}</b> at {tr.destination || 'Katra'}
-              {durationStr && <span> ({durationStr})</span>}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: isFareUnavailable ? '#856404' : 'var(--burgundy)', fontWeight: 700, marginTop: '2px' }}>
-              {isFareUnavailable || transportFareTotal === null
-                ? `Transport Tariff: ${isFlight ? 'Payable directly on airline portal (dynamic)' : (isTrain ? 'Payable directly on IRCTC portal (dynamic)' : 'Payable directly at bus terminal counter')}`
-                : `Transport Fare: ₹${transportFareTotal.toLocaleString('en-IN')} (₹${farePerPerson}/person)`}
-            </div>
+            {ownVehicle ? (
+              <>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
+                  Own Vehicle / Private Conveyance
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Self-driving / private transport to Katra Base. Carrier transport excluded.
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#155724', fontWeight: 700, marginTop: '2px' }}>
+                  Transport Fare: ₹0 (No public carrier fare charged)
+                </div>
+              </>
+            ) : !transportSelected ? (
+              <>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
+                  Self-Arranged Transport
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Devotees arranging their own flight, train, or bus travel to Katra.
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#155724', fontWeight: 700, marginTop: '2px' }}>
+                  Transport Fare: ₹0 (Carrier booking excluded)
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
+                  {operator} {serviceNo ? `· ${serviceNo}` : ''} ({mode})
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Departs: <b>{depTime}</b> from {origin} · Arrives: <b>{arrTime}</b> at {tr.destination || 'Katra'}
+                  {durationStr && <span> ({durationStr})</span>}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: isFareUnavailable ? '#856404' : 'var(--burgundy)', fontWeight: 700, marginTop: '2px' }}>
+                  {isFareUnavailable || transportFareTotal === null
+                    ? `Transport Tariff: ${isFlight ? 'Payable directly on airline portal (dynamic)' : (isTrain ? 'Payable directly on IRCTC portal (dynamic)' : 'Payable directly at bus terminal counter')}`
+                    : `Transport Fare: ₹${transportFareTotal.toLocaleString('en-IN')} (₹${farePerPerson}/person)`}
+                </div>
+              </>
+            )}
           </div>
 
           {/* 3. Darshan Slot Guidance Particulars */}
@@ -491,9 +549,9 @@ export default function Authorization({
               <div style={{ fontSize: '0.74rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Katra Accommodation
               </div>
-              {hotel && <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>Verified Hotel</span>}
+              {hotel && hotelSelected && <span className="pill pill-success" style={{ fontSize: '0.68rem' }}>Verified Hotel</span>}
             </div>
-            {hotel ? (
+            {hotel && hotelSelected ? (
               <>
                 <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-dark)', marginTop: '2px' }}>
                   {hotel.name}
@@ -507,7 +565,7 @@ export default function Authorization({
               </>
             ) : (
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '2px' }}>
-                No Katra hotel reserved (day-excursion or self-arranged stay).
+                Self-arranged lodging / No Katra hotel reserved (₹0 accommodation rate).
               </div>
             )}
           </div>

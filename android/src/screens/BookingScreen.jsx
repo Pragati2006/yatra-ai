@@ -327,6 +327,20 @@ export default function BookingScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Flexible Service Toggles
+  const [includeHotel, setIncludeHotel] = useState(
+    route?.params?.includeHotel !== undefined ? Boolean(route.params.includeHotel) : true
+  );
+  const [includeTransport, setIncludeTransport] = useState(
+    route?.params?.includeTransport !== undefined ? Boolean(route.params.includeTransport) : true
+  );
+  const [ownVehicle, setOwnVehicle] = useState(
+    route?.params?.ownVehicle !== undefined ? Boolean(route.params.ownVehicle) : false
+  );
+  const [prefilledFields, setPrefilledFields] = useState(
+    Array.isArray(route?.params?.prefilledFields) ? route.params.prefilledFields : []
+  );
+
   // Form State (Intake)
   const [origin, setOrigin] = useState(route?.params?.origin || 'Delhi');
   const [destination] = useState('Katra (Shri Mata Vaishno Devi)');
@@ -337,11 +351,28 @@ export default function BookingScreen({ route, navigation }) {
   const [darshanCategory, setDarshanCategory] = useState('Normal Darshan');
   const [mobilityPref, setMobilityPref] = useState('Standard Walking Trek');
 
-  // Primary Devotee
+  // Primary Devotee & Contact
   const [fullName, setFullName] = useState(route?.params?.fullName || 'Ramesh Sharma');
   const [age, setAge] = useState('38');
   const [gender, setGender] = useState('Male');
   const [phone, setPhone] = useState(route?.params?.phone || '');
+
+  // Dynamic Pilgrims Roster with Unique Record Identifiers
+  const generatePilgrimId = (idx = 0) => `p_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+  const initialPaxCount = parseInt(route?.params?.pax || '2', 10) || 2;
+  const initialPilgrimsList = Array.isArray(route?.params?.pilgrims) && route.params.pilgrims.length > 0
+    ? route.params.pilgrims.map((p, idx) => ({
+        id: p.id || generatePilgrimId(idx),
+        full_name: p.full_name || p.name || '',
+        age: p.age ? String(p.age) : '',
+        gender: p.gender || 'Male',
+      }))
+    : [
+        { id: generatePilgrimId(0), full_name: route?.params?.fullName || 'Ramesh Sharma', age: '38', gender: 'Male' },
+        ...(initialPaxCount > 1 ? Array.from({ length: initialPaxCount - 1 }, (_, i) => ({ id: generatePilgrimId(i + 1), full_name: '', age: '', gender: 'Male' })) : []),
+      ];
+  const [pilgrims, setPilgrims] = useState(initialPilgrimsList);
+  const [duplicateNameAdvisory, setDuplicateNameAdvisory] = useState('');
 
   // Selection State
   const [selectedTransport, setSelectedTransport] = useState(route?.params?.selectedTransport || REALISTIC_TRANSPORTS[0]);
@@ -366,7 +397,8 @@ export default function BookingScreen({ route, navigation }) {
       setBudgetAmount(String(route.params.budget));
     }
     if (route?.params?.pax) {
-      setPax(parseInt(route.params.pax, 10));
+      const pCount = parseInt(route.params.pax, 10);
+      setPax(pCount);
     }
     if (route?.params?.duration) {
       setDuration(parseInt(route.params.duration, 10));
@@ -376,6 +408,25 @@ export default function BookingScreen({ route, navigation }) {
     }
     if (route?.params?.origin) {
       setOrigin(route.params.origin);
+    }
+    if (route?.params?.includeHotel !== undefined) {
+      setIncludeHotel(Boolean(route.params.includeHotel));
+    }
+    if (route?.params?.includeTransport !== undefined) {
+      setIncludeTransport(Boolean(route.params.includeTransport));
+    }
+    if (route?.params?.ownVehicle !== undefined) {
+      setOwnVehicle(Boolean(route.params.ownVehicle));
+    }
+    if (Array.isArray(route?.params?.prefilledFields)) {
+      setPrefilledFields(route.params.prefilledFields);
+    }
+    if (Array.isArray(route?.params?.pilgrims) && route.params.pilgrims.length > 0) {
+      setPilgrims(route.params.pilgrims.map(p => ({
+        full_name: p.full_name || p.name || '',
+        age: p.age ? String(p.age) : '',
+        gender: p.gender || 'Male',
+      })));
     }
   }, [route?.params]);
 
@@ -438,6 +489,11 @@ export default function BookingScreen({ route, navigation }) {
         age,
         gender,
         phone,
+        includeHotel,
+        includeTransport,
+        ownVehicle,
+        pilgrims,
+        prefilledFields,
         darshanCategory,
         mobilityPref,
         selectedTransport,
@@ -462,6 +518,11 @@ export default function BookingScreen({ route, navigation }) {
         if (draft.age) setAge(draft.age);
         if (draft.gender) setGender(draft.gender);
         if (draft.phone) setPhone(draft.phone);
+        if (draft.includeHotel !== undefined) setIncludeHotel(Boolean(draft.includeHotel));
+        if (draft.includeTransport !== undefined) setIncludeTransport(Boolean(draft.includeTransport));
+        if (draft.ownVehicle !== undefined) setOwnVehicle(Boolean(draft.ownVehicle));
+        if (Array.isArray(draft.pilgrims) && draft.pilgrims.length > 0) setPilgrims(draft.pilgrims);
+        if (Array.isArray(draft.prefilledFields)) setPrefilledFields(draft.prefilledFields);
         if (draft.darshanCategory) setDarshanCategory(draft.darshanCategory);
         if (draft.mobilityPref) setMobilityPref(draft.mobilityPref);
         if (draft.selectedTransport) setSelectedTransport(draft.selectedTransport);
@@ -474,6 +535,75 @@ export default function BookingScreen({ route, navigation }) {
       }
     } catch {
       // ignore
+    }
+  };
+
+  const handleUpdatePax = (newPax) => {
+    const n = Math.max(1, Math.min(200, parseInt(newPax, 10) || 1));
+    setPax(n);
+    setPilgrims((prev) => {
+      if (prev.length === n) return prev;
+      if (prev.length < n) {
+        const added = Array.from({ length: n - prev.length }, (_, i) => ({
+          id: generatePilgrimId(prev.length + i),
+          full_name: '',
+          age: '',
+          gender: 'Male',
+        }));
+        return [...prev, ...added];
+      }
+      return prev.slice(0, n);
+    });
+  };
+
+  const handleAddPilgrim = () => {
+    if (pilgrims.length >= 200) {
+      Alert.alert('Group Limit', 'Maximum 200 pilgrims allowed per reservation request.');
+      return;
+    }
+    const nextCount = pilgrims.length + 1;
+    setPax(nextCount);
+    setPilgrims((prev) => [...prev, { id: generatePilgrimId(prev.length), full_name: '', age: '', gender: 'Male' }]);
+  };
+
+  const handleRemovePilgrim = (indexToRemove) => {
+    if (pilgrims.length <= 1) {
+      Alert.alert('Minimum Devotee', 'At least 1 pilgrim must be registered.');
+      return;
+    }
+    const updated = pilgrims.filter((_, idx) => idx !== indexToRemove);
+    setPax(updated.length);
+    setPilgrims(updated);
+    if (indexToRemove === 0 && updated.length > 0) {
+      setFullName(updated[0].full_name || '');
+      setAge(updated[0].age ? String(updated[0].age) : '');
+      setGender(updated[0].gender || 'Male');
+    }
+  };
+
+  const handleUpdatePilgrim = (index, field, value) => {
+    setPilgrims((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+    if (index === 0) {
+      if (field === 'full_name') setFullName(value);
+      if (field === 'age') setAge(value);
+      if (field === 'gender') setGender(value);
+    }
+    if (field === 'full_name') {
+      const trimmed = value.trim().toLowerCase();
+      if (trimmed) {
+        const hasDup = pilgrims.some((p, idx) => idx !== index && p.full_name?.trim().toLowerCase() === trimmed);
+        if (hasDup) {
+          setDuplicateNameAdvisory(
+            `Advisory: Devotee name "${value.trim()}" appears multiple times in this booking. Each pilgrim will receive a distinct pass with a unique token.`
+          );
+        } else {
+          setDuplicateNameAdvisory('');
+        }
+      }
     }
   };
 
@@ -508,10 +638,11 @@ export default function BookingScreen({ route, navigation }) {
   const paxCount = Math.max(1, parseInt(pax, 10) || 1);
   const roomsCount = Math.ceil(paxCount / 2);
 
-  // Dynamic Financial Breakdown
-  const transportCost = (selectedTransport?.pricePerPerson || 0) * paxCount;
+  // Dynamic Financial Breakdown with flexible service toggles
+  const isTransportActive = includeTransport && !ownVehicle;
+  const transportCost = isTransportActive ? ((selectedTransport?.pricePerPerson || 0) * paxCount) : 0;
   const ascentCost = (selectedAscent?.pricePerPerson || 0) * paxCount;
-  const hotelCost = (selectedHotel?.pricePerNight || 0) * roomsCount * nightsCount;
+  const hotelCost = includeHotel ? ((selectedHotel?.pricePerNight || 0) * roomsCount * nightsCount) : 0;
   const darshanCost = darshanCategory === 'VIP Aarti Darshan' ? 2000 * paxCount : 0;
   const mealsEstCost = 350 * paxCount * duration;
   const grandTotal = transportCost + ascentCost + hotelCost + darshanCost + mealsEstCost;
@@ -528,10 +659,15 @@ export default function BookingScreen({ route, navigation }) {
       pax,
       fullName,
       phone,
+      includeHotel,
+      includeTransport,
+      ownVehicle,
+      pilgrims,
+      prefilledFields,
       selectedTransportId: selectedTransport?.id,
       selectedHotelId: selectedHotel?.id,
     });
-  }, [origin, startDate, duration, pax, fullName, phone, selectedTransport, selectedHotel]);
+  }, [origin, startDate, duration, pax, fullName, phone, includeHotel, includeTransport, ownVehicle, pilgrims, prefilledFields, selectedTransport, selectedHotel]);
 
   // Load My Bookings
   const loadUserBookings = async () => {
@@ -564,10 +700,6 @@ export default function BookingScreen({ route, navigation }) {
       Alert.alert('Missing Field', 'Please enter your departure city / origin.');
       return;
     }
-    if (!fullName.trim()) {
-      Alert.alert('Pilgrim Details', 'Please provide primary devotee full name.');
-      return;
-    }
     const paxNum = parseInt(pax, 10);
     if (!pax || isNaN(paxNum) || paxNum < 1) {
       Alert.alert('Pilgrims Required', 'Please specify at least 1 pilgrim.');
@@ -596,6 +728,42 @@ export default function BookingScreen({ route, navigation }) {
       Alert.alert('Contact Phone', 'Please enter a valid 10-digit mobile number for transit alerts, or leave blank.');
       return;
     }
+
+    // Comprehensive Individual Pilgrim Validation (Phase 8.8.54A)
+    if (!pilgrims || pilgrims.length === 0) {
+      Alert.alert('Pilgrim Required', 'Please add at least 1 pilgrim to proceed.');
+      return;
+    }
+    if (pilgrims.length !== paxNum) {
+      Alert.alert(
+        'Devotee Count Mismatch',
+        `You requested ${paxNum} pilgrim(s) but currently have ${pilgrims.length} devotee record(s). Please adjust your roster.`
+      );
+      return;
+    }
+    for (let i = 0; i < pilgrims.length; i++) {
+      const p = pilgrims[i];
+      if (!p.full_name || !p.full_name.trim()) {
+        Alert.alert('Incomplete Devotee Details', `Please enter the full name for Devotee #${i + 1}.`);
+        return;
+      }
+      const a = parseInt(p.age, 10);
+      if (!p.age || isNaN(a) || a < 1 || a > 125) {
+        Alert.alert('Invalid Age', `Please enter a valid integer age (1-125) for Devotee #${i + 1} (${p.full_name.trim()}).`);
+        return;
+      }
+    }
+    // Check duplicate devotee names (Non-blocking advisory warning - legitimate family members may share names)
+    const names = pilgrims.map(p => p.full_name.trim().toLowerCase());
+    const dups = names.filter((item, index) => names.indexOf(item) !== index);
+    if (dups.length > 0) {
+      setDuplicateNameAdvisory(
+        `Advisory: Devotee name "${dups[0]}" is repeated. Separate passes with unique identification tokens will be issued for each devotee.`
+      );
+    } else {
+      setDuplicateNameAdvisory('');
+    }
+
     setStep(2);
   };
 
@@ -637,19 +805,43 @@ export default function BookingScreen({ route, navigation }) {
         setActiveDraftPassId(passId);
       }
 
+      const primaryContactObj = {
+        name: (pilgrims[0]?.full_name || fullName).trim(),
+        phone: phone.trim(),
+        email: currentUser?.email || '',
+      };
+
+      const sanitizedPilgrims = pilgrims.map((p, idx) => ({
+        id: p.id || generatePilgrimId(idx),
+        full_name: p.full_name.trim(),
+        age: parseInt(p.age, 10),
+        gender: p.gender || 'Male',
+      }));
+
+      const transportDisplayMode = ownVehicle
+        ? 'Own Vehicle / Private Conveyance'
+        : (!includeTransport ? 'Self-Arranged Transport' : (selectedTransport?.mode || 'Train'));
+
+      const transportDisplayInfo = ownVehicle
+        ? 'Self-Driving to Katra (Carrier booking excluded)'
+        : (!includeTransport ? 'Devotee-arranged travel (Carrier booking excluded)' : `${selectedTransport?.name} (${selectedTransport?.route})`);
+
+      const hotelDisplayName = !includeHotel ? 'Self-Arranged Lodging (No Hotel Booked)' : selectedHotel?.name;
+
       const bookingRecord = {
         booking_id: passId,
         pax_count: paxCount,
         slot_date: startDate,
         category: darshanCategory,
         slot_time: 'Morning (06:00 - 12:00)',
-        transport_mode: selectedTransport?.mode || 'Train',
-        transport_info: `${selectedTransport?.name} (${selectedTransport?.route})`,
-        hotel_name: selectedHotel?.name,
+        transport_mode: transportDisplayMode,
+        transport_info: transportDisplayInfo,
+        hotel_name: hotelDisplayName,
         total_price: grandTotal,
+        status: 'SIMULATED_ISSUED',
         receipt: {
           reference: passId,
-          primaryDevotee: fullName,
+          primaryDevotee: primaryContactObj.name,
           phone,
           origin,
           destination,
@@ -657,13 +849,18 @@ export default function BookingScreen({ route, navigation }) {
           returnDate,
           durationDays: duration,
           pax: paxCount,
-          rooms: roomsCount,
-          nights: nightsCount,
+          rooms: includeHotel ? roomsCount : 0,
+          nights: includeHotel ? nightsCount : 0,
+          hotel_selected: includeHotel,
+          transport_selected: includeTransport,
+          own_vehicle: ownVehicle,
+          pilgrims: sanitizedPilgrims,
+          primary_contact: primaryContactObj,
           transport: {
             ...selectedTransport,
             dataTier: selectedTransport?.dataTier || 'Indicative Estimate',
             dataFreshness: selectedTransport?.dataFreshness || 'Published Timetable (IRCTC/NTES 139)',
-            restrictions: selectedTransport?.restrictions || 'Advance reservation required',
+            restrictions: ownVehicle ? 'Self-arranged driving' : (selectedTransport?.restrictions || 'Advance reservation required'),
           },
           ascentMode: {
             ...selectedAscent,
@@ -671,7 +868,7 @@ export default function BookingScreen({ route, navigation }) {
             dataFreshness: selectedAscent?.dataFreshness || 'Simulated Pilgrimage Model',
             restrictions: selectedAscent?.restrictions || 'Official booking via maavaishnodevi.org',
           },
-          hotel: selectedHotel,
+          hotel: includeHotel ? selectedHotel : null,
           darshanCategory,
           mobilityPreference: mobilityPref,
           itemized: {
@@ -690,15 +887,24 @@ export default function BookingScreen({ route, navigation }) {
       try {
         await confirmBooking({
           option: {
-            transport: selectedTransport,
+            transport: isTransportActive ? selectedTransport : null,
             slot: { category: darshanCategory, slot_date: startDate, slot_time: 'Morning' },
             total_price: grandTotal,
           },
           pax: paxCount,
-          user_name: fullName,
-          hotel: selectedHotel,
-          hotel_nights: nightsCount,
+          user_name: primaryContactObj.name,
+          hotel: includeHotel ? selectedHotel : null,
+          hotel_nights: includeHotel ? nightsCount : 0,
           human_authorized: true,
+          hotel_selected: includeHotel,
+          transport_selected: includeTransport,
+          own_vehicle: ownVehicle,
+          pilgrims: sanitizedPilgrims,
+          primary_contact: primaryContactObj,
+          start_date: startDate,
+          return_date: returnDate,
+          duration: duration,
+          budget: userBudgetNum,
         });
       } catch {
         // Continue with local demonstration record
@@ -706,14 +912,24 @@ export default function BookingScreen({ route, navigation }) {
 
       // Persist in User Account
       try {
-        await saveBooking(bookingRecord);
+        await saveBooking({
+          ...bookingRecord,
+          pilgrims: sanitizedPilgrims,
+          primary_contact: primaryContactObj,
+          hotel_selected: includeHotel,
+          transport_selected: includeTransport,
+          own_vehicle: ownVehicle,
+          start_date: startDate,
+          return_date: returnDate,
+          duration: duration,
+        });
       } catch {
         // Fallback for offline mode
       }
 
       setGeneratedPass({
         ...bookingRecord,
-        status: 'CONFIRMED (SIMULATED RPA PASS)',
+        status: 'SIMULATED_ISSUED',
         generatedAt: new Date().toLocaleString(),
       });
 
@@ -1063,7 +1279,7 @@ export default function BookingScreen({ route, navigation }) {
                     <View style={styles.numericInputRow}>
                       <TouchableOpacity
                         style={styles.stepperCtrlBtn}
-                        onPress={() => setPax((prev) => Math.max(1, (parseInt(prev, 10) || 1) - 1))}
+                        onPress={() => handleUpdatePax(Math.max(1, (parseInt(pax, 10) || 1) - 1))}
                         accessibilityLabel="Decrease pilgrims"
                       >
                         <Text style={styles.stepperCtrlText}>−</Text>
@@ -1076,12 +1292,12 @@ export default function BookingScreen({ route, navigation }) {
                           if (clean === '') {
                             setPax('');
                           } else {
-                            setPax(Math.max(1, parseInt(clean, 10)));
+                            handleUpdatePax(Math.max(1, parseInt(clean, 10)));
                           }
                         }}
                         onBlur={() => {
                           if (!pax || parseInt(pax, 10) < 1) {
-                            setPax(1);
+                            handleUpdatePax(1);
                           }
                         }}
                         keyboardType="number-pad"
@@ -1092,7 +1308,7 @@ export default function BookingScreen({ route, navigation }) {
                       />
                       <TouchableOpacity
                         style={styles.stepperCtrlBtn}
-                        onPress={() => setPax((prev) => Math.min(200, (parseInt(prev, 10) || 0) + 1))}
+                        onPress={() => handleUpdatePax(Math.min(200, (parseInt(pax, 10) || 0) + 1))}
                         accessibilityLabel="Increase pilgrims"
                       >
                         <Text style={styles.stepperCtrlText}>+</Text>
@@ -1103,7 +1319,7 @@ export default function BookingScreen({ route, navigation }) {
                         <TouchableOpacity
                           key={num}
                           style={[styles.quickChip, pax === num && styles.quickChipActive]}
-                          onPress={() => setPax(num)}
+                          onPress={() => handleUpdatePax(num)}
                         >
                           <Text style={[styles.quickChipText, pax === num && styles.quickChipTextActive]}>
                             {num}
@@ -1124,6 +1340,108 @@ export default function BookingScreen({ route, navigation }) {
                       placeholderTextColor={colors.textLight}
                     />
                   </View>
+                </View>
+
+                {/* ------------------------------------------------- */}
+                {/* FLEXIBLE SERVICE CUSTOMIZATION (Part 1) */}
+                {/* ------------------------------------------------- */}
+                <View style={styles.sectionDivider} />
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeader}>Included Yatra Services</Text>
+                  {prefilledFields.includes('hotel_selected') || prefilledFields.includes('transport_selected') ? (
+                    <View style={styles.prefilledBadge}>
+                      <Text style={styles.prefilledBadgeText}>Filled from your conversation</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.stepSubtitle}>
+                  Choose which services to include in your package. All four combinations are supported.
+                </Text>
+
+                {/* Service 1: Intercity Transport */}
+                <View style={styles.serviceCard}>
+                  <View style={styles.serviceCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <TrainIcon size={16} color={colors.primary} />
+                      <Text style={styles.serviceCardTitle}>Intercity Transport</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        style={[styles.serviceToggleBtn, includeTransport && !ownVehicle && styles.serviceToggleBtnActive]}
+                        onPress={() => {
+                          setIncludeTransport(true);
+                          if (ownVehicle) setOwnVehicle(false);
+                        }}
+                      >
+                        <Text style={[styles.serviceToggleText, includeTransport && !ownVehicle && styles.serviceToggleTextActive]}>
+                          Include
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.serviceToggleBtn, (!includeTransport || ownVehicle) && styles.serviceToggleBtnActive]}
+                        onPress={() => setIncludeTransport(false)}
+                      >
+                        <Text style={[styles.serviceToggleText, (!includeTransport || ownVehicle) && styles.serviceToggleTextActive]}>
+                          Exclude
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Own Vehicle Checkbox */}
+                  <TouchableOpacity
+                    style={styles.ownVehicleCheckRow}
+                    onPress={() => {
+                      const next = !ownVehicle;
+                      setOwnVehicle(next);
+                      if (next) setIncludeTransport(false);
+                      else setIncludeTransport(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, ownVehicle && styles.checkboxChecked]}>
+                      {ownVehicle && <CheckIcon size={14} color="#FFFFFF" strokeWidth={3} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
+                        🚗 Travelling by Own Vehicle / Self-Drive
+                      </Text>
+                      <Text style={{ fontSize: 10.5, color: colors.textSecondary }}>
+                        Carrier transit is disabled (₹0 fare). Hotel booking remains available.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Service 2: Katra Accommodation */}
+                <View style={styles.serviceCard}>
+                  <View style={styles.serviceCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <BuildingIcon size={16} color={colors.primary} />
+                      <Text style={styles.serviceCardTitle}>Katra Accommodation</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        style={[styles.serviceToggleBtn, includeHotel && styles.serviceToggleBtnActive]}
+                        onPress={() => setIncludeHotel(true)}
+                      >
+                        <Text style={[styles.serviceToggleText, includeHotel && styles.serviceToggleTextActive]}>
+                          Include
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.serviceToggleBtn, !includeHotel && styles.serviceToggleBtnActive]}
+                        onPress={() => setIncludeHotel(false)}
+                      >
+                        <Text style={[styles.serviceToggleText, !includeHotel && styles.serviceToggleTextActive]}>
+                          Exclude
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 10.5, color: colors.textSecondary }}>
+                    {includeHotel ? 'Verified Katra hotel room reserved for night halts.' : 'Self-arranged lodging / day-excursion (₹0 hotel rate).'}
+                  </Text>
                 </View>
 
                 {/* Accessibility & Mobility Preferences */}
@@ -1167,28 +1485,106 @@ export default function BookingScreen({ route, navigation }) {
                   ))}
                 </View>
 
-                {/* Primary Pilgrim Information */}
+                {/* ------------------------------------------------- */}
+                {/* DYNAMIC INDIVIDUAL PILGRIMS ROSTER (Part 3) */}
+                {/* ------------------------------------------------- */}
                 <View style={styles.sectionDivider} />
-                <Text style={styles.sectionHeader}>Primary Pilgrim Registration</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeader}>Registered Devotees ({pilgrims.length}) *</Text>
+                  {prefilledFields.includes('pilgrims') && (
+                    <View style={styles.prefilledBadge}>
+                      <Text style={styles.prefilledBadgeText}>Filled from your conversation</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.stepSubtitle}>
+                  Every pilgrim must have individual details recorded for Shrine Board RFID registration.
+                </Text>
 
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="e.g. Ramesh Sharma"
-                  placeholderTextColor={colors.textLight}
-                />
+                {pilgrims.map((p, idx) => (
+                  <View key={idx} style={styles.devoteeCard}>
+                    <View style={styles.devoteeHeaderRow}>
+                      <Text style={styles.devoteeTitle}>
+                        Devotee #{idx + 1} {idx === 0 ? '(Primary Pilgrim)' : ''}
+                      </Text>
+                      {pilgrims.length > 1 && (
+                        <TouchableOpacity onPress={() => handleRemovePilgrim(idx)}>
+                          <Text style={styles.removeDevoteeText}>✕ Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Full Legal Name *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={p.full_name}
+                      onChangeText={(val) => handleUpdatePilgrim(idx, 'full_name', val)}
+                      placeholder={`e.g. ${idx === 0 ? 'Ramesh Sharma' : 'Devotee Full Name'}`}
+                      placeholderTextColor={colors.textLight}
+                    />
+
+                    <View style={styles.row}>
+                      <View style={styles.halfCol}>
+                        <Text style={styles.inputLabel}>Age *</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={String(p.age || '')}
+                          onChangeText={(val) => handleUpdatePilgrim(idx, 'age', val.replace(/[^0-9]/g, ''))}
+                          placeholder="e.g. 38"
+                          keyboardType="number-pad"
+                          placeholderTextColor={colors.textLight}
+                        />
+                      </View>
+                      <View style={styles.halfCol}>
+                        <Text style={styles.inputLabel}>Gender</Text>
+                        <View style={styles.genderChipsRow}>
+                          {['Male', 'Female', 'Other'].map((g) => (
+                            <TouchableOpacity
+                              key={g}
+                              style={[styles.genderChip, (p.gender || 'Male') === g && styles.genderChipActive]}
+                              onPress={() => handleUpdatePilgrim(idx, 'gender', g)}
+                            >
+                              <Text style={[styles.genderChipText, (p.gender || 'Male') === g && styles.genderChipTextActive]}>
+                                {g}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Add Devotee Button */}
+                {pilgrims.length < 200 && (
+                  <TouchableOpacity style={styles.addDevoteeBtn} onPress={handleAddPilgrim} activeOpacity={0.8}>
+                    <Text style={styles.addDevoteeBtnText}>+ Add Another Devotee</Text>
+                  </TouchableOpacity>
+                )}
+
+                {Boolean(duplicateNameAdvisory) && (
+                  <View style={{ backgroundColor: '#FFF3CD', borderColor: '#FFEEBA', borderWidth: 1, padding: 8, borderRadius: 6, marginTop: 8 }}>
+                    <Text style={{ fontSize: 11, color: '#856404', fontWeight: '500' }}>
+                      {duplicateNameAdvisory}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Primary Contact Details */}
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionHeader}>Primary Contact Details</Text>
+                <Text style={styles.stepSubtitle}>
+                  For booking SMS notifications, schedule coordination, and emergency contact.
+                </Text>
 
                 <View style={styles.row}>
                   <View style={styles.halfCol}>
-                    <Text style={styles.inputLabel}>Age *</Text>
+                    <Text style={styles.inputLabel}>Contact Person</Text>
                     <TextInput
                       style={styles.input}
-                      value={age}
-                      onChangeText={setAge}
-                      placeholder="38"
-                      keyboardType="number-pad"
+                      value={fullName}
+                      onChangeText={setFullName}
+                      placeholder="Primary contact name"
                       placeholderTextColor={colors.textLight}
                     />
                   </View>
@@ -1207,7 +1603,7 @@ export default function BookingScreen({ route, navigation }) {
                 </View>
 
                 <Text style={styles.contactHelperText}>
-                  * Contact phone is optional and used solely for transit SMS updates and emergency coordination. Account authentication is strictly via passwordless Email OTP.
+                  * Contact phone is optional and used solely for transit SMS updates. Account authentication is strictly via passwordless Email OTP.
                 </Text>
 
                 <TouchableOpacity style={styles.primaryActionButton} onPress={handleProceedToItinerary}>
@@ -1375,69 +1771,87 @@ export default function BookingScreen({ route, navigation }) {
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionHeader}>🚆 Select Intercity Transport Option</Text>
                   <View style={styles.demoBadge}>
-                    <Text style={styles.demoBadgeText}>Demonstration Data</Text>
+                    <Text style={styles.demoBadgeText}>
+                      {ownVehicle ? 'Own Vehicle Active' : (!includeTransport ? 'Transport Excluded' : 'Demonstration Data')}
+                    </Text>
                   </View>
                 </View>
 
-                {REALISTIC_TRANSPORTS.map((t) => {
-                  const isSelected = selectedTransport.id === t.id;
-                  const tierStyle = getDataTierBadgeStyle(t.dataTier || 'Indicative Estimate');
-                  return (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
-                      onPress={() => setSelectedTransport(t)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.cardHeaderRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardTitle}>{t.name}</Text>
-                          <Text style={styles.cardRoute}>{t.route}</Text>
+                {ownVehicle ? (
+                  <View style={styles.excludedNoticeBanner}>
+                    <Text style={styles.excludedNoticeTitle}>🚗 Own Vehicle / Self-Drive Active</Text>
+                    <Text style={styles.excludedNoticeSubtitle}>
+                      You are driving in your own vehicle to Katra. Intercity carrier transport booking is excluded (₹0 Fare).
+                    </Text>
+                  </View>
+                ) : !includeTransport ? (
+                  <View style={styles.excludedNoticeBanner}>
+                    <Text style={styles.excludedNoticeTitle}>🚶 Self-Arranged Transport Active</Text>
+                    <Text style={styles.excludedNoticeSubtitle}>
+                      Devotees will arrange their own flights, trains, or buses. Carrier transport booking is excluded (₹0 Fare).
+                    </Text>
+                  </View>
+                ) : (
+                  REALISTIC_TRANSPORTS.map((t) => {
+                    const isSelected = selectedTransport.id === t.id;
+                    const tierStyle = getDataTierBadgeStyle(t.dataTier || 'Indicative Estimate');
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
+                        onPress={() => setSelectedTransport(t)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.cardHeaderRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>{t.name}</Text>
+                            <Text style={styles.cardRoute}>{t.route}</Text>
+                          </View>
+                          <View style={styles.priceTag}>
+                            <Text style={styles.priceTagText}>₹{t.pricePerPerson}</Text>
+                            <Text style={styles.perPersonSub}>/ pilgrim</Text>
+                          </View>
                         </View>
-                        <View style={styles.priceTag}>
-                          <Text style={styles.priceTagText}>₹{t.pricePerPerson}</Text>
-                          <Text style={styles.perPersonSub}>/ pilgrim</Text>
-                        </View>
-                      </View>
 
-                      <View style={styles.cardMetaRow}>
-                        <Text style={styles.metaItem}>⏰ {t.depTime} - {t.arrTime} ({t.duration})</Text>
-                        <Text style={styles.metaItem}>🎟️ {t.classType}</Text>
-                        <Text style={[styles.metaItem, { color: '#2E7D32', fontWeight: '700' }]}>
-                          ✓ {t.availability}
-                        </Text>
-                      </View>
-
-                      {/* Truth-in-Data Classification & Provenance */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                        <View style={[styles.dataTierPill, { backgroundColor: tierStyle.backgroundColor, borderColor: tierStyle.borderColor }]}>
-                          <Text style={[styles.dataTierPillText, { color: tierStyle.textColor }]}>
-                            ● {t.dataTier || 'Indicative Estimate'}
+                        <View style={styles.cardMetaRow}>
+                          <Text style={styles.metaItem}>⏰ {t.depTime} - {t.arrTime} ({t.duration})</Text>
+                          <Text style={styles.metaItem}>🎟️ {t.classType}</Text>
+                          <Text style={[styles.metaItem, { color: '#2E7D32', fontWeight: '700' }]}>
+                            ✓ {t.availability}
                           </Text>
                         </View>
-                        {t.dataFreshness && (
-                          <Text style={{ fontSize: 10.5, color: colors.textSecondary }}>
-                            Source: {t.dataFreshness}
+
+                        {/* Truth-in-Data Classification & Provenance */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                          <View style={[styles.dataTierPill, { backgroundColor: tierStyle.backgroundColor, borderColor: tierStyle.borderColor }]}>
+                            <Text style={[styles.dataTierPillText, { color: tierStyle.textColor }]}>
+                              ● {t.dataTier || 'Indicative Estimate'}
+                            </Text>
+                          </View>
+                          {t.dataFreshness && (
+                            <Text style={{ fontSize: 10.5, color: colors.textSecondary }}>
+                              Source: {t.dataFreshness}
+                            </Text>
+                          )}
+                        </View>
+                        {t.restrictions && (
+                          <Text style={{ fontSize: 10.5, color: '#C0392B', marginTop: 2 }}>
+                            ⚠️ {t.restrictions}
                           </Text>
                         )}
-                      </View>
-                      {t.restrictions && (
-                        <Text style={{ fontSize: 10.5, color: '#C0392B', marginTop: 2 }}>
-                          ⚠️ {t.restrictions}
-                        </Text>
-                      )}
 
-                      <View style={styles.cardFooterRow}>
-                        <View style={styles.badgeSmall}>
-                          <Text style={styles.badgeSmallText}>{t.badge}</Text>
+                        <View style={styles.cardFooterRow}>
+                          <View style={styles.badgeSmall}>
+                            <Text style={styles.badgeSmallText}>{t.badge}</Text>
+                          </View>
+                          <Text style={[styles.selectActionText, isSelected && styles.selectActionActive]}>
+                            {isSelected ? '✓ Selected' : 'Tap to Select'}
+                          </Text>
                         </View>
-                        <Text style={[styles.selectActionText, isSelected && styles.selectActionActive]}>
-                          {isSelected ? '✓ Selected' : 'Tap to Select'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
 
                 {/* ------------------------------------------------- */}
                 {/* ASCENT / LOCAL MODES */}
@@ -1508,56 +1922,65 @@ export default function BookingScreen({ route, navigation }) {
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionHeader}>🏨 Select Accommodation (Katra / Bhawan)</Text>
                   <View style={styles.demoBadge}>
-                    <Text style={styles.demoBadgeText}>Honest Rates</Text>
+                    <Text style={styles.demoBadgeText}>{!includeHotel ? 'Hotel Excluded' : 'Honest Rates'}</Text>
                   </View>
                 </View>
 
-                {ACCOMMODATION_CATALOGUE.map((h) => {
-                  const isSelected = selectedHotel.id === h.id;
-                  const totalHotelCost = h.pricePerNight * roomsCount * nightsCount;
-                  return (
-                    <TouchableOpacity
-                      key={h.id}
-                      style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
-                      onPress={() => setSelectedHotel(h)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.cardHeaderRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardTitle}>{h.name}</Text>
-                          <Text style={styles.cardRoute}>📍 {h.location} • {h.roomType}</Text>
+                {!includeHotel ? (
+                  <View style={styles.excludedNoticeBanner}>
+                    <Text style={styles.excludedNoticeTitle}>🏨 Self-Arranged Accommodation Active</Text>
+                    <Text style={styles.excludedNoticeSubtitle}>
+                      No Katra hotel is reserved through the portal. Devotees arrange their own lodging or day-excursion (₹0 accommodation rate).
+                    </Text>
+                  </View>
+                ) : (
+                  ACCOMMODATION_CATALOGUE.map((h) => {
+                    const isSelected = selectedHotel.id === h.id;
+                    const totalHotelCost = h.pricePerNight * roomsCount * nightsCount;
+                    return (
+                      <TouchableOpacity
+                        key={h.id}
+                        style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
+                        onPress={() => setSelectedHotel(h)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.cardHeaderRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>{h.name}</Text>
+                            <Text style={styles.cardRoute}>📍 {h.location} • {h.roomType}</Text>
+                          </View>
+                          <View style={styles.priceTag}>
+                            <Text style={styles.priceTagText}>₹{h.pricePerNight}</Text>
+                            <Text style={styles.perPersonSub}>/ night</Text>
+                          </View>
                         </View>
-                        <View style={styles.priceTag}>
-                          <Text style={styles.priceTagText}>₹{h.pricePerNight}</Text>
-                          <Text style={styles.perPersonSub}>/ night</Text>
+
+                        <View style={styles.cardMetaRow}>
+                          <Text style={styles.metaItem}>🛏️ Requires {roomsCount} room(s) for {paxCount} pilgrim(s)</Text>
+                          <Text style={styles.metaItem}>🌙 {nightsCount} Nights Stay: ₹{totalHotelCost}</Text>
                         </View>
-                      </View>
 
-                      <View style={styles.cardMetaRow}>
-                        <Text style={styles.metaItem}>🛏️ Requires {roomsCount} room(s) for {paxCount} pilgrim(s)</Text>
-                        <Text style={styles.metaItem}>🌙 {nightsCount} Nights Stay: ₹{totalHotelCost}</Text>
-                      </View>
-
-                      <View style={{ marginTop: 4 }}>
-                        <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                          ✨ {h.facilities.join(' • ')}
-                        </Text>
-                        <Text style={{ fontSize: 10.5, color: '#C0392B', marginTop: 2 }}>
-                          ⚠️ {h.restrictions}
-                        </Text>
-                      </View>
-
-                      <View style={styles.cardFooterRow}>
-                        <View style={styles.badgeSmall}>
-                          <Text style={styles.badgeSmallText}>{h.badge}</Text>
+                        <View style={{ marginTop: 4 }}>
+                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                            ✨ {h.facilities.join(' • ')}
+                          </Text>
+                          <Text style={{ fontSize: 10.5, color: '#C0392B', marginTop: 2 }}>
+                            ⚠️ {h.restrictions}
+                          </Text>
                         </View>
-                        <Text style={[styles.selectActionText, isSelected && styles.selectActionActive]}>
-                          {isSelected ? '✓ Selected' : 'Tap to Select'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+
+                        <View style={styles.cardFooterRow}>
+                          <View style={styles.badgeSmall}>
+                            <Text style={styles.badgeSmallText}>{h.badge}</Text>
+                          </View>
+                          <Text style={[styles.selectActionText, isSelected && styles.selectActionActive]}>
+                            {isSelected ? '✓ Selected' : 'Tap to Select'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
 
                 {/* ------------------------------------------------- */}
                 {/* LIVE DYNAMIC BUDGET RECALCULATION */}
@@ -1573,13 +1996,13 @@ export default function BookingScreen({ route, navigation }) {
 
                   <View style={styles.budgetDivider} />
                   <Text style={styles.budgetBreakdownText}>
-                    • Intercity Transport ({selectedTransport.name}): ₹{transportCost} (₹{selectedTransport.pricePerPerson} × {paxCount})
+                    • Intercity Transport: {ownVehicle ? 'Own Vehicle / Private Conveyance (₹0 Fare)' : (!includeTransport ? 'Self-Arranged (₹0 Fare)' : `${selectedTransport.name}: ₹${transportCost} (₹${selectedTransport.pricePerPerson} × ${paxCount})`)}
                   </Text>
                   <Text style={styles.budgetBreakdownText}>
                     • Holy Ascent ({selectedAscent.name}): ₹{ascentCost} (₹{selectedAscent.pricePerPerson} × {paxCount})
                   </Text>
                   <Text style={styles.budgetBreakdownText}>
-                    • Accommodation ({selectedHotel.name}): ₹{hotelCost} (₹{selectedHotel.pricePerNight} × {roomsCount} room × {nightsCount} nights)
+                    • Accommodation: {!includeHotel ? 'Self-Arranged Lodging (₹0 Rate)' : `${selectedHotel.name}: ₹${hotelCost} (₹${selectedHotel.pricePerNight} × ${roomsCount} rm × ${nightsCount} n)`}
                   </Text>
                   <Text style={styles.budgetBreakdownText}>
                     • Shrine Darshan / RFID Parchi: {darshanCost === 0 ? 'FREE' : `₹${darshanCost}`}
@@ -1624,14 +2047,41 @@ export default function BookingScreen({ route, navigation }) {
                 {/* Pre-Booking Comprehensive Summary */}
                 <View style={styles.summaryBox}>
                   <Text style={styles.summaryTitle}>Pilgrimage Reservation Summary</Text>
-                  <Text style={styles.summaryLine}>• Primary Devotee: <Text style={styles.bold}>{fullName}</Text> ({age} yrs, {gender}{phone ? `, Contact: +91-${phone}` : ''})</Text>
-                  <Text style={styles.summaryLine}>• Route: <Text style={styles.bold}>{origin} → Katra</Text></Text>
-                  <Text style={styles.summaryLine}>• Yatra Dates: <Text style={styles.bold}>{startDate}</Text> to <Text style={styles.bold}>{returnDate}</Text> ({duration} Days)</Text>
-                  <Text style={styles.summaryLine}>• Pilgrims: <Text style={styles.bold}>{paxCount} Person(s)</Text></Text>
+                  <Text style={styles.summaryLine}>• Route: <Text style={styles.bold}>{origin} → Katra Base & Holy Bhawan</Text></Text>
+                  <Text style={styles.summaryLine}>• Yatra Dates: <Text style={styles.bold}>{startDate}</Text> to <Text style={styles.bold}>{returnDate}</Text> ({duration} Days / {nightsCount} Nights)</Text>
+                  <Text style={styles.summaryLine}>• Pilgrims: <Text style={styles.bold}>{paxCount} Devotee(s)</Text></Text>
+
+                  {/* Registered Devotees Roster */}
+                  {pilgrims && pilgrims.length > 0 && (
+                    <View style={{ marginVertical: 6, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: colors.gold }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary, marginBottom: 2 }}>
+                        Registered Devotees ({pilgrims.length}):
+                      </Text>
+                      {pilgrims.map((p, idx) => (
+                        <Text key={idx} style={{ fontSize: 11, color: colors.text, marginBottom: 1 }}>
+                          {idx + 1}. <Text style={styles.bold}>{p.full_name || `Devotee ${idx + 1}`}</Text> ({p.age || '—'} yrs, {p.gender || 'Not specified'})
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={styles.summaryLine}>• Primary Contact: <Text style={styles.bold}>{(pilgrims[0]?.full_name || fullName)}</Text>{phone ? ` (Contact: +91-${phone})` : ''}</Text>
                   <Text style={styles.summaryLine}>• Darshan Category: <Text style={styles.bold}>{darshanCategory}</Text></Text>
-                  <Text style={styles.summaryLine}>• Selected Transport: <Text style={styles.bold}>{selectedTransport.name}</Text> (₹{transportCost}) <Text style={{ fontSize: 11, color: '#856404', fontWeight: '700' }}>[{selectedTransport.dataTier || 'Indicative Estimate'}]</Text></Text>
+                  <Text style={styles.summaryLine}>
+                    • Intercity Transport: <Text style={styles.bold}>
+                      {ownVehicle
+                        ? 'Own Vehicle / Private Conveyance (₹0 Fare)'
+                        : (!includeTransport ? 'Self-Arranged Transport (₹0 Fare)' : `${selectedTransport.name} (₹${transportCost})`)}
+                    </Text>
+                  </Text>
                   <Text style={styles.summaryLine}>• Ascent Mode: <Text style={styles.bold}>{selectedAscent.name}</Text> (₹{ascentCost}) <Text style={{ fontSize: 11, color: '#721C24', fontWeight: '700' }}>[{selectedAscent.dataTier || 'Demonstration Data'}]</Text></Text>
-                  <Text style={styles.summaryLine}>• Selected Stay: <Text style={styles.bold}>{selectedHotel.name}</Text> ({roomsCount} room(s), {nightsCount} night(s) — ₹{hotelCost})</Text>
+                  <Text style={styles.summaryLine}>
+                    • Accommodation: <Text style={styles.bold}>
+                      {!includeHotel
+                        ? 'Self-Arranged Lodging (₹0 Rate)'
+                        : `${selectedHotel.name} (${roomsCount} room(s), ${nightsCount} night(s) — ₹${hotelCost})`}
+                    </Text>
+                  </Text>
                   <Text style={styles.summaryLine}>• Estimated Total Package: <Text style={styles.boldPrice}>₹{grandTotal}</Text> (₹{perPersonCost} / pilgrim)</Text>
                 </View>
 
@@ -1770,9 +2220,13 @@ export default function BookingScreen({ route, navigation }) {
                   <View style={styles.passGrid}>
                     <View style={styles.gridCol}>
                       <Text style={styles.passLabel}>INTERCITY TRANSPORT</Text>
-                      <Text style={styles.passValue}>{selectedTransport.name}</Text>
+                      <Text style={styles.passValue}>
+                        {ownVehicle
+                          ? 'Own Vehicle / Private Conveyance'
+                          : (!includeTransport ? 'Self-Arranged Transport' : selectedTransport.name)}
+                      </Text>
                       <Text style={{ fontSize: 10, color: '#856404', fontWeight: '700', marginTop: 2 }}>
-                        ● {selectedTransport.dataTier || 'Indicative Estimate'}
+                        ● {ownVehicle ? 'Self-Drive' : (!includeTransport ? 'Self-Arranged' : (selectedTransport.dataTier || 'Indicative Estimate'))}
                       </Text>
                     </View>
                     <View style={styles.gridCol}>
@@ -1787,7 +2241,9 @@ export default function BookingScreen({ route, navigation }) {
                   <View style={styles.passGrid}>
                     <View style={styles.gridCol}>
                       <Text style={styles.passLabel}>ACCOMMODATION</Text>
-                      <Text style={styles.passValue}>{selectedHotel.name}</Text>
+                      <Text style={styles.passValue}>
+                        {!includeHotel ? 'Self-Arranged Lodging (₹0)' : selectedHotel.name}
+                      </Text>
                     </View>
                     <View style={styles.gridCol}>
                       <Text style={styles.passLabel}>TOTAL FARE</Text>
@@ -1797,9 +2253,28 @@ export default function BookingScreen({ route, navigation }) {
                     </View>
                   </View>
 
+                  {/* Registered Devotees Pass Tokens */}
+                  {pilgrims && pilgrims.length > 0 && (
+                    <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.goldBorder }}>
+                      <Text style={[styles.passLabel, { marginBottom: 6 }]}>REGISTERED DEVOTEES & ACCESS PASSES</Text>
+                      {pilgrims.map((p, idx) => (
+                        <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, backgroundColor: '#FAF5EB', padding: 6, borderRadius: 6 }}>
+                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.text }}>
+                            {idx + 1}. {p.full_name || `Devotee #${idx + 1}`} ({p.age || '—'} yrs, {p.gender || 'Devotee'})
+                          </Text>
+                          <View style={{ backgroundColor: '#D4EDDA', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#155724' }}>
+                              PASS #{generatedPass.booking_id ? generatedPass.booking_id.slice(-4) : 'RPA'}-{idx + 1}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
                   <View style={styles.passFooter}>
                     <Text style={styles.passFooterText}>
-                      STATUS: {generatedPass.status || 'VERIFIED (SIMULATION)'}
+                      STATUS: {generatedPass.status || 'SIMULATED_ISSUED'}
                     </Text>
                     <Text style={styles.passTimestamp}>Issued: {generatedPass.generatedAt}</Text>
                   </View>
@@ -2755,5 +3230,154 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 0.5,
     borderTopColor: colors.goldBorder,
+  },
+  // Flexible services & dynamic pilgrim management (Phase 8.8.54A)
+  serviceCard: {
+    backgroundColor: '#FAF5EB',
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  serviceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  serviceCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  serviceToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    backgroundColor: colors.surfaceWhite,
+  },
+  serviceToggleBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  serviceToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  serviceToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  ownVehicleCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.goldBorder,
+  },
+  devoteeCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  devoteeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  devoteeTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  removeDevoteeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C0392B',
+  },
+  genderChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  genderChip: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    backgroundColor: '#FAF5EB',
+  },
+  genderChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  genderChipText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  genderChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  addDevoteeBtn: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAF5EB',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  addDevoteeBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  prefilledBadge: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+  },
+  prefilledBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  excludedNoticeBanner: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 10,
+  },
+  excludedNoticeTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#374151',
+  },
+  excludedNoticeSubtitle: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
   },
 });

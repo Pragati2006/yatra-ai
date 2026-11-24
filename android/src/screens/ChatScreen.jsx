@@ -203,19 +203,28 @@ export default function ChatScreen({ navigation, route }) {
 
   const handleBookingHandoff = (bookingData) => {
     Keyboard.dismiss();
+    const handoff = bookingData?.booking_handoff || bookingData?.bookingHandoff || (bookingData?.action === 'NAVIGATE_TO_BOOKING' ? bookingData : null);
     navigation.navigate('Booking', {
       initialService: bookingData?.service || 'Yatra Parchi',
-      origin: bookingData?.origin || activeTripRequest?.origin || 'Delhi',
-      destination: bookingData?.destination || activeTripRequest?.destination || 'Katra (Shri Mata Vaishno Devi)',
-      startDate: bookingData?.startDate || activeTripRequest?.start_date || '2026-11-10',
-      duration: bookingData?.duration || activeTripRequest?.duration_days || 4,
-      pax: bookingData?.pax || activeTripRequest?.pax || 2,
-      budget: bookingData?.grandTotal || 15000,
-      step: 2,
+      origin: handoff?.origin || bookingData?.origin || activeTripRequest?.origin || 'Delhi',
+      destination: handoff?.destination || bookingData?.destination || activeTripRequest?.destination || 'Katra (Shri Mata Vaishno Devi)',
+      startDate: handoff?.start_date || bookingData?.startDate || activeTripRequest?.start_date || '2026-11-10',
+      returnDate: handoff?.return_date || null,
+      duration: handoff?.duration || bookingData?.duration || activeTripRequest?.duration_days || 4,
+      pax: handoff?.pax || bookingData?.pax || activeTripRequest?.pax || 2,
+      budget: handoff?.budget || bookingData?.grandTotal || 15000,
+      step: 1,
       overrideDraft: true,
       selectedTransport: bookingData?.selectedTransport,
       selectedHotel: bookingData?.selectedHotel,
       itinerary: bookingData?.itinerary,
+      booking_handoff: handoff,
+      pilgrims: handoff?.pilgrims || null,
+      primary_contact: handoff?.primary_contact || null,
+      hotel_selected: handoff?.hotel_selected,
+      transport_selected: handoff?.transport_selected,
+      own_vehicle: handoff?.own_vehicle,
+      prefilled_fields: handoff?.prefilled_fields || [],
     });
   };
 
