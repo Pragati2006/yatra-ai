@@ -27,6 +27,7 @@ export default function AIChat({
   onSwitchToForm = null,
   loadedConversation = null,
   onClearLoadedConversation = null,
+  onRequestSaveAuth = null,
 }) {
   const [messages, setMessages] = useState(() => {
     try {
@@ -821,6 +822,7 @@ export default function AIChat({
               onNavigateToBooking={onNavigateToBooking}
               onSwitchToForm={onSwitchToForm}
               onExplorePlace={onExplorePlace}
+              onRequestSaveAuth={onRequestSaveAuth}
               latestMessageRef={latestMessageRef}
             />
           ))}

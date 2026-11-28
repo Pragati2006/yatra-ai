@@ -14,7 +14,7 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import TourismCard from '../components/TourismCard';
-import { fetchTourismSpots } from '../services/api';
+import { fetchTourismSpots, getCachedTourismSpots } from '../services/api';
 import { VERIFIED_DESTINATION_GALLERIES } from '../utils/destinationImages';
 
 const DETAILED_INFO = {
@@ -84,39 +84,73 @@ const ALL_43_DESTINATIONS = Object.values(VERIFIED_DESTINATION_GALLERIES).map((g
   };
 });
 
+const mergeTourismSpots = (backendPlaces) => {
+  if (!Array.isArray(backendPlaces) || backendPlaces.length === 0) {
+    return ALL_43_DESTINATIONS;
+  }
+  const localByName = new Map();
+  ALL_43_DESTINATIONS.forEach((spot) => {
+    localByName.set(String(spot.name || '').trim().toLowerCase(), spot);
+  });
+
+  const merged = [];
+  const seenNames = new Set();
+
+  backendPlaces.forEach((remote, idx) => {
+    const key = String(remote?.name || '').trim().toLowerCase();
+    const local = localByName.get(key) || null;
+    if (key) seenNames.add(key);
+    const hasRemoteGallery = Array.isArray(remote?.image_gallery) && remote.image_gallery.length > 0;
+    merged.push({
+      ...(local || {}),
+      ...remote,
+      id: remote?.id || local?.id || `dest-remote-${idx}`,
+      image_gallery: hasRemoteGallery ? remote.image_gallery : (local?.image_gallery || []),
+      image_url: remote?.image_url || local?.image_url || null,
+    });
+  });
+
+  ALL_43_DESTINATIONS.forEach((local) => {
+    const key = String(local.name || '').trim().toLowerCase();
+    if (!seenNames.has(key)) {
+      merged.push(local);
+    }
+  });
+
+  return merged;
+};
+
 const CATEGORIES = ['All', 'Sacred Sanctum', 'Mid Trek Milestone', 'Completing Darshan', 'Holy Shrine', 'Tourist Attraction'];
 
 export default function TourismScreen({ navigation }) {
-  const [spots, setSpots] = useState(ALL_43_DESTINATIONS);
+  const [spots, setSpots] = useState(() => {
+    const cached = getCachedTourismSpots();
+    return cached && cached.length > 0 ? mergeTourismSpots(cached) : ALL_43_DESTINATIONS;
+  });
   const [filterCat, setFilterCat] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadSpots();
+    loadSpots({ forceRefresh: false });
   }, []);
 
-  const loadSpots = async () => {
-    setLoading(true);
+  const loadSpots = async ({ forceRefresh = false } = {}) => {
     try {
-      const data = await fetchTourismSpots();
+      const data = await fetchTourismSpots({ forceRefresh });
       if (Array.isArray(data) && data.length > 0) {
-        setSpots(data);
-      } else {
-        setSpots(ALL_43_DESTINATIONS);
+        setSpots(mergeTourismSpots(data));
       }
     } catch (e) {
-      setSpots(ALL_43_DESTINATIONS);
+      // Keep cached/curated ALL_43_DESTINATIONS
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadSpots();
+    loadSpots({ forceRefresh: true });
   };
 
   const filteredSpots = spots.filter((item) => {
@@ -173,16 +207,10 @@ export default function TourismScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Fetching pilgrimage data...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredSpots}
-          keyExtractor={(item, idx) => item.id || String(idx)}
-          renderItem={({ item }) => (
+      <FlatList
+        data={filteredSpots}
+        keyExtractor={(item, idx) => item.id || String(idx)}
+        renderItem={({ item }) => (
             <TourismCard
               spot={item}
               place={item}

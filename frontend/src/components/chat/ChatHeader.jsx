@@ -5,6 +5,7 @@ import {
   Plus,
   MessageSquare,
   Compass,
+  Map,
   Ticket,
   MapPin,
   CloudSun,
@@ -282,6 +283,32 @@ export default function ChatHeader({
         >
           <MapPin size={14} strokeWidth={activeTab === 'sightseeing' ? 2.4 : 1.8} />
           <span className="hide-on-mobile">Destinations</span>
+        </button>
+
+        <button
+          type="button"
+          data-testid="nav-itineraries"
+          aria-current={activeTab === 'itineraries' ? 'page' : undefined}
+          onClick={() => setActiveTab('itineraries')}
+          style={{
+            background: activeTab === 'itineraries' ? 'var(--surface-white, #FFFCF9)' : 'transparent',
+            border: activeTab === 'itineraries' ? '1px solid var(--border-default, #E9DED6)' : '1px solid transparent',
+            color: activeTab === 'itineraries' ? 'var(--royal-plum, #54152D)' : 'var(--text-secondary, #796D69)',
+            fontWeight: activeTab === 'itineraries' ? 800 : 600,
+            fontSize: '0.8rem',
+            padding: '5px 12px',
+            borderRadius: '999px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: activeTab === 'itineraries' ? '0 1px 3px rgba(84, 21, 45, 0.04)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+          title="View, edit, and collaborate on saved itineraries"
+        >
+          <Map size={14} strokeWidth={activeTab === 'itineraries' ? 2.4 : 1.8} />
+          <span className="hide-on-mobile">Itineraries</span>
         </button>
 
         {/* Dedicated Weather Tab */}

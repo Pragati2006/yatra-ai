@@ -580,6 +580,50 @@ def init_auth_db(db_path: Optional[str] = None) -> None:
             ON saved_itineraries (user_id);
             """
         )
+        for stmt in (
+            "ALTER TABLE saved_itineraries ADD COLUMN updated_at TEXT",
+            "ALTER TABLE saved_itineraries ADD COLUMN revision INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE saved_itineraries ADD COLUMN source_key TEXT",
+            "ALTER TABLE saved_itineraries ADD COLUMN edit_history_json TEXT",
+        ):
+            try:
+                cursor.execute(stmt)
+            except Exception:
+                pass
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS itinerary_members (
+                itinerary_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                added_by TEXT,
+                created_at TEXT NOT NULL,
+                revoked_at TEXT,
+                PRIMARY KEY (itinerary_id, user_id)
+            );
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_itin_members_user ON itinerary_members (user_id, revoked_at);"
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS itinerary_invites (
+                invite_id TEXT PRIMARY KEY,
+                itinerary_id TEXT NOT NULL,
+                token_hash TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT,
+                use_count INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_itin_invites_itin ON itinerary_invites (itinerary_id, revoked_at);"
+        )
         # 5. Saved Conversations Table
         cursor.execute(
             """
@@ -1211,77 +1255,38 @@ class AuthService:
     # -------------------------------------------------------------------------
     # D. User Associated Data (Itineraries & Conversations)
     # -------------------------------------------------------------------------
-    def save_itinerary(self, user_id: str, title: str, itinerary_data: Any) -> Dict[str, Any]:
-        """Saves generated itinerary for authenticated user."""
-        itin_id = f"itin_{uuid.uuid4().hex[:12]}"
-        now_iso = datetime.now(timezone.utc).isoformat()
-        t_clean = (title or "Vaishno Devi Yatra Itinerary").strip()
-
-        if self.is_mongodb():
-            from agents import mongo_store
-            return mongo_store.save_itinerary(itin_id, user_id, t_clean, now_iso, itinerary_data)
-
-        with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO saved_itineraries (itinerary_id, user_id, title, created_at, data_json)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (itin_id, user_id, t_clean, now_iso, json.dumps(itinerary_data)),
-            )
-            conn.commit()
-
-        return {
-            "itinerary_id": itin_id,
-            "user_id": user_id,
-            "title": t_clean,
-            "created_at": now_iso,
-            "data": itinerary_data,
-        }
+    def save_itinerary(
+        self,
+        user_id: str,
+        title: str,
+        itinerary_data: Any,
+        itinerary_id: Optional[str] = None,
+        source_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Saves or upserts generated itinerary for authenticated user without duplication."""
+        from agents.itinerary_collab_service import itinerary_collab_service
+        saved = itinerary_collab_service.upsert_itinerary(
+            user_id=user_id,
+            title=title,
+            itinerary_data=itinerary_data,
+            itinerary_id=itinerary_id,
+            source_key=source_key,
+        )
+        saved.setdefault("user_id", user_id)
+        return saved
 
     def get_saved_itineraries(self, user_id: str) -> List[Dict[str, Any]]:
-        """Retrieves all saved itineraries belonging strictly to user_id."""
-        if self.is_mongodb():
-            from agents import mongo_store
-            return mongo_store.get_saved_itineraries(user_id)
-
-        with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT itinerary_id, title, created_at, data_json
-                FROM saved_itineraries
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                """,
-                (user_id,),
-            )
-            rows = cursor.fetchall()
-            return [
-                {
-                    "itinerary_id": r[0],
-                    "title": r[1],
-                    "created_at": r[2],
-                    "data": json.loads(r[3]),
-                }
-                for r in rows
-            ]
+        """Retrieves all owned and shared itineraries accessible to user_id."""
+        from agents.itinerary_collab_service import itinerary_collab_service
+        return itinerary_collab_service.list_itineraries_for_user(user_id)
 
     def delete_saved_itinerary(self, user_id: str, itinerary_id: str) -> bool:
-        """Deletes a saved itinerary strictly verifying user ownership."""
-        if self.is_mongodb():
-            from agents import mongo_store
-            return mongo_store.delete_saved_itinerary(user_id, itinerary_id)
-
-        with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM saved_itineraries WHERE itinerary_id = ? AND user_id = ?",
-                (itinerary_id, user_id),
-            )
-            conn.commit()
-            return cursor.rowcount > 0
+        """Deletes a saved itinerary strictly verifying owner permission."""
+        from agents.itinerary_collab_service import itinerary_collab_service, CollabServiceError
+        try:
+            return itinerary_collab_service.delete_itinerary(user_id, itinerary_id)
+        except CollabServiceError:
+            return False
 
     def save_conversation(
         self,

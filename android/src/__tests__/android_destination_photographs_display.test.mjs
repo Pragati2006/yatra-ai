@@ -193,7 +193,9 @@ test('ChatBubble: Uses safe thumbnail URLs in gallery and lightbox to prevent HT
     'Lightbox must prefer thumbnail_url'
   );
 
-  // Verify error fallback handling
-  assert.ok(code.includes('onError={() => setFailedImages'), 'Must handle Image onError');
-  assert.ok(code.includes('imageFallbackBox'), 'Must render imageFallbackBox on failure');
+  // Verify strict error handling omits failed image containers cleanly
+  assert.ok(code.includes('onError={() =>'), 'Must handle Image onError');
+  assert.ok(code.includes('setFailedImages'), 'Must track failed images');
+  assert.ok(!code.includes('imageFallbackBox'), 'Must cleanly remove failed image container instead of placeholder box');
+  assert.ok(!code.includes('Photo unavailable'), 'Must never display Photo unavailable text');
 });

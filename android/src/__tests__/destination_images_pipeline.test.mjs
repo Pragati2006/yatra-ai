@@ -41,40 +41,41 @@ test('Catalogue Verification: All 43 destinations exist in verified_destination_
   assert.equal(photoCount, 108, 'Must contain exactly 108 verified photographs across all 43 destinations');
 });
 
-test('Android Image Renderer: ChatBubble renders verified gallery and graceful fallback', () => {
+test('Android Image Renderer: ChatBubble renders verified gallery and cleanly omits failed photos', () => {
   const bubblePath = path.join(androidRoot, 'src/components/ChatBubble.jsx');
   const code = fs.readFileSync(bubblePath, 'utf-8');
 
   // Verified photo gallery rendering
   assert.ok(code.includes('message.destination_images'), 'Must check message.destination_images');
-  assert.ok(code.includes('message.destination_images.map'), 'Must map over destination_images');
+  assert.ok(code.includes('message.destination_images'), 'Must inspect destination_images entries');
+  assert.ok(code.includes('visibleItems.map'), 'Must map over valid visibleItems');
   assert.ok(code.includes('uri: item.thumbnail_url || item.image_url'), 'Must bind image URI properly');
   assert.ok(code.includes('item.photographer'), 'Must render photographer attribution');
   assert.ok(code.includes('item.license'), 'Must render image license');
 
-  // Graceful fallback for network / load errors
+  // Strict failure removal (no placeholder or "Photo unavailable" banner)
   assert.ok(code.includes('failedImages[idx]'), 'Must track image load failures');
-  assert.ok(code.includes('imageFallbackBox'), 'Must render fallback box when image load fails');
-  assert.ok(code.includes('Photo unavailable'), 'Must show polite Photo unavailable text on error');
+  assert.ok(!code.includes('Photo unavailable'), 'Must never display Photo unavailable text');
+  assert.ok(!code.includes('imageFallbackBox'), 'Must not render empty imageFallbackBox container');
 
   // Lightbox modal magnification
   assert.ok(code.includes('activePhoto'), 'Must support activePhoto state');
   assert.ok(code.includes('lightboxFullImage'), 'Must support full image magnification in lightbox');
 });
 
-test('Android Image Renderer: TourismCard renders photo count badge and graceful fallback banner', () => {
+test('Android Image Renderer: TourismCard renders photo count badge and cleanly omits missing photo container', () => {
   const cardPath = path.join(androidRoot, 'src/components/TourismCard.jsx');
   const code = fs.readFileSync(cardPath, 'utf-8');
 
-  // Primary image rendering
+  // Primary image rendering with multi-candidate fallback
   assert.ok(code.includes('uri: imageUrl'), 'Must bind primary image URI');
+  assert.ok(code.includes('getCandidateImageUrls'), 'Must collect multi-candidate URLs');
   assert.ok(code.includes('photoCountBadge'), 'Must render photo count badge for multi-photo destinations');
   assert.ok(code.includes('gallery.length'), 'Must display count of photos in gallery');
 
-  // Fallback banner when no photo is available or load fails
-  assert.ok(code.includes('fallbackNoticeBox'), 'Must render fallbackNoticeBox');
-  assert.ok(code.includes('fallbackNoticeText'), 'Must render fallbackNoticeText');
-  assert.ok(code.includes('Verified photograph in archival curation'), 'Must provide graceful default fallback notice');
+  // Strict removal when all candidates fail (no "archival curation" placeholder)
+  assert.ok(!code.includes('fallbackNoticeBox'), 'Must not render fallbackNoticeBox container');
+  assert.ok(!code.includes('Verified photograph in archival curation'), 'Must never show archival curation placeholder notice');
 });
 
 test('Backend Alias Mapping: Storage layer indexes aliases for instant O(1) resolution', () => {

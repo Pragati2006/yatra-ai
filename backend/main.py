@@ -18,6 +18,7 @@ import agents.session_store as session_store
 from backend.routes.tourism import router as tourism_router
 from backend.routes.yatra import router as yatra_router
 from backend.routes.auth import router as auth_router
+from backend.routes.itineraries import router as itineraries_router
 from utils.logger import SanitizingFormatter, set_correlation_id, get_correlation_id, log_event
 
 # Configure root logger with SanitizingFormatter
@@ -161,6 +162,7 @@ app.include_router(tourism_router)
 app.include_router(weather_router)
 app.include_router(yatra_router)
 app.include_router(auth_router)
+app.include_router(itineraries_router)
 
 class ChatRequest(BaseModel):
     message: str

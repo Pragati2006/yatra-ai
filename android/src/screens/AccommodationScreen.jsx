@@ -13,7 +13,7 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import HotelCard from '../components/HotelCard';
-import { fetchAccommodations } from '../services/api';
+import { fetchAccommodations, getCachedAccommodations } from '../services/api';
 
 const CURATED_ACCOMMODATIONS = [
   {
@@ -81,33 +81,32 @@ const CURATED_ACCOMMODATIONS = [
 const CATEGORIES = ['All', 'Shrine Board', 'Budget', 'Luxury / Star'];
 
 export default function AccommodationScreen({ navigation }) {
-  const [accommodations, setAccommodations] = useState(CURATED_ACCOMMODATIONS);
+  const [accommodations, setAccommodations] = useState(
+    () => getCachedAccommodations() || CURATED_ACCOMMODATIONS
+  );
   const [selectedCat, setSelectedCat] = useState('All');
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadAccommodations();
+    loadAccommodations({ forceRefresh: false });
   }, []);
 
-  const loadAccommodations = async () => {
-    setLoading(true);
+  const loadAccommodations = async ({ forceRefresh = false } = {}) => {
     try {
-      const data = await fetchAccommodations();
+      const data = await fetchAccommodations({ forceRefresh });
       if (Array.isArray(data) && data.length > 0) {
         setAccommodations(data);
       }
     } catch (e) {
-      // Keep curated list
+      // Keep cached or curated list
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadAccommodations();
+    loadAccommodations({ forceRefresh: true });
   };
 
   const handleSelectHotel = (hotel) => {
@@ -157,28 +156,21 @@ export default function AccommodationScreen({ navigation }) {
         </Text>
       </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Fetching accommodation catalog...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredAccommodations}
-          keyExtractor={(item, idx) => item.id || String(idx)}
-          renderItem={({ item }) => (
-            <HotelCard hotel={item} onSelect={() => handleSelectHotel(item)} />
-          )}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={filteredAccommodations}
+        keyExtractor={(item, idx) => item.id || String(idx)}
+        renderItem={({ item }) => (
+          <HotelCard hotel={item} onSelect={() => handleSelectHotel(item)} />
+        )}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      />
     </View>
   );
 }

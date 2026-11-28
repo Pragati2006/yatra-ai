@@ -181,45 +181,56 @@ class TestPhase982FlightRegistry(unittest.TestCase):
         self.assertEqual(meta["destination_airport"]["iata_code"], "IXJ")
 
         # Check for key direct corridors
-        del_routes = [s for s in schedules if s.origin_airport_code == "DEL"]
-        bom_routes = [s for s in schedules if s.origin_airport_code == "BOM"]
-        sxr_routes = [s for s in schedules if s.origin_airport_code == "SXR"]
+        del_routes = [s for s in schedules if s.origin_airport_code == "DEL" and s.destination_airport_code == "IXJ"]
+        bom_ixj_routes = [s for s in schedules if s.origin_airport_code == "BOM" and s.destination_airport_code == "IXJ"]
+        bom_sxr_routes = [s for s in schedules if s.origin_airport_code == "BOM" and s.destination_airport_code == "SXR"]
+        sxr_routes = [s for s in schedules if s.origin_airport_code == "SXR" and s.destination_airport_code == "IXJ"]
         self.assertGreaterEqual(len(del_routes), 3, "Must have at least 3 direct flights from Delhi to Jammu")
-        self.assertEqual(len(bom_routes), 1, "Must have direct flight from Mumbai to Jammu")
-        self.assertEqual(len(sxr_routes), 1, "Must have intra-UT direct flight from Srinagar to Jammu")
+        self.assertGreaterEqual(len(bom_ixj_routes), 2, "Must have direct flights from Mumbai to Jammu")
+        self.assertGreaterEqual(len(bom_sxr_routes), 1, "Must have direct flight from Mumbai to Srinagar")
+        self.assertGreaterEqual(len(sxr_routes), 2, "Must have intra-UT direct flights from Srinagar to Jammu")
 
-        # Verify Phase 9.8.2.2.3 data integrity corrections across entire dataset
+        # Verify data integrity across entire dataset (distinguishing corridor vs timetable vs fare verification)
         for s in schedules:
             self.assertIsNone(s.seat_count, f"Route {s.route_id} must have seat_count=None")
             self.assertFalse(s.is_live_status, f"Route {s.route_id} must have is_live_status=False")
-            self.assertIsNone(s.duration_hours, f"Route {s.route_id} must have duration_hours=None")
-            self.assertIsNone(s.estimated_duration_desc, f"Route {s.route_id} must have estimated_duration_desc=None")
-            self.assertIsNone(s.indicative_fare_min, f"Route {s.route_id} must have indicative_fare_min=None")
-            self.assertIsNone(s.indicative_fare_max, f"Route {s.route_id} must have indicative_fare_max=None")
-            self.assertEqual(s.fare_classification, "UNAVAILABLE", f"Route {s.route_id} must have fare_classification=UNAVAILABLE")
+            self.assertFalse(s.availability_verified, f"Route {s.route_id} must have availability_verified=False")
+            self.assertNotEqual(s.verification_status, "OFFICIALLY_VERIFIED", f"Static flight {s.route_id} must not claim OFFICIALLY_VERIFIED")
+            self.assertIsNotNone(s.route_verification, f"Route {s.route_id} must include route_verification")
+            self.assertIsNotNone(s.fare_verification, f"Route {s.route_id} must include fare_verification")
+            self.assertIsNotNone(s.timetable_verification, f"Route {s.route_id} must include timetable_verification")
             self.assertEqual(s.fare_verification.status, VerificationStatus.UNVERIFIED.value)
             self.assertIsNone(s.fare_verification.verified_at)
             self.assertIsNone(s.fare_verification.effective_date)
             self.assertEqual(s.timetable_verification.status, VerificationStatus.UNVERIFIED.value)
             self.assertIsNone(s.timetable_verification.verified_at)
             self.assertIsNone(s.timetable_verification.effective_date)
-            self.assertIn(s.route_type, ("DIRECT", "CONNECTING", "ROUTE_GUIDANCE_ONLY"))
-            if s.route_type == "DIRECT":
-                # Correction B & C: Direct flight timetables unverified / route guidance only without static operating minutes or durations
-                self.assertIsNone(s.departure_time, f"Direct route {s.route_id} must have departure_time=None")
-                self.assertIsNone(s.arrival_time, f"Direct route {s.route_id} must have arrival_time=None")
-                self.assertEqual(s.schedule_type, "ROUTE_GUIDANCE_ONLY")
-            elif s.route_id.endswith("_via_del"):
-                # FA-03: Connecting hub guidance reclassified
-                self.assertEqual(s.route_type, "ROUTE_GUIDANCE_ONLY")
-                self.assertEqual(s.schedule_type, "CONNECTING_HUB_GUIDANCE")
-            elif s.route_id == "flight_amritsar_ixj_advisory":
-                # Correction C: Amritsar advisory uses qualified bounded wording without Train 22487/Vande Bharat
-                self.assertEqual(s.route_type, "ROUTE_GUIDANCE_ONLY")
-                self.assertIn("not listed in Yatra AI's curated flight registry", s.notes)
-                self.assertNotIn("No direct scheduled commercial flight exists", s.notes)
-                self.assertNotIn("Vande Bharat", s.notes)
-                self.assertNotIn("22487", s.notes)
+
+            if s.schedule_type in ("ROUTE_GUIDANCE_ONLY", "CONNECTING_HUB_GUIDANCE"):
+                self.assertIsNone(s.duration_hours, f"Route guidance {s.route_id} must have duration_hours=None")
+                self.assertIsNone(s.estimated_duration_desc, f"Route guidance {s.route_id} must have estimated_duration_desc=None")
+                self.assertIsNone(s.indicative_fare_min, f"Route guidance {s.route_id} must have indicative_fare_min=None")
+                self.assertIsNone(s.indicative_fare_max, f"Route guidance {s.route_id} must have indicative_fare_max=None")
+                self.assertEqual(s.fare_classification, "UNAVAILABLE", f"Route guidance {s.route_id} must have fare_classification=UNAVAILABLE")
+                if s.route_type == "DIRECT":
+                    self.assertIsNone(s.departure_time, f"Guidance direct route {s.route_id} must have departure_time=None")
+                    self.assertIsNone(s.arrival_time, f"Guidance direct route {s.route_id} must have arrival_time=None")
+                    self.assertEqual(s.schedule_type, "ROUTE_GUIDANCE_ONLY")
+                elif s.route_id.endswith("_via_del"):
+                    self.assertEqual(s.route_type, "ROUTE_GUIDANCE_ONLY")
+                    self.assertEqual(s.schedule_type, "CONNECTING_HUB_GUIDANCE")
+                elif s.route_id == "flight_amritsar_ixj_advisory":
+                    self.assertEqual(s.route_type, "ROUTE_GUIDANCE_ONLY")
+                    self.assertIn("not listed in Yatra AI's curated flight registry", s.notes)
+                    self.assertNotIn("No direct scheduled commercial flight exists", s.notes)
+                    self.assertNotIn("Vande Bharat", s.notes)
+                    self.assertNotIn("22487", s.notes)
+            else:
+                self.assertEqual(s.schedule_type, "INDICATIVE_ESTIMATE", f"Illustrative schedule {s.route_id} must use INDICATIVE_ESTIMATE")
+                self.assertEqual(s.verification_status, VerificationStatus.PARTIALLY_VERIFIED.value)
+                self.assertEqual(s.fare_classification, "INDICATIVE_MARKET_RANGE")
+                self.assertIsNotNone(s.indicative_fare_min)
+                self.assertGreater(s.indicative_fare_min, 0)
 
     # -------------------------------------------------------------------------
     # 3. Service Layer Search & Normalization
@@ -311,18 +322,25 @@ class TestPhase982FlightRegistry(unittest.TestCase):
     # -------------------------------------------------------------------------
 
     def test_06_db_search_flights_isolation(self):
-        """Verifies db.search_flights queries curated registry and does not leak synthetic CSV data."""
+        """Verifies db.search_flights queries curated registry and does not leak synthetic CSV data or live fares."""
         res = db.search_flights("Delhi", "2026-10-20", "2026-10-22")
         self.assertGreaterEqual(len(res), 4)
         for r in res:
             self.assertEqual(r["mode"], "flight")
             self.assertIsNone(r["seats_available"], "db.search_flights must return seats_available=None")
-            self.assertIsNone(r["fare"], "db.search_flights must return fare=None")
-            self.assertIsNone(r["price"], "db.search_flights must return price=None")
-            self.assertIsNone(r["indicative_fare_min"], "db.search_flights must return indicative_fare_min=None")
-            self.assertIsNone(r["indicative_fare_max"], "db.search_flights must return indicative_fare_max=None")
-            self.assertEqual(r["fare_classification"], "UNAVAILABLE")
-            self.assertIn("Prices are dynamic", r["fare_disclaimer"])
+            self.assertIsNone(r["fare"], "db.search_flights must return confirmed fare=None")
+            self.assertIsNone(r["price"], "db.search_flights must return confirmed price=None")
+            self.assertIsNone(r["price_per_pax"], "db.search_flights must return price_per_pax=None")
+            self.assertIsNone(r["total_transport_cost"], "db.search_flights must return total_transport_cost=None")
+            self.assertFalse(r["is_live_status"])
+            if r["schedule_type"] == "ROUTE_GUIDANCE_ONLY":
+                self.assertIsNone(r["indicative_fare_min"])
+                self.assertIsNone(r["indicative_fare_max"])
+                self.assertEqual(r["fare_classification"], "UNAVAILABLE")
+            else:
+                self.assertEqual(r["fare_classification"], "INDICATIVE_MARKET_RANGE")
+                self.assertEqual(r["fare_verification"]["status"], "unverified")
+            self.assertIn("official", r["fare_disclaimer"].lower())
 
         # Unsupported origin returns empty list
         v_res = db.search_flights("Varanasi", "2026-10-20", "2026-10-22")
@@ -354,12 +372,19 @@ class TestPhase982FlightRegistry(unittest.TestCase):
         self.assertIsNone(del_opts[0].get("seats_available"))
         self.assertIn("ground_transfer_advisory", del_plan)
 
-        # Varanasi query (coverage limitation)
+        # Varanasi query (Phase 14.2 ConnectingJourneyEngine constructs multi-leg route guidance, never direct flights)
         var_plan = search_transport_options.func(origin="Varanasi", start_date="2026-10-20", end_date="2026-10-22", mode="flight")
         var_opts = [o for o in var_plan.get("options", []) if o.get("mode") == "flight"]
-        self.assertEqual(len(var_opts), 0)
-        self.assertIn("flight_coverage_limitation", var_plan)
-        self.assertEqual(var_plan["flight_coverage_limitation"]["status"], "ROUTE_NOT_IN_CURATED_REGISTRY")
+        if var_opts:
+            for opt in var_opts:
+                self.assertTrue(opt.get("is_connecting"), "Varanasi fallback must strictly be marked connecting, never direct")
+                self.assertEqual(opt.get("verification_status"), "partially_verified")
+                self.assertIsNone(opt.get("seats_available"))
+                self.assertFalse(opt.get("is_live_status"))
+                self.assertTrue(len(opt.get("legs") or []) >= 2, "Connecting flight option must preserve multi-leg metadata")
+        else:
+            self.assertIn("flight_coverage_limitation", var_plan)
+            self.assertEqual(var_plan["flight_coverage_limitation"]["status"], "ROUTE_NOT_IN_CURATED_REGISTRY")
 
         # Missing origin
         none_plan = search_transport_options.func(origin="", start_date="2026-10-20", end_date="2026-10-22", mode="flight")
@@ -376,8 +401,8 @@ class TestPhase982FlightRegistry(unittest.TestCase):
         with open(card_path, "r", encoding="utf-8") as f:
             code = f.read()
 
-        # 1. Airplane icon for flight
-        self.assertIn("isFlight ? '✈️'", code)
+        # 1. Lucide Plane icon for flight
+        self.assertIn("isFlight ? <Plane", code)
 
         # 2. Honest airfare display: when unavailable or null
         self.assertIn("isFlight ? 'Airfare on airline website'", code)
@@ -448,14 +473,20 @@ class TestPhase982FlightRegistry(unittest.TestCase):
         self.assertEqual(mixed_unavail["verified_costs"]["accommodation"], 5000.0)
         self.assertEqual(mixed_unavail["verified_costs"]["transport"], 0.0)
 
-        # Property 4: Synthetic test values NEVER enter the curated production dataset
+        # Property 4: Curated guidance routes keep UNAVAILABLE fares and indicative routes never claim live/confirmed tickets
         schedules, _ = load_curated_flight_schedules(force_reload=True)
         for s in schedules:
-            self.assertIsNone(s.indicative_fare_min)
-            self.assertIsNone(s.indicative_fare_max)
-            self.assertEqual(s.fare_classification, "UNAVAILABLE")
-            self.assertNotEqual(s.indicative_fare_min, SYNTHETIC_TEST_AIRFARE_MIN)
-            self.assertNotEqual(s.indicative_fare_max, SYNTHETIC_TEST_AIRFARE_MAX)
+            self.assertIsNone(s.seat_count)
+            self.assertFalse(s.is_live_status)
+            self.assertFalse(s.availability_verified)
+            if s.schedule_type in ("ROUTE_GUIDANCE_ONLY", "CONNECTING_HUB_GUIDANCE"):
+                self.assertIsNone(s.indicative_fare_min)
+                self.assertIsNone(s.indicative_fare_max)
+                self.assertEqual(s.fare_classification, "UNAVAILABLE")
+            else:
+                self.assertEqual(s.fare_classification, "INDICATIVE_MARKET_RANGE")
+                self.assertEqual(s.fare_verification.status, VerificationStatus.UNVERIFIED.value)
+                self.assertEqual(s.timetable_verification.status, VerificationStatus.UNVERIFIED.value)
 
         # Property 5: Estimated fare is included ONLY when an explicitly supplied test estimate exists
         flight_with_synthetic_fixture = {

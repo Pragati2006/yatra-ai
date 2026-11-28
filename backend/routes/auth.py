@@ -158,6 +158,8 @@ class VerifyOTPRequest(BaseModel):
 class SaveItineraryRequest(BaseModel):
     title: str = Field(default="My Vaishno Devi Yatra", description="Title of saved itinerary")
     itinerary: Any = Field(..., description="Itinerary data payload")
+    itinerary_id: Optional[str] = Field(default=None, description="Optional existing itinerary ID to update")
+    source_key: Optional[str] = Field(default=None, description="Optional deduplication key")
 
 
 class SaveConversationRequest(BaseModel):
@@ -393,6 +395,8 @@ def save_itinerary_endpoint(payload: SaveItineraryRequest, request: Request):
         user_id=user["user_id"],
         title=payload.title,
         itinerary_data=payload.itinerary,
+        itinerary_id=payload.itinerary_id,
+        source_key=payload.source_key,
     )
     return {
         "status": "success",

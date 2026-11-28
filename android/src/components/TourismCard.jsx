@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal } from 'react-native';
 import { colors } from '../theme/colors';
-import { MountainIcon, CloseIcon } from './Icons';
-import { VERIFIED_DESTINATION_GALLERIES } from '../utils/destinationImages';
+import { CloseIcon } from './Icons';
+import {
+  VERIFIED_DESTINATION_GALLERIES,
+  getCandidateImageUrls,
+  buildAndroidImageSource,
+  markImageUriFailed,
+} from '../utils/destinationImages';
 
 export default function TourismCard({ place, spot, onAskAssistant }) {
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [candidateIdx, setCandidateIdx] = useState(0);
   const target = place || spot || {};
 
   const name = target.name || 'Holy Pilgrimage Site';
@@ -33,24 +39,30 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
       ? target.image_gallery
       : localEntry?.images || [];
 
-  const rawUrl =
-    target.image_url ||
-    (target.image && target.image.startsWith('http') ? target.image : null) ||
-    gallery[0]?.thumbnail_url ||
-    gallery[0]?.image_url ||
-    null;
+  const candidateUrls = useMemo(
+    () => getCandidateImageUrls(target, gallery),
+    [name, target.image_url, target.thumbnail_url, target.image, gallery]
+  );
 
-  // Safely encode URI if needed
+  useEffect(() => {
+    setCandidateIdx(0);
+    setImageError(candidateUrls.length === 0);
+  }, [name, candidateUrls.length]);
+
+  const rawCandidate = candidateUrls[candidateIdx] || null;
   let imageUrl = null;
-  if (rawUrl) {
+  if (rawCandidate) {
     try {
-      imageUrl = encodeURI(decodeURI(rawUrl));
+      imageUrl = encodeURI(decodeURI(rawCandidate));
     } catch {
-      imageUrl = rawUrl;
+      imageUrl = rawCandidate;
     }
   }
+  const imageSourceMeta = imageUrl ? buildAndroidImageSource(imageUrl) : null;
 
-  const photoMeta = gallery[0] || null;
+  const photoMeta = gallery[0] || (imageUrl ? { title: name, image_url: imageUrl, thumbnail_url: imageUrl } : null);
+  const lightboxUrl = imageUrl || photoMeta?.thumbnail_url || photoMeta?.image_url || null;
+  const lightboxSource = lightboxUrl ? buildAndroidImageSource(lightboxUrl) : null;
   const timings = isReligious
     ? (target.darshan_timings || target.timings || null)
     : (target.visiting_hours || (target.visiting_hours_verified ? target.timings : 'Daytime access (weather permitting)'));
@@ -73,13 +85,18 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
           accessibilityLabel={`View full photo for ${name}`}
         >
           <Image
-            source={{ uri: imageUrl }}
+            source={imageSourceMeta?.headers ? { uri: imageUrl, headers: imageSourceMeta.headers } : { uri: imageUrl }}
             style={styles.cardImage}
             onLoadStart={() => setImageLoading(true)}
             onLoadEnd={() => setImageLoading(false)}
             onError={() => {
               setImageLoading(false);
-              setImageError(true);
+              if (imageUrl) markImageUriFailed(imageUrl);
+              if (candidateIdx < candidateUrls.length - 1) {
+                setCandidateIdx((prev) => prev + 1);
+              } else {
+                setImageError(true);
+              }
             }}
             resizeMode="cover"
           />
@@ -94,17 +111,10 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
             </View>
           )}
         </TouchableOpacity>
-      ) : (
-        <View style={styles.fallbackNoticeBox}>
-          <MountainIcon size={18} color={colors.goldDark} />
-          <Text style={styles.fallbackNoticeText}>
-            {target.image_notice || `Verified photograph in archival curation for ${name}`}
-          </Text>
-        </View>
-      )}
+      ) : null}
 
       {/* Lightbox Modal */}
-      {lightboxOpen && photoMeta && (
+      {lightboxOpen && photoMeta && !imageError && lightboxUrl && (
         <Modal
           visible={lightboxOpen}
           transparent
@@ -127,9 +137,10 @@ export default function TourismCard({ place, spot, onAskAssistant }) {
               </View>
 
               <Image
-                source={{ uri: photoMeta.thumbnail_url || photoMeta.image_url || imageUrl }}
+                source={lightboxSource || { uri: lightboxUrl }}
                 style={styles.lightboxFullImage}
                 resizeMode="contain"
+                onError={() => setLightboxOpen(false)}
               />
 
               <View style={styles.lightboxMetaRow}>
@@ -365,24 +376,6 @@ const styles = StyleSheet.create({
     color: '#F4E5BE',
     fontSize: 10.5,
     fontWeight: '700',
-  },
-  fallbackNoticeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.goldSubtle,
-    borderWidth: 1,
-    borderColor: colors.goldBorder,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  fallbackNoticeText: {
-    flex: 1,
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
   },
   lightboxBackdrop: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sparkles,
   Users,
@@ -15,8 +15,10 @@ import {
   Clock,
   CheckCircle2,
   Info,
+  BookmarkCheck,
 } from 'lucide-react';
 import { InlineMarkdown } from '../MarkdownContent';
+import { upsertItinerary, getAuthToken } from '../../../services/api';
 
 /**
  * Minimal, high-impact Personalized Plan Card for AI Chat stream.
@@ -37,7 +39,9 @@ export default function PersonalizedPlanCard({
   onNavigateToBooking,
   onSwitchToForm,
   onExplorePlace,
+  onRequestSaveAuth = null,
 }) {
+  const [saveState, setSaveState] = useState('idle');
   if (!recommendation) return null;
 
   const prof = recommendation.profile || {};
@@ -414,6 +418,64 @@ export default function PersonalizedPlanCard({
         >
           <Train size={14} />
           <span>Proceed with Booking</span>
+        </button>
+
+        <button
+          type="button"
+          data-testid="save-personalized-plan-btn"
+          disabled={saveState === 'saving'}
+          onClick={async () => {
+            const sid = chatState?.session_id || message?.session_id || 'plan';
+            const rawDays = message?.itinerary?.days || message?.itinerary || recommendation?.itinerary?.days || [];
+            const savePayload = {
+              title: `${destination} (${duration} Days)`,
+              sourceKey: `plan-${sid}-${duration}-${startDate || 'flex'}`,
+              itinerary: {
+                title: `${destination} (${duration} Days)`,
+                destination,
+                start_date: startDate || undefined,
+                end_date: endDate || undefined,
+                duration_days: duration,
+                travellers_count: pax,
+                request: chatState?.current_request || message?.request || undefined,
+                days: Array.isArray(rawDays) && rawDays.length > 0 ? rawDays : dayHighlights.map((dh) => ({ day_number: dh.dayNum, title: dh.title, activities: [dh.title] })),
+              },
+            };
+            if (!getAuthToken()) {
+              onRequestSaveAuth?.(savePayload);
+              return;
+            }
+            setSaveState('saving');
+            try {
+              await upsertItinerary(savePayload);
+              setSaveState('saved');
+            } catch (err) {
+              setSaveState('idle');
+              if (err?.response?.status === 401) {
+                onRequestSaveAuth?.(savePayload);
+              }
+            }
+          }}
+          className="btn btn-secondary"
+          style={{
+            flex: '0 1 auto',
+            minHeight: '40px',
+            padding: '0.55rem 0.9rem',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            background: saveState === 'saved' ? '#D1FAE5' : 'var(--surface-white, #FFFCF9)',
+            color: saveState === 'saved' ? '#065F46' : 'var(--royal-plum, #54152D)',
+            border: '1px solid var(--border-default, #E9DED6)',
+            borderRadius: '10px',
+            cursor: 'pointer',
+          }}
+        >
+          <BookmarkCheck size={14} />
+          <span>{saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving...' : 'Save Itinerary'}</span>
         </button>
       </div>
 

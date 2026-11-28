@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { colors } from '../theme/colors';
 import {
   MountainIcon,
@@ -8,7 +8,9 @@ import {
   TicketIcon,
   ArrowRightIcon,
   ClockIcon,
+  CheckIcon,
 } from './Icons';
+import { upsertItinerary } from '../services/api';
 
 /**
  * android/src/components/ItineraryPreviewCard.jsx
@@ -32,6 +34,7 @@ function ItineraryPreviewCard({
   onViewFullItinerary,
   onProceedBooking,
 }) {
+  const [savedFlag, setSavedFlag] = useState(false);
   const prof = recommendation?.profile || {};
   const destination =
     recommendation?.destination ||
@@ -226,6 +229,43 @@ function ItineraryPreviewCard({
         >
           <TicketIcon size={15} color={colors.royalPlum} strokeWidth={2.2} />
           <Text style={styles.secondaryBtnText}>Proceed with Booking</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.secondaryBtn, savedFlag && { backgroundColor: '#D1FAE5', borderColor: '#34D399' }]}
+          onPress={async () => {
+            try {
+              const title = `${destination} (${duration} Days)`;
+              const daysPayload =
+                Array.isArray(itinDays) && itinDays.length > 0
+                  ? itinDays
+                  : dayHighlights.map((dh) => ({ day_number: dh.dayNum, title: dh.title, activities: [dh.title] }));
+              await upsertItinerary({
+                title,
+                sourceKey: `android-card-${destination}-${duration}-${startDate || 'flex'}`,
+                itinerary: {
+                  title,
+                  destination,
+                  start_date: startDate || undefined,
+                  end_date: endDate || undefined,
+                  duration_days: duration,
+                  travellers_count: pax,
+                  request,
+                  days: daysPayload,
+                },
+              });
+              setSavedFlag(true);
+            } catch (err) {
+              Alert.alert('Sign In Required', 'Please sign in via Email OTP to save this itinerary to your account.');
+            }
+          }}
+          activeOpacity={0.8}
+          accessibilityLabel="Save to My Itineraries"
+        >
+          <CheckIcon size={15} color={savedFlag ? '#065F46' : colors.royalPlum} strokeWidth={2.2} />
+          <Text style={[styles.secondaryBtnText, savedFlag && { color: '#065F46' }]}>
+            {savedFlag ? 'Saved to Itineraries' : 'Save Itinerary'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  Share,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { colors } from '../theme/colors';
 import Header from '../components/Header';
 import {
@@ -19,12 +26,29 @@ import {
   CheckIcon,
   AlertCircleIcon,
   UserIcon,
+  EditIcon,
+  ShareIcon,
+  UndoIcon,
+  TrashIcon,
+  CopyIcon,
 } from '../components/Icons';
 import {
   REALISTIC_TRANSPORTS,
   ASCENT_MODES,
   ACCOMMODATION_CATALOGUE,
 } from './BookingScreen';
+import {
+  upsertItinerary,
+  getItineraryDetail,
+  previewItineraryEdit,
+  applyItineraryEdit,
+  undoItineraryEdit,
+  createItineraryInvite,
+  listItineraryShares,
+  updateItineraryMemberRole,
+  revokeItineraryMember,
+  revokeItineraryInvite,
+} from '../services/api';
 
 /**
  * android/src/screens/ItineraryScreen.jsx
@@ -41,21 +65,41 @@ import {
  * 7. Complete data preservation across back-and-forth navigation
  */
 export default function ItineraryScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const params = route?.params || {};
   const req = params.request || params.recommendation?.profile || {};
 
+  // Collaborative saved itinerary state (Phase 8.8.58)
+  const [savedRecord, setSavedRecord] = useState(params.savedItinerary || null);
+  const recData = savedRecord?.data || {};
+
   const destination =
+    savedRecord?.destination ||
+    recData.destination ||
     params.destination ||
     req.destination ||
     'Shri Mata Vaishno Devi Shrine';
-  const duration = parseInt(params.duration || req.duration_days || 4, 10);
+  const duration = parseInt(
+    savedRecord?.duration_days ||
+      recData.duration_days ||
+      (Array.isArray(recData.days) && recData.days.length) ||
+      params.duration ||
+      req.duration_days ||
+      4,
+    10
+  );
   const nights = Math.max(1, duration - 1);
-  const pax = parseInt(params.pax || req.pax || 2, 10);
-  const origin = params.origin || req.origin || 'New Delhi';
-  const initialStartDate = params.startDate || req.start_date || '2026-11-25';
+  const pax = parseInt(
+    savedRecord?.travellers_count || recData.travellers_count || params.pax || req.pax || 2,
+    10
+  );
+  const origin = recData.request?.origin || params.origin || req.origin || 'New Delhi';
+  const initialStartDate =
+    savedRecord?.start_date || recData.start_date || params.startDate || req.start_date || '2026-11-25';
 
   // Editable trip states
   const [startDate, setStartDate] = useState(initialStartDate);
+  const lastSyncedRevRef = useRef(savedRecord ? `${savedRecord.itinerary_id}:${savedRecord.revision}` : null);
   const [selectedTransport, setSelectedTransport] = useState(() => {
     if (params.selected_option?.transport_id) {
       const match = REALISTIC_TRANSPORTS.find((t) => t.id === params.selected_option.transport_id);
@@ -76,9 +120,168 @@ export default function ItineraryScreen({ route, navigation }) {
   const [showTransportPicker, setShowTransportPicker] = useState(false);
   const [showHotelPicker, setShowHotelPicker] = useState(false);
 
+  const [editMode, setEditMode] = useState(Boolean(params.initialEditMode));
+  const [selectedDayNum, setSelectedDayNum] = useState(1);
+  const [editOp, setEditOp] = useState('regenerate_day');
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [editPlace, setEditPlace] = useState('Baba Dhansar');
+  const [editTime, setEditTime] = useState('02:30 PM');
+  const [editDurStr, setEditDurStr] = useState('2 hrs');
+  const [notesInput, setNotesInput] = useState('');
+  const [durDaysInput, setDurDaysInput] = useState(String(duration));
+
+  // Sync displayed fields cleanly when savedRecord loads or updates revision
+  useEffect(() => {
+    if (!savedRecord) return;
+    const revKey = `${savedRecord.itinerary_id}:${savedRecord.revision}`;
+    if (lastSyncedRevRef.current === revKey) return;
+    lastSyncedRevRef.current = revKey;
+    const syncedStart =
+      savedRecord.start_date || savedRecord.data?.start_date || savedRecord.data?.request?.start_date;
+    if (syncedStart) setStartDate(syncedStart);
+    const syncedDur =
+      savedRecord.duration_days || savedRecord.data?.duration_days || savedRecord.data?.days?.length;
+    if (syncedDur) setDurDaysInput(String(syncedDur));
+  }, [savedRecord]);
+  const [previewState, setPreviewState] = useState(null);
+  const [pendingPayload, setPendingPayload] = useState(null);
+  const [confirmImpact, setConfirmImpact] = useState(false);
+
+  // Sharing modal state
+  const [shareVisible, setShareVisible] = useState(Boolean(params.initialShareModal));
+  const [shareInfo, setShareInfo] = useState({ members: [], invites: [] });
+  const [shareRole, setShareRole] = useState('VIEWER');
+  const [latestInvite, setLatestInvite] = useState(null);
+
+  useEffect(() => {
+    const id = params.itineraryId || params.savedItinerary?.itinerary_id;
+    if (id && !params.savedItinerary) {
+      getItineraryDetail(id)
+        .then((res) => {
+          if (res?.itinerary) setSavedRecord(res.itinerary);
+        })
+        .catch(() => {});
+    }
+  }, [params.itineraryId, params.savedItinerary]);
+
   // Day-wise Schedule data
-  const rawItin = params.itinerary || params.recommendation?.itinerary || params.plan?.itinerary || null;
-  const itinDays = rawItin?.days || (Array.isArray(rawItin) ? rawItin : []);
+  const activeItinSource = savedRecord?.data || params.itinerary || params.recommendation?.itinerary || params.plan?.itinerary || null;
+  const rawItin = activeItinSource;
+  const itinDays = activeItinSource?.days || (Array.isArray(activeItinSource) ? activeItinSource : []);
+  const myRole = savedRecord?.my_role || 'OWNER';
+  const canEdit = savedRecord ? savedRecord.can_edit : true;
+  const isOwner = savedRecord ? savedRecord.is_owner : true;
+
+  const handleSaveToAccount = async () => {
+    try {
+      const daysPayload =
+        itinDays && itinDays.length > 0
+          ? itinDays
+          : [
+              { day_number: 1, title: 'Arrival at Katra Base Camp', activities: ['Hotel check-in & RFID card collection'] },
+              { day_number: 2, title: 'Sacred Trek & Mata Vaishno Devi Darshan', activities: ['Trek via Ardhkuwari to Bhawan & Bhairavnath Temple'] },
+            ];
+      const res = await upsertItinerary({
+        title: `${destination} (${duration} Days)`,
+        itineraryId: savedRecord?.itinerary_id || null,
+        sourceKey: params.sessionId ? `android-itin-${params.sessionId}` : null,
+        itinerary: {
+          title: `${destination} (${duration} Days)`,
+          destination,
+          start_date: startDate,
+          duration_days: duration,
+          travellers_count: pax,
+          request: req,
+          days: daysPayload,
+        },
+      });
+      if (res?.itinerary) {
+        setSavedRecord(res.itinerary);
+        Alert.alert('Itinerary Saved', 'Saved to My Itineraries cleanly without duplicates.');
+      }
+    } catch (err) {
+      Alert.alert('Sign In Required', err?.message || 'Sign in via Email OTP to save, edit, or share this itinerary.');
+    }
+  };
+
+  const triggerEditPreview = async (explicitPayload = null) => {
+    if (!savedRecord?.itinerary_id) {
+      Alert.alert('Save First', 'Please tap "Save to Itineraries" before applying partial edits.');
+      return;
+    }
+    const payload =
+      explicitPayload ||
+      (editOp === 'regenerate_day'
+        ? { operation: 'regenerate_day', day_number: selectedDayNum, instruction: aiInstruction.trim() || undefined }
+        : editOp === 'add_destination'
+        ? { operation: 'add_destination', day_number: selectedDayNum, place: editPlace.trim(), time: editTime.trim(), duration: editDurStr.trim() }
+        : editOp === 'update_preferences'
+        ? { operation: 'update_preferences', day_number: selectedDayNum, preferences: { pace: 'relaxed' } }
+        : editOp === 'update_notes'
+        ? { operation: 'update_notes', day_number: selectedDayNum, notes: notesInput.trim() }
+        : { operation: 'adjust_duration', duration_days: parseInt(durDaysInput, 10) || duration });
+    try {
+      setConfirmImpact(false);
+      const res = await previewItineraryEdit(savedRecord.itinerary_id, payload);
+      setPreviewState(res.preview);
+      setPendingPayload(payload);
+    } catch (err) {
+      Alert.alert('Preview Error', err?.message || 'Unable to compute preview.');
+    }
+  };
+
+  const handleApplyPreview = async () => {
+    if (!savedRecord?.itinerary_id || !pendingPayload) return;
+    try {
+      const res = await applyItineraryEdit(savedRecord.itinerary_id, {
+        ...pendingPayload,
+        expected_revision: previewState?.expected_revision ?? savedRecord.revision,
+        confirm_impact: Boolean(confirmImpact || !previewState?.requires_confirmation),
+      });
+      if (res?.itinerary) setSavedRecord(res.itinerary);
+      setPreviewState(null);
+      setPendingPayload(null);
+    } catch (err) {
+      Alert.alert('Update Conflict or Error', err?.message || 'Could not apply changes. Please refresh.');
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!savedRecord?.itinerary_id) return;
+    try {
+      const res = await undoItineraryEdit(savedRecord.itinerary_id, savedRecord.revision);
+      if (res?.itinerary) setSavedRecord(res.itinerary);
+    } catch (err) {
+      Alert.alert('Undo Failed', err?.message || 'No earlier edits to revert.');
+    }
+  };
+
+  const openShares = async () => {
+    if (!savedRecord?.itinerary_id) {
+      Alert.alert('Save First', 'Save this itinerary before sharing with travel companions.');
+      return;
+    }
+    setShareVisible(true);
+    try {
+      const res = await listItineraryShares(savedRecord.itinerary_id);
+      setShareInfo({ members: res.members || [], invites: res.invites || [] });
+    } catch (err) {
+      setShareVisible(false);
+      Alert.alert('Access Restricted', err?.message || 'Only the owner can manage sharing.');
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!savedRecord?.itinerary_id) return;
+    try {
+      const res = await createItineraryInvite(savedRecord.itinerary_id, { role: shareRole, expiresInHours: 72 });
+      setLatestInvite(res.share);
+      const updated = await listItineraryShares(savedRecord.itinerary_id);
+      setShareInfo({ members: updated.members || [], invites: updated.invites || [] });
+    } catch (err) {
+      Alert.alert('Invite Error', err?.message || 'Could not generate invite.');
+    }
+  };
 
   // Sightseeing places
   const feasiblePlaces = params.feasible_places || params.recommendation?.suggested_places || [
@@ -135,7 +338,7 @@ export default function ItineraryScreen({ route, navigation }) {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Trip Overview Card */}
@@ -165,7 +368,110 @@ export default function ItineraryScreen({ route, navigation }) {
               <Text style={styles.metaChipText}>Start: {startDate}</Text>
             </View>
           </View>
+
+          {/* Save / Partial Edit / Undo / Share Bar */}
+          <View style={styles.collabToolbar}>
+            {!savedRecord ? (
+              <TouchableOpacity style={styles.collabPrimaryPill} onPress={handleSaveToAccount}>
+                <CheckIcon size={13} color="#FFFFFF" />
+                <Text style={styles.collabPrimaryText}>Save to Itineraries</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <View style={styles.roleBadgePill}>
+                  <Text style={styles.roleBadgeText}>{myRole} · v{savedRecord.revision || 1}</Text>
+                </View>
+                {canEdit && (
+                  <TouchableOpacity style={styles.collabActionPill} onPress={() => setEditMode((v) => !v)}>
+                    <EditIcon size={13} color={colors.royalPlum} />
+                    <Text style={styles.collabActionText}>{editMode ? 'Close Editor' : 'Smart Edit'}</Text>
+                  </TouchableOpacity>
+                )}
+                {canEdit && savedRecord.can_undo && (
+                  <TouchableOpacity style={styles.collabActionPill} onPress={handleUndo}>
+                    <UndoIcon size={13} color={colors.royalPlum} />
+                    <Text style={styles.collabActionText}>Undo</Text>
+                  </TouchableOpacity>
+                )}
+                {isOwner && (
+                  <TouchableOpacity style={styles.collabActionPill} onPress={openShares}>
+                    <ShareIcon size={13} color={colors.royalPlum} />
+                    <Text style={styles.collabActionText}>Share</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
         </View>
+
+        {/* Smart Partial Editor Card (OWNER / EDITOR only) */}
+        {savedRecord && canEdit && editMode && (
+          <View style={styles.editorCard}>
+            <Text style={styles.editorHeading}>Smart Partial Editor (Selected Day Only)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {(itinDays || []).map((d, i) => {
+                  const dn = d.day_number || i + 1;
+                  return (
+                    <TouchableOpacity
+                      key={`sel-day-${dn}`}
+                      style={[styles.daySelectPill, selectedDayNum === dn && styles.daySelectPillActive]}
+                      onPress={() => setSelectedDayNum(dn)}
+                    >
+                      <Text style={[styles.daySelectText, selectedDayNum === dn && { color: '#FFFFFF' }]}>Day {dn}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {[
+                { key: 'regenerate_day', label: 'Regenerate Day' },
+                { key: 'add_destination', label: 'Add Place' },
+                { key: 'update_preferences', label: 'Relaxed Pace' },
+                { key: 'update_notes', label: 'Day Note' },
+                { key: 'adjust_duration', label: 'Trip Days' },
+              ].map((op) => (
+                <TouchableOpacity
+                  key={op.key}
+                  style={[styles.opPill, editOp === op.key && styles.opPillActive]}
+                  onPress={() => setEditOp(op.key)}
+                >
+                  <Text style={[styles.opPillText, editOp === op.key && { color: '#FFFFFF' }]}>{op.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {editOp === 'regenerate_day' && (
+              <TextInput
+                style={styles.editorInput}
+                value={aiInstruction}
+                onChangeText={setAiInstruction}
+                placeholder={`Describe change for Day ${selectedDayNum} only...`}
+              />
+            )}
+            {editOp === 'add_destination' && (
+              <>
+                <TextInput style={styles.editorInput} value={editPlace} onChangeText={setEditPlace} placeholder="Place name (e.g. Baba Dhansar)" />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput style={[styles.editorInput, { flex: 1 }]} value={editTime} onChangeText={setEditTime} placeholder="Time" />
+                  <TextInput style={[styles.editorInput, { flex: 1 }]} value={editDurStr} onChangeText={setEditDurStr} placeholder="Duration" />
+                </View>
+              </>
+            )}
+            {editOp === 'update_notes' && (
+              <TextInput style={styles.editorInput} value={notesInput} onChangeText={setNotesInput} placeholder="Enter notes for this day..." />
+            )}
+            {editOp === 'adjust_duration' && (
+              <TextInput style={styles.editorInput} value={durDaysInput} onChangeText={setDurDaysInput} keyboardType="numeric" placeholder="Total trip days (1-90)" />
+            )}
+
+            <TouchableOpacity style={styles.previewEditBtn} onPress={() => triggerEditPreview()}>
+              <Text style={styles.previewEditBtnText}>Preview Before &amp; After</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 2. Day-by-Day Schedule Timeline */}
         <View style={styles.sectionCard}>
@@ -446,6 +752,166 @@ export default function ItineraryScreen({ route, navigation }) {
           <Text style={styles.bookingProceedText}>Proceed with Booking</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Before & After Preview Modal */}
+      <Modal visible={Boolean(previewState)} transparent animationType="slide" onRequestClose={() => setPreviewState(null)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[styles.modalBackdrop, { paddingBottom: Math.max(16, insets.bottom + 12) }]}
+        >
+          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+            <Text style={styles.modalTitle}>Review Changes (Before &amp; After)</Text>
+            <ScrollView style={{ maxHeight: 340 }}>
+              {(previewState?.diff_summary || []).map((line, i) => (
+                <Text key={`diff-${i}`} style={styles.diffBullet}>• {line}</Text>
+              ))}
+              {previewState?.impact_warning && (
+                <View style={styles.impactWarnBox}>
+                  <Text style={styles.impactWarnText}>{previewState.impact_warning}</Text>
+                  <TouchableOpacity
+                    style={styles.confirmRow}
+                    onPress={() => setConfirmImpact((c) => !c)}
+                  >
+                    <Text style={styles.confirmCheckText}>{confirmImpact ? '[✓] ' : '[ ] '}Confirm removing impacted day(s)</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {(previewState?.after?.days || [])
+                .filter((d) => !(previewState?.affected_days || []).length || previewState.affected_days.includes(d.day_number))
+                .map((d) => (
+                  <View key={`after-${d.day_number}`} style={styles.afterPreviewBox}>
+                    <Text style={{ fontWeight: '800', color: colors.royalPlum }}>Updated Day {d.day_number}: {d.title}</Text>
+                    {(d.activities || []).map((a, idx) => (
+                      <Text key={`a-${idx}`} style={{ fontSize: 12, marginTop: 2 }}>
+                        • {typeof a === 'string' ? a : `${a.time ? a.time + ' · ' : ''}${a.activity}`}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setPreviewState(null)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.applyBtn, previewState?.requires_confirmation && !confirmImpact && { opacity: 0.5 }]}
+                disabled={Boolean(previewState?.requires_confirmation && !confirmImpact)}
+                onPress={handleApplyPreview}
+              >
+                <Text style={styles.applyBtnText}>Apply Changes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Group Collaboration & Sharing Modal (OWNER only) */}
+      <Modal visible={shareVisible} transparent animationType="slide" onRequestClose={() => setShareVisible(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[styles.modalBackdrop, { paddingBottom: Math.max(16, insets.bottom + 12) }]}
+        >
+          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+            <Text style={styles.modalTitle}>Group Sharing &amp; Access</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+              {['VIEWER', 'EDITOR'].map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.opPill, shareRole === r && styles.opPillActive]}
+                  onPress={() => setShareRole(r)}
+                >
+                  <Text style={[styles.opPillText, shareRole === r && { color: '#FFFFFF' }]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.applyBtn} onPress={handleCreateInvite}>
+                <Text style={styles.applyBtnText}>Create Invite</Text>
+              </TouchableOpacity>
+            </View>
+
+            {latestInvite && (
+              <View style={styles.inviteTokenBox}>
+                <Text style={{ fontWeight: '700', color: '#065F46', fontSize: 12 }}>
+                  Token ({latestInvite.role}): {latestInvite.invite_token}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={styles.opPill}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(latestInvite.invite_url || latestInvite.invite_token);
+                      Alert.alert('Copied', 'Invite link copied to clipboard.');
+                    }}
+                  >
+                    <CopyIcon size={12} color={colors.royalPlum} />
+                    <Text style={styles.opPillText}>Copy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.opPill}
+                    onPress={() => Share.share({ message: `Join my Vaishno Devi Yatra itinerary: ${latestInvite.invite_url || latestInvite.invite_token}` })}
+                  >
+                    <ShareIcon size={12} color={colors.royalPlum} />
+                    <Text style={styles.opPillText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <ScrollView style={{ maxHeight: 210 }}>
+              <Text style={styles.sectionSubLabel}>Members ({shareInfo.members.length})</Text>
+              {shareInfo.members.map((m) => (
+                <View key={m.user_id} style={styles.memberRow}>
+                  <Text style={{ fontSize: 12.5, flex: 1 }}>{m.masked_email} ({m.role})</Text>
+                  {m.role !== 'OWNER' && (
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        style={styles.opPill}
+                        onPress={async () => {
+                          await updateItineraryMemberRole(savedRecord.itinerary_id, m.user_id, m.role === 'VIEWER' ? 'EDITOR' : 'VIEWER');
+                          openShares();
+                        }}
+                      >
+                        <Text style={styles.opPillText}>{m.role === 'VIEWER' ? 'Make Editor' : 'Make Viewer'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.opPill, { backgroundColor: '#FEE2E2' }]}
+                        onPress={async () => {
+                          await revokeItineraryMember(savedRecord.itinerary_id, m.user_id);
+                          openShares();
+                        }}
+                      >
+                        <TrashIcon size={12} color="#991B1B" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))}
+
+              <Text style={[styles.sectionSubLabel, { marginTop: 8 }]}>Invites ({shareInfo.invites.length})</Text>
+              {shareInfo.invites.map((inv) => (
+                <View key={inv.invite_id} style={styles.memberRow}>
+                  <Text style={{ fontSize: 12, flex: 1 }}>{inv.role} · {inv.status}</Text>
+                  {inv.status === 'ACTIVE' && (
+                    <TouchableOpacity
+                      style={[styles.opPill, { backgroundColor: '#FEE2E2' }]}
+                      onPress={async () => {
+                        await revokeItineraryInvite(savedRecord.itinerary_id, inv.invite_id);
+                        openShares();
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, color: '#991B1B', fontWeight: '700' }}>Revoke</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShareVisible(false)}>
+                <Text style={styles.cancelBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -807,4 +1273,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
+  collabToolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  collabPrimaryPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#54152D', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  collabPrimaryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  roleBadgePill: { backgroundColor: '#54152D', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  roleBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  collabActionPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F2EAE4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: '#E9DED6' },
+  collabActionText: { color: '#54152D', fontSize: 11.5, fontWeight: '700' },
+  editorCard: { backgroundColor: '#FAF5F0', borderWidth: 1.2, borderColor: '#D9C3B4', borderRadius: 14, padding: 12, marginBottom: 14 },
+  editorHeading: { fontSize: 13.5, fontWeight: '800', color: '#54152D', marginBottom: 8 },
+  daySelectPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9DED6' },
+  daySelectPillActive: { backgroundColor: '#54152D', borderColor: '#54152D' },
+  daySelectText: { fontSize: 11.5, fontWeight: '700', color: '#54152D' },
+  opPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9DED6' },
+  opPillActive: { backgroundColor: '#54152D', borderColor: '#54152D' },
+  opPillText: { fontSize: 11.5, fontWeight: '700', color: '#54152D' },
+  editorInput: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9DED6', borderRadius: 10, padding: 9, marginBottom: 8, fontSize: 13 },
+  previewEditBtn: { backgroundColor: '#54152D', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  previewEditBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(42, 10, 24, 0.5)', justifyContent: 'center', padding: 16 },
+  modalCard: { backgroundColor: '#FFFCF9', borderRadius: 16, padding: 16 },
+  modalTitle: { fontSize: 16.5, fontWeight: '800', color: '#54152D', marginBottom: 10 },
+  diffBullet: { fontSize: 12.5, color: '#30272A', marginBottom: 4 },
+  impactWarnBox: { backgroundColor: '#FEF3C7', padding: 10, borderRadius: 10, marginVertical: 6 },
+  impactWarnText: { fontSize: 12, color: '#92400E', fontWeight: '700', marginBottom: 4 },
+  confirmRow: { paddingVertical: 4 },
+  confirmCheckText: { fontSize: 12, fontWeight: '800', color: '#92400E' },
+  afterPreviewBox: { backgroundColor: '#F2EAE4', padding: 10, borderRadius: 10, marginTop: 6 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+  cancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#E9DED6' },
+  cancelBtnText: { fontWeight: '700', color: '#30272A' },
+  applyBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, backgroundColor: '#54152D' },
+  applyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12.5 },
+  inviteTokenBox: { backgroundColor: '#D1FAE5', padding: 10, borderRadius: 10, marginBottom: 10 },
+  sectionSubLabel: { fontSize: 11.5, fontWeight: '800', color: '#54152D', marginBottom: 4 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#EFE5DD' },
 });

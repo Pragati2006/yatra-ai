@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronUp, ChevronDown, CalendarDays, ArrowRight, Sparkles, MapPin, Users, Coins } from 'lucide-react';
+import { Calendar, ChevronUp, ChevronDown, CalendarDays, ArrowRight, Sparkles, MapPin, Users, Coins, BookmarkCheck } from 'lucide-react';
 import { InlineMarkdown } from '../MarkdownContent';
+import { upsertItinerary, getAuthToken } from '../../../services/api';
 
 /**
  * Visual Day-by-Day Itinerary Card inside the AI Chat Stream.
@@ -18,8 +19,10 @@ export default function ItineraryCard({
   chatState = null,
   onNavigateToBooking = null,
   onSwitchToForm = null,
+  onRequestSaveAuth = null,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
 
   if (!itinerary) return null;
 
@@ -269,6 +272,59 @@ export default function ItineraryCard({
           <CalendarDays size={15} />
           <span>View Full Itinerary</span>
           <ArrowRight size={14} />
+        </button>
+
+        <button
+          type="button"
+          data-testid="save-itinerary-card-btn"
+          disabled={saveState === 'saving'}
+          onClick={async () => {
+            const sid = chatState?.session_id || message?.session_id || 'chat';
+            const savePayload = {
+              title: `${destination} (${totalDays} Days)`,
+              sourceKey: `chat-${sid}-${totalDays}-${startDate || 'flex'}`,
+              itinerary: {
+                title: `${destination} (${totalDays} Days)`,
+                destination,
+                start_date: startDate || undefined,
+                duration_days: totalDays,
+                travellers_count: pax,
+                request: chatState?.current_request || message?.request || undefined,
+                days,
+              },
+            };
+            if (!getAuthToken()) {
+              onRequestSaveAuth?.(savePayload);
+              return;
+            }
+            setSaveState('saving');
+            try {
+              await upsertItinerary(savePayload);
+              setSaveState('saved');
+            } catch (err) {
+              setSaveState('idle');
+              if (err?.response?.status === 401) {
+                onRequestSaveAuth?.(savePayload);
+              }
+            }
+          }}
+          style={{
+            minHeight: '38px',
+            padding: '0.5rem 0.85rem',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: saveState === 'saved' ? '#D1FAE5' : '#FFFCF9',
+            border: '1px solid #E9DED6',
+            borderRadius: '10px',
+            color: saveState === 'saved' ? '#065F46' : '#54152D',
+            cursor: 'pointer',
+          }}
+        >
+          <BookmarkCheck size={14} />
+          <span>{saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving...' : 'Save Itinerary'}</span>
         </button>
 
         <button

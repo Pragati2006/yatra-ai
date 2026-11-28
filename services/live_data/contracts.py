@@ -640,7 +640,11 @@ class CuratedFlightSchedule:
             or not self.source_url
             or not self.verified_at
             or not self.verified_by
-            or self.verification_status != VerificationStatus.VERIFIED_CURATED_SOURCE.value
+            or self.verification_status not in (
+                VerificationStatus.VERIFIED_CURATED_SOURCE.value,
+                VerificationStatus.PARTIALLY_VERIFIED.value,
+                VerificationStatus.INDICATIVE_INFORMATION.value,
+            )
         ):
             self.verification_status = VerificationStatus.UNVERIFIED.value
 

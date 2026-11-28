@@ -13,6 +13,62 @@ import {
   getStoredBackendUrl,
   setStoredBackendUrl,
 } from '../utils/storage';
+import { CURATED_FLIGHTS, filterAndSortFlights } from '../utils/flightCatalog.js';
+
+const STATIC_CATALOG_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const WEATHER_CACHE_TTL_MS = 5 * 60 * 1000;   // 5 minutes
+const HISTORY_CACHE_TTL_MS = 45 * 1000;       // 45 seconds (user-scoped)
+
+const responseCache = new Map();
+const inFlightRequests = new Map();
+
+const getCachedEntry = (key, ttlMs) => {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > ttlMs) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+};
+
+const setCachedEntry = (key, data) => {
+  responseCache.set(key, { data, timestamp: Date.now() });
+  return data;
+};
+
+const dedupedFetch = (key, fetcher) => {
+  if (inFlightRequests.has(key)) {
+    return inFlightRequests.get(key);
+  }
+  const promise = Promise.resolve()
+    .then(fetcher)
+    .finally(() => {
+      if (inFlightRequests.get(key) === promise) {
+        inFlightRequests.delete(key);
+      }
+    });
+  inFlightRequests.set(key, promise);
+  return promise;
+};
+
+export const clearUserSessionCaches = () => {
+  for (const key of Array.from(responseCache.keys())) {
+    if (key.startsWith('history:')) {
+      responseCache.delete(key);
+    }
+  }
+  for (const key of Array.from(inFlightRequests.keys())) {
+    if (key.startsWith('history:')) {
+      inFlightRequests.delete(key);
+    }
+  }
+};
+
+export const clearCatalogCaches = () => {
+  responseCache.clear();
+  inFlightRequests.clear();
+};
 
 // Production Render Cloud Backend
 export const DEFAULT_PRODUCTION_BACKEND = 'https://yatra-ai-smap.onrender.com';
@@ -80,8 +136,9 @@ export const setBackendUrl = async (newUrl) => {
     return { ok: false, error: validation.error };
   }
 
-  // Security Gate: Changing backend MUST clear active tokens to prevent token leakage
+  // Security Gate: Changing backend MUST clear active tokens and cached data to prevent leakage
   await clearAuthToken();
+  clearCatalogCaches();
 
   activeBaseUrl = validation.baseUrl;
   await setStoredBackendUrl(validation.baseUrl);
@@ -272,15 +329,31 @@ export const getChatHistory = async (sessionId) => {
   return request(`/api/chat/history/${encodeURIComponent(sessionId)}`);
 };
 
-export const fetchChatHistory = async (sessionId = null) => {
-  try {
-    if (sessionId) {
-      return await getChatHistory(sessionId);
-    }
-    return await request('/api/auth/saved-conversations');
-  } catch (e) {
-    return [];
+export const getCachedChatHistory = async (sessionId = null) => {
+  const token = (await getAuthToken()) || 'anon';
+  const cacheKey = `history:${activeBaseUrl}:${token.slice(-12)}:${sessionId || 'list'}`;
+  return getCachedEntry(cacheKey, HISTORY_CACHE_TTL_MS);
+};
+
+export const fetchChatHistory = async (sessionId = null, { forceRefresh = false } = {}) => {
+  const token = (await getAuthToken()) || 'anon';
+  const cacheKey = `history:${activeBaseUrl}:${token.slice(-12)}:${sessionId || 'list'}`;
+
+  if (!forceRefresh) {
+    const cached = getCachedEntry(cacheKey, HISTORY_CACHE_TTL_MS);
+    if (cached !== null) return cached;
   }
+
+  return dedupedFetch(cacheKey, async () => {
+    try {
+      const data = sessionId
+        ? await getChatHistory(sessionId)
+        : await request('/api/auth/saved-conversations', { timeoutMs: 12000 });
+      return setCachedEntry(cacheKey, data);
+    } catch (e) {
+      return [];
+    }
+  });
 };
 
 // ==============================================================================
@@ -300,19 +373,38 @@ export const getTourism = async (query, lastPlace = null) => {
 export const getSightseeing = async (category = null) => {
   return request('/api/yatra/sightseeing', {
     method: 'POST',
+    timeoutMs: 12000,
     body: { category: category || null },
   });
 };
 
-export const fetchTourismSpots = async () => {
-  try {
-    const res = await getSightseeing();
-    if (Array.isArray(res)) return res;
-    if (res?.places && Array.isArray(res.places)) return res.places;
-    return [];
-  } catch (e) {
-    return [];
+export const getCachedTourismSpots = () => {
+  return getCachedEntry(`tourismSpots:${activeBaseUrl}`, STATIC_CATALOG_TTL_MS);
+};
+
+export const fetchTourismSpots = async ({ forceRefresh = false } = {}) => {
+  const cacheKey = `tourismSpots:${activeBaseUrl}`;
+  if (!forceRefresh) {
+    const cached = getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS);
+    if (cached) return cached;
   }
+
+  return dedupedFetch(cacheKey, async () => {
+    try {
+      const res = await getSightseeing();
+      const places = Array.isArray(res)
+        ? res
+        : res?.places && Array.isArray(res.places)
+        ? res.places
+        : null;
+      if (places && places.length > 0) {
+        return setCachedEntry(cacheKey, places);
+      }
+      return [];
+    } catch (e) {
+      return getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS) || [];
+    }
+  });
 };
 
 // ==============================================================================
@@ -322,16 +414,35 @@ export const fetchTourismSpots = async () => {
 export const getWeather = async (location = 'Katra') => {
   return request('/api/weather/', {
     method: 'POST',
+    timeoutMs: 12000,
     body: { location },
   });
 };
 
-export const fetchWeather = async (location = 'katra') => {
-  try {
-    return await getWeather(location);
-  } catch (e) {
-    return null;
+export const getCachedWeather = (location = 'katra') => {
+  const key = `weather:${activeBaseUrl}:${String(location || 'katra').trim().toLowerCase()}`;
+  return getCachedEntry(key, WEATHER_CACHE_TTL_MS);
+};
+
+export const fetchWeather = async (location = 'katra', { forceRefresh = false } = {}) => {
+  const normLoc = String(location || 'katra').trim().toLowerCase();
+  const cacheKey = `weather:${activeBaseUrl}:${normLoc}`;
+  if (!forceRefresh) {
+    const cached = getCachedEntry(cacheKey, WEATHER_CACHE_TTL_MS);
+    if (cached) return cached;
   }
+
+  return dedupedFetch(cacheKey, async () => {
+    try {
+      const res = await getWeather(location);
+      if (res) {
+        return setCachedEntry(cacheKey, res);
+      }
+      return null;
+    } catch (e) {
+      return getCachedEntry(cacheKey, WEATHER_CACHE_TTL_MS) || null;
+    }
+  });
 };
 
 // ==============================================================================
@@ -341,6 +452,7 @@ export const fetchWeather = async (location = 'katra') => {
 export const getAccommodation = async (accommodationData = {}) => {
   return request('/api/yatra/accommodation', {
     method: 'POST',
+    timeoutMs: 12000,
     body: {
       check_in_date: accommodationData.check_in_date || '2026-10-20',
       category: accommodationData.category || null,
@@ -349,15 +461,33 @@ export const getAccommodation = async (accommodationData = {}) => {
   });
 };
 
-export const fetchAccommodations = async () => {
-  try {
-    const res = await getAccommodation();
-    if (Array.isArray(res)) return res;
-    if (res?.accommodations && Array.isArray(res.accommodations)) return res.accommodations;
-    return [];
-  } catch (e) {
-    return [];
+export const getCachedAccommodations = () => {
+  return getCachedEntry(`accommodations:${activeBaseUrl}`, STATIC_CATALOG_TTL_MS);
+};
+
+export const fetchAccommodations = async ({ forceRefresh = false } = {}) => {
+  const cacheKey = `accommodations:${activeBaseUrl}`;
+  if (!forceRefresh) {
+    const cached = getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS);
+    if (cached) return cached;
   }
+
+  return dedupedFetch(cacheKey, async () => {
+    try {
+      const res = await getAccommodation();
+      const items = Array.isArray(res)
+        ? res
+        : res?.accommodations && Array.isArray(res.accommodations)
+        ? res.accommodations
+        : null;
+      if (items && items.length > 0) {
+        return setCachedEntry(cacheKey, items);
+      }
+      return [];
+    } catch (e) {
+      return getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS) || [];
+    }
+  });
 };
 
 // ==============================================================================
@@ -378,15 +508,35 @@ export const searchYatra = async (searchData) => {
   });
 };
 
-export const fetchTransportOptions = async () => {
-  try {
-    const res = await searchYatra('transport options');
-    if (Array.isArray(res)) return res;
-    if (res?.options && Array.isArray(res.options)) return res.options;
-    return [];
-  } catch (e) {
-    return [];
+export const getCachedTransportOptions = (origin = '', destination = '', travelDate = '') => {
+  const cacheKey = `transport:${activeBaseUrl}:${origin}:${destination}:${travelDate}`;
+  return getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS);
+};
+
+export const fetchTransportOptions = async ({
+  origin = '',
+  destination = '',
+  travelDate = '',
+  stopsFilter = 'all',
+  sortBy = 'price_asc',
+  forceRefresh = false,
+} = {}) => {
+  const cacheKey = `transport:${activeBaseUrl}:${origin}:${destination}:${travelDate}:${stopsFilter}:${sortBy}`;
+  if (!forceRefresh) {
+    const cached = getCachedEntry(cacheKey, STATIC_CATALOG_TTL_MS);
+    if (cached) return cached;
   }
+
+  return dedupedFetch(cacheKey, async () => {
+    const curatedMatches = filterAndSortFlights(CURATED_FLIGHTS, {
+      origin,
+      destination,
+      travelDate,
+      stopsFilter,
+      sortBy,
+    });
+    return setCachedEntry(cacheKey, curatedMatches);
+  });
 };
 
 // ==============================================================================
@@ -483,6 +633,7 @@ export const verifyOtp = async (email, otpCode) => {
   });
 
   if (res && res.session_token) {
+    clearUserSessionCaches();
     await saveAuthToken(res.session_token);
   }
   return res;
@@ -496,6 +647,7 @@ export const logout = async () => {
   try {
     await request('/api/auth/logout', { method: 'POST' });
   } finally {
+    clearUserSessionCaches();
     await clearAuthToken();
   }
 };
@@ -506,10 +658,105 @@ export const getSavedItineraries = async () => {
   return request('/api/auth/saved-itineraries');
 };
 
-export const saveItinerary = async (title, itinerary) => {
+export const saveItinerary = async (title, itinerary, itineraryId = null, sourceKey = null) => {
+  clearUserSessionCaches();
+  const body = { title, itinerary };
+  if (itineraryId) body.itinerary_id = itineraryId;
+  if (sourceKey) body.source_key = sourceKey;
   return request('/api/auth/save-itinerary', {
     method: 'POST',
-    body: { title, itinerary },
+    body,
+  });
+};
+
+// Phase 8.8.58: Smart Itinerary Management, Partial Editing & Group Collaboration
+export const listItineraries = async () => {
+  return request('/api/itineraries', { timeoutMs: 12000 });
+};
+
+export const upsertItinerary = async ({ title, itinerary, itineraryId = null, sourceKey = null, expectedRevision = null }) => {
+  clearUserSessionCaches();
+  const body = { title, itinerary };
+  if (itineraryId) body.itinerary_id = itineraryId;
+  if (sourceKey) body.source_key = sourceKey;
+  if (expectedRevision !== null && expectedRevision !== undefined) body.expected_revision = expectedRevision;
+  return request('/api/itineraries', {
+    method: 'POST',
+    body,
+  });
+};
+
+export const getItineraryDetail = async (itineraryId) => {
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}`, { timeoutMs: 12000 });
+};
+
+export const deleteItineraryById = async (itineraryId) => {
+  clearUserSessionCaches();
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}`, {
+    method: 'DELETE',
+  });
+};
+
+export const previewItineraryEdit = async (itineraryId, editPayload) => {
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/preview`, {
+    method: 'POST',
+    body: editPayload,
+  });
+};
+
+export const applyItineraryEdit = async (itineraryId, editPayload) => {
+  clearUserSessionCaches();
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/apply`, {
+    method: 'POST',
+    body: editPayload,
+  });
+};
+
+export const undoItineraryEdit = async (itineraryId, expectedRevision = null) => {
+  clearUserSessionCaches();
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/undo`, {
+    method: 'POST',
+    body: { expected_revision: expectedRevision },
+  });
+};
+
+export const createItineraryInvite = async (itineraryId, { role = 'VIEWER', expiresInHours = 72 } = {}) => {
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}/shares`, {
+    method: 'POST',
+    body: { role, expires_in_hours: expiresInHours },
+  });
+};
+
+export const listItineraryShares = async (itineraryId) => {
+  return request(`/api/itineraries/${encodeURIComponent(itineraryId)}/shares`);
+};
+
+export const updateItineraryMemberRole = async (itineraryId, memberUserId, role) => {
+  return request(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/members/${encodeURIComponent(memberUserId)}`,
+    { method: 'PATCH', body: { role } }
+  );
+};
+
+export const revokeItineraryMember = async (itineraryId, memberUserId) => {
+  return request(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/members/${encodeURIComponent(memberUserId)}`,
+    { method: 'DELETE' }
+  );
+};
+
+export const revokeItineraryInvite = async (itineraryId, inviteId) => {
+  return request(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/invites/${encodeURIComponent(inviteId)}`,
+    { method: 'DELETE' }
+  );
+};
+
+export const acceptItineraryInvite = async (token) => {
+  clearUserSessionCaches();
+  return request('/api/itineraries/invites/accept', {
+    method: 'POST',
+    body: { token },
   });
 };
 
@@ -523,6 +770,7 @@ export const getSavedConversation = async (conversationId) => {
 };
 
 export const saveConversation = async (title, messages, conversation_id = null, trip_request = null, itinerary = null) => {
+  clearUserSessionCaches();
   const body = { title, messages };
   if (conversation_id) body.conversation_id = conversation_id;
   if (trip_request) body.trip_request = trip_request;
@@ -559,16 +807,23 @@ export default {
   sendChat,
   sendChatMessage,
   getChatHistory,
+  getCachedChatHistory,
   fetchChatHistory,
   getTourism,
   getSightseeing,
+  getCachedTourismSpots,
   fetchTourismSpots,
   getWeather,
+  getCachedWeather,
   fetchWeather,
   getAccommodation,
+  getCachedAccommodations,
   fetchAccommodations,
   searchYatra,
+  getCachedTransportOptions,
   fetchTransportOptions,
+  clearUserSessionCaches,
+  clearCatalogCaches,
   generateItinerary,
   authorizePlan,
   authorizeBooking,
@@ -582,6 +837,19 @@ export default {
   logoutUser,
   getSavedItineraries,
   saveItinerary,
+  listItineraries,
+  upsertItinerary,
+  getItineraryDetail,
+  deleteItineraryById,
+  previewItineraryEdit,
+  applyItineraryEdit,
+  undoItineraryEdit,
+  createItineraryInvite,
+  listItineraryShares,
+  updateItineraryMemberRole,
+  revokeItineraryMember,
+  revokeItineraryInvite,
+  acceptItineraryInvite,
   getSavedConversations,
   getSavedConversation,
   saveConversation,

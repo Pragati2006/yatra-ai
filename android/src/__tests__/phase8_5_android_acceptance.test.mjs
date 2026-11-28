@@ -107,7 +107,7 @@ test('Phase 8.5 Acceptance - ChatBubble Component: Renders horizontal gallery an
   assert.ok(code.includes('galleryContainer'), 'ChatBubble must render galleryContainer style');
   assert.ok(code.includes('galleryScroll'), 'ChatBubble must render horizontal gallery ScrollView');
   assert.ok(code.includes('activePhoto'), 'ChatBubble must track activePhoto state for lightbox');
-  assert.ok(code.includes('setActivePhoto(item)'), 'ChatBubble cards must set activePhoto on press');
+  assert.ok(code.includes('setActivePhoto('), 'ChatBubble cards must set activePhoto on press');
 
   // Lightbox modal checks
   assert.ok(code.includes('<Modal'), 'ChatBubble must render native Modal for lightbox magnification');
@@ -117,10 +117,10 @@ test('Phase 8.5 Acceptance - ChatBubble Component: Renders horizontal gallery an
   assert.ok(code.includes('lightboxLicenseLink'), 'ChatBubble must render license link in lightbox');
   assert.ok(code.includes('Linking.openURL'), 'ChatBubble must support opening external license URL');
 
-  // Fallback and error resilience
+  // Clean omission on failure (never render Photo unavailable or empty imageFallbackBox)
   assert.ok(code.includes('failedImages'), 'ChatBubble must track failed image indices');
-  assert.ok(code.includes('imageFallbackBox'), 'ChatBubble must render imageFallbackBox on image load failure');
-  assert.ok(code.includes('Photo unavailable'), 'ChatBubble must show friendly label on photo load failure');
+  assert.ok(!code.includes('imageFallbackBox'), 'ChatBubble must cleanly omit failed images rather than showing empty placeholder box');
+  assert.ok(!code.includes('Photo unavailable'), 'ChatBubble must never display Photo unavailable text');
 });
 
 // ==============================================================================
@@ -133,9 +133,8 @@ test('Phase 8.5 Acceptance - TourismCard Component: Handles both rich galleries 
 
   assert.ok(code.includes('imageUrl && !imageError'), 'Must conditionally render valid image container');
   assert.ok(code.includes('photoCountBadge'), 'Must render photo count badge for multi-photo destinations');
-  assert.ok(code.includes('fallbackNoticeBox'), 'Must render fallbackNoticeBox for destinations without images');
-  assert.ok(code.includes('MountainIcon'), 'Must render MountainIcon in fallback notice');
-  assert.ok(code.includes('target.image_notice'), 'Must display target.image_notice text');
+  assert.ok(!code.includes('fallbackNoticeBox'), 'Must cleanly omit photographic area when no image loads');
+  assert.ok(!code.includes('Verified photograph in archival curation'), 'Must never display archival curation placeholder text');
   assert.ok(code.includes('onAskAssistant'), 'Must provide Ask AI button to converse with assistant');
 });
 

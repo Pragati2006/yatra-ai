@@ -24,6 +24,7 @@ import {
   SearchIcon,
   ClockIcon,
   MessageSquareIcon,
+  MapIcon,
   TicketIcon,
   BuildingIcon,
   TrainIcon,
@@ -34,7 +35,7 @@ import {
   LogOutIcon,
   CloseIcon,
 } from './Icons';
-import { fetchChatHistory } from '../services/api';
+import { fetchChatHistory, getCachedChatHistory, clearUserSessionCaches } from '../services/api';
 import { getLocalGuestConversations, getLocalChatMessages } from '../utils/storage';
 
 export default function SidebarDrawer({
@@ -122,10 +123,36 @@ export default function SidebarDrawer({
     }
   }, [isOpen, drawerWidth]);
 
-  const loadHistory = async () => {
-    setLoadingHistory(true);
+  const userKey = user?.email || user?.id || 'guest';
+  const lastLoadedUserRef = useRef(userKey);
+
+  useEffect(() => {
+    if (lastLoadedUserRef.current !== userKey) {
+      lastLoadedUserRef.current = userKey;
+      clearUserSessionCaches();
+      setConversations([]);
+      if (isOpen) {
+        loadHistory({ forceRefresh: true });
+      }
+    }
+  }, [userKey, isOpen]);
+
+  const loadHistory = async ({ forceRefresh = false } = {}) => {
+    const cached = !forceRefresh ? await getCachedChatHistory().catch(() => null) : null;
+    if (cached && (!Array.isArray(cached) || cached.length > 0)) {
+      const cachedList = Array.isArray(cached)
+        ? cached
+        : cached?.conversations || cached?.history || [];
+      if (cachedList.length > 0) {
+        setConversations(cachedList);
+        setLoadingHistory(false);
+      }
+    } else if (conversations.length === 0) {
+      setLoadingHistory(true);
+    }
+
     try {
-      const data = await fetchChatHistory();
+      const data = await fetchChatHistory(null, { forceRefresh });
       let items = [];
       if (Array.isArray(data)) {
         items = data;
@@ -158,8 +185,10 @@ export default function SidebarDrawer({
       }
       setConversations(items);
     } catch {
-      const guestConvs = await getLocalGuestConversations().catch(() => []);
-      setConversations(guestConvs || []);
+      if (conversations.length === 0) {
+        const guestConvs = await getLocalGuestConversations().catch(() => []);
+        setConversations(guestConvs || []);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -441,6 +470,30 @@ export default function SidebarDrawer({
                 </View>
                 <Text style={[styles.navItemLabel, activeRoute === 'Assistant' && styles.navItemLabelActive]}>Assistant</Text>
                 {activeRoute === 'Assistant' && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+
+              {/* 4b. Itineraries / My Plans */}
+              <TouchableOpacity
+                style={[
+                  styles.navItem,
+                  activeRoute === 'Itineraries' && styles.navItemActive,
+                ]}
+                onPress={() => {
+                  onClose();
+                  if (onNavigate) onNavigate('Itineraries');
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="My Itineraries (Saved Plans, Editing & Sharing)"
+              >
+                <View style={styles.navIconWrapper}>
+                  <MapIcon
+                    size={18}
+                    color={colors.royalPlum}
+                    strokeWidth={activeRoute === 'Itineraries' ? 2.4 : 2}
+                  />
+                </View>
+                <Text style={[styles.navItemLabel, activeRoute === 'Itineraries' && styles.navItemLabelActive]}>Itineraries</Text>
+                {activeRoute === 'Itineraries' && <View style={styles.activeIndicator} />}
               </TouchableOpacity>
 
               {/* 5. Booking / Parchi */}

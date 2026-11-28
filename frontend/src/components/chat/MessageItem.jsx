@@ -29,6 +29,7 @@ export default function MessageItem({
   onNavigateToBooking,
   onSwitchToForm,
   onExplorePlace,
+  onRequestSaveAuth,
   latestMessageRef,
 }) {
   const [showAllHotels, setShowAllHotels] = useState(false);
@@ -178,6 +179,7 @@ export default function MessageItem({
                 onNavigateToBooking={onNavigateToBooking}
                 onSwitchToForm={onSwitchToForm}
                 onExplorePlace={onExplorePlace}
+                onRequestSaveAuth={onRequestSaveAuth}
               />
             </div>
           )}
@@ -189,6 +191,7 @@ export default function MessageItem({
               chatState={chatState}
               onNavigateToBooking={onNavigateToBooking}
               onSwitchToForm={onSwitchToForm}
+              onRequestSaveAuth={onRequestSaveAuth}
             />
           )}
 
@@ -200,6 +203,7 @@ export default function MessageItem({
               chatState={chatState}
               onNavigateToBooking={onNavigateToBooking}
               onSwitchToForm={onSwitchToForm}
+              onRequestSaveAuth={onRequestSaveAuth}
             />
           )}
 

@@ -12,6 +12,7 @@ const WeatherView = lazy(() => import('./components/WeatherView'));
 const AccommodationView = lazy(() => import('./components/AccommodationView'));
 const TransportView = lazy(() => import('./components/TransportView'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
+const ItinerariesView = lazy(() => import('./components/ItinerariesView'));
 const AuthModal = lazy(() => import('./components/AuthModal'));
 const SavedTripsModal = lazy(() => import('./components/SavedTripsModal'));
 
@@ -59,10 +60,49 @@ import {
   isDevelopment,
   isProduction,
   saveConversation,
+  upsertItinerary,
   getLocalGuestConversations,
   clearLocalGuestConversations,
 } from './services/api';
 import './App.css';
+
+export function normalizeBookingHandoffPayload(itinData) {
+  if (!itinData || typeof itinData !== 'object') return itinData;
+  const req = itinData.request && typeof itinData.request === 'object' ? itinData.request : {};
+  const days = Array.isArray(itinData.days)
+    ? itinData.days
+    : Array.isArray(itinData.itinerary)
+    ? itinData.itinerary
+    : null;
+  const duration = Number(
+    itinData.duration_days || itinData.duration || req.duration_days || (days ? days.length : 4)
+  ) || 4;
+  const pax = Number(
+    itinData.travellers_count || itinData.pax || req.pax || 2
+  ) || 2;
+  const startDate = itinData.start_date || itinData.startDate || req.start_date || undefined;
+  const destination = itinData.destination || req.destination || 'Shri Mata Vaishno Devi Shrine';
+  return {
+    ...itinData,
+    destination,
+    startDate,
+    start_date: startDate,
+    duration,
+    duration_days: duration,
+    pax,
+    travellers_count: pax,
+    itinerary: days || itinData.itinerary,
+    request: {
+      ...req,
+      destination,
+      duration_days: duration,
+      pax,
+      ...(startDate ? { start_date: startDate } : {}),
+    },
+    step: itinData.step || 2,
+    overrideDraft: true,
+  };
+}
 
 export default function App() {
   // Conversational Assistant is the primary default experience
@@ -114,16 +154,41 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSavedTripsModal, setShowSavedTripsModal] = useState(false);
+  const [pendingSaveItinerary, setPendingSaveItinerary] = useState(null);
+  const [pendingInviteToken, setPendingInviteToken] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const tok = new URLSearchParams(window.location.search).get('invite');
+        if (tok) return tok;
+        return sessionStorage.getItem('yatra_pending_invite') || null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
   // Check existing session silently on load without blocking guest access
   useEffect(() => {
     let isMounted = true;
+    if (pendingInviteToken) {
+      try {
+        sessionStorage.setItem('yatra_pending_invite', pendingInviteToken);
+      } catch {
+        // ignore
+      }
+      setHasStartedJourney(true);
+      setActiveTab('itineraries');
+    }
     getAuthMe()
       .then((res) => {
         if (isMounted && res.authenticated && res.user) {
           setCurrentUser(res.user);
         } else if (isMounted && !res.authenticated) {
           setAuthToken(null);
+          if (pendingInviteToken) {
+            setShowAuthModal(true);
+          }
         }
       })
       .catch(() => {
@@ -447,6 +512,10 @@ export default function App() {
               sharedSessionId={activeConversation?.conversation_id || activeChatSessionId}
               onNavigateToBooking={(payload) => handleStartBooking(payload)}
               onExplorePlace={(placeName) => handleExplorePlaceQuery(`Tell me about ${placeName}`)}
+              onRequestSaveAuth={(pendingPayload) => {
+                setPendingSaveItinerary(pendingPayload || null);
+                setShowAuthModal(true);
+              }}
             />
           </div>
         )}
@@ -571,6 +640,31 @@ export default function App() {
           </div>
         )}
 
+        {/* 3e. Dedicated Itineraries, Partial Editing & Collaboration View */}
+        {activeTab === 'itineraries' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <Suspense fallback={<ViewLoadingFallback label="Loading Saved Itineraries..." />}>
+              <ItinerariesView
+                user={currentUser}
+                onOpenAuthModal={() => setShowAuthModal(true)}
+                onReturnToAssistant={() => setActiveTab('assistant')}
+                onProceedToBooking={(itinData) => {
+                  handleStartBooking(normalizeBookingHandoffPayload(itinData));
+                }}
+                pendingInviteToken={pendingInviteToken}
+                onInviteHandled={() => {
+                  setPendingInviteToken(null);
+                  try {
+                    sessionStorage.removeItem('yatra_pending_invite');
+                  } catch {
+                    // ignore
+                  }
+                }}
+              />
+            </Suspense>
+          </div>
+        )}
+
         {/* 4. Dedicated Settings & Account Management View */}
         {activeTab === 'settings' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -643,6 +737,14 @@ export default function App() {
               } catch (err) {
                 console.debug('Silent error migrating guest conversations on login:', err);
               }
+              if (pendingSaveItinerary) {
+                try {
+                  await upsertItinerary(pendingSaveItinerary);
+                  setPendingSaveItinerary(null);
+                } catch (saveErr) {
+                  console.debug('Error completing deferred itinerary save after sign-in:', saveErr);
+                }
+              }
             }}
           />
         </Suspense>
@@ -656,10 +758,7 @@ export default function App() {
             onClose={() => setShowSavedTripsModal(false)}
             user={currentUser}
             onLoadItinerary={(itineraryData) => {
-              setBookingParams(itineraryData);
-              setHasMountedBooking(true);
-              setActiveTab('booking');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              handleStartBooking(normalizeBookingHandoffPayload(itineraryData));
             }}
             onLoadConversation={handleOpenConversation}
           />

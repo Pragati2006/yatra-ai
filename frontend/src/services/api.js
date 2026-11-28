@@ -619,8 +619,11 @@ export const logout = async () => {
   }
 };
 
-export const saveItinerary = async (title, itinerary) => {
-  const response = await client.post('/api/auth/save-itinerary', { title, itinerary });
+export const saveItinerary = async (title, itinerary, itineraryId = null, sourceKey = null) => {
+  const payload = { title, itinerary };
+  if (itineraryId) payload.itinerary_id = itineraryId;
+  if (sourceKey) payload.source_key = sourceKey;
+  const response = await client.post('/api/auth/save-itinerary', payload);
   return response.data;
 };
 
@@ -631,6 +634,88 @@ export const getSavedItineraries = async () => {
 
 export const deleteSavedItinerary = async (itineraryId) => {
   const response = await client.delete(`/api/auth/saved-itinerary/${encodeURIComponent(itineraryId)}`);
+  return response.data;
+};
+
+// Phase 8.8.58: Smart Itinerary Management, Partial Editing & Group Collaboration APIs
+export const listItineraries = async () => {
+  const response = await client.get('/api/itineraries');
+  return response.data;
+};
+
+export const upsertItinerary = async ({ title, itinerary, itineraryId = null, sourceKey = null, expectedRevision = null }) => {
+  const payload = { title, itinerary };
+  if (itineraryId) payload.itinerary_id = itineraryId;
+  if (sourceKey) payload.source_key = sourceKey;
+  if (expectedRevision !== null && expectedRevision !== undefined) payload.expected_revision = expectedRevision;
+  const response = await client.post('/api/itineraries', payload);
+  return response.data;
+};
+
+export const getItineraryDetail = async (itineraryId) => {
+  const response = await client.get(`/api/itineraries/${encodeURIComponent(itineraryId)}`);
+  return response.data;
+};
+
+export const deleteItineraryById = async (itineraryId) => {
+  const response = await client.delete(`/api/itineraries/${encodeURIComponent(itineraryId)}`);
+  return response.data;
+};
+
+export const previewItineraryEdit = async (itineraryId, editPayload) => {
+  const response = await client.post(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/preview`, editPayload);
+  return response.data;
+};
+
+export const applyItineraryEdit = async (itineraryId, editPayload) => {
+  const response = await client.post(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/apply`, editPayload);
+  return response.data;
+};
+
+export const undoItineraryEdit = async (itineraryId, expectedRevision = null) => {
+  const response = await client.post(`/api/itineraries/${encodeURIComponent(itineraryId)}/edit/undo`, {
+    expected_revision: expectedRevision,
+  });
+  return response.data;
+};
+
+export const createItineraryInvite = async (itineraryId, { role = 'VIEWER', expiresInHours = 72 } = {}) => {
+  const response = await client.post(`/api/itineraries/${encodeURIComponent(itineraryId)}/shares`, {
+    role,
+    expires_in_hours: expiresInHours,
+  });
+  return response.data;
+};
+
+export const listItineraryShares = async (itineraryId) => {
+  const response = await client.get(`/api/itineraries/${encodeURIComponent(itineraryId)}/shares`);
+  return response.data;
+};
+
+export const updateItineraryMemberRole = async (itineraryId, memberUserId, role) => {
+  const response = await client.patch(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/members/${encodeURIComponent(memberUserId)}`,
+    { role }
+  );
+  return response.data;
+};
+
+export const revokeItineraryMember = async (itineraryId, memberUserId) => {
+  const response = await client.delete(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/members/${encodeURIComponent(memberUserId)}`
+  );
+  return response.data;
+};
+
+export const revokeItineraryInvite = async (itineraryId, inviteId) => {
+  const response = await client.delete(
+    `/api/itineraries/${encodeURIComponent(itineraryId)}/shares/invites/${encodeURIComponent(inviteId)}`
+  );
+  return response.data;
+};
+
+export const acceptItineraryInvite = async (token) => {
+  const response = await client.post('/api/itineraries/invites/accept', { token });
   return response.data;
 };
 
@@ -782,6 +867,19 @@ export default {
   saveItinerary,
   getSavedItineraries,
   deleteSavedItinerary,
+  listItineraries,
+  upsertItinerary,
+  getItineraryDetail,
+  deleteItineraryById,
+  previewItineraryEdit,
+  applyItineraryEdit,
+  undoItineraryEdit,
+  createItineraryInvite,
+  listItineraryShares,
+  updateItineraryMemberRole,
+  revokeItineraryMember,
+  revokeItineraryInvite,
+  acceptItineraryInvite,
   saveConversation,
   getSavedConversations,
   getSavedConversation,

@@ -46,6 +46,13 @@ import {
   saveBookingDraft,
   getBookingDraft,
 } from '../utils/storage';
+import {
+  CURATED_FLIGHTS,
+  filterAndSortFlights,
+  deduplicateFlights,
+  normalizeAirportOrCity,
+  toBookingTransportOption,
+} from '../utils/flightCatalog';
 
 export const DATA_TIERS = {
   LIVE: 'Live Availability',
@@ -159,11 +166,12 @@ export const REALISTIC_TRANSPORTS = [
     duration: '3h 00m Total',
     classType: 'Economy Air + Cab',
     pricePerPerson: 3850,
-    availability: 'Available',
-    badge: 'Fastest Transit',
+    isIndicativeFare: true,
+    availability: 'Indicative Schedule (Confirm on goindigo.in)',
+    badge: 'Fastest Transit (Indicative)',
     dataTier: 'Indicative Estimate',
-    dataFreshness: 'Scheduled Airline Corridor (IndiGo/DGCA)',
-    restrictions: 'Lands at Jammu Civil Enclave (IXJ). 50 km (~1.5h) highway transfer to Katra base camp.',
+    dataFreshness: 'Illustrative Airline Corridor (Confirm live on goindigo.in)',
+    restrictions: 'Lands at Jammu Civil Enclave (IXJ). 50 km (~1.5h) highway transfer to Katra base camp. Indicative airfare range only; not live inventory.',
   },
   {
     id: 'flight-air-india',
@@ -175,11 +183,12 @@ export const REALISTIC_TRANSPORTS = [
     duration: '3h 00m Total',
     classType: 'Full Service Economy',
     pricePerPerson: 4200,
-    availability: 'Available',
-    badge: 'Full Service Flight',
+    isIndicativeFare: true,
+    availability: 'Indicative Schedule (Confirm on airindia.com)',
+    badge: 'Full Service Flight (Indicative)',
     dataTier: 'Indicative Estimate',
-    dataFreshness: 'Scheduled Airline Corridor (Air India/DGCA)',
-    restrictions: 'Lands at Jammu Civil Enclave (IXJ). 20 kg check-in baggage. Highway cab to Katra.',
+    dataFreshness: 'Illustrative Airline Corridor (Confirm live on airindia.com)',
+    restrictions: 'Lands at Jammu Civil Enclave (IXJ). 20 kg check-in baggage. Highway cab to Katra. Indicative airfare range only; not live inventory.',
   },
 ];
 
@@ -376,8 +385,59 @@ export default function BookingScreen({ route, navigation }) {
 
   // Selection State
   const [selectedTransport, setSelectedTransport] = useState(route?.params?.selectedTransport || REALISTIC_TRANSPORTS[0]);
+  const [transportSortBy, setTransportSortBy] = useState('price_asc');
+  const [flightStopsFilter, setFlightStopsFilter] = useState('all');
+  const [staleFlightNotice, setStaleFlightNotice] = useState('');
   const [selectedAscent, setSelectedAscent] = useState(route?.params?.selectedAscent || ASCENT_MODES[0]);
   const [selectedHotel, setSelectedHotel] = useState(route?.params?.selectedHotel || ACCOMMODATION_CATALOGUE[2]); // Hotel Asia
+
+  const routeMatchingFlights = React.useMemo(() => {
+    const matchedCurated = filterAndSortFlights(CURATED_FLIGHTS, {
+      origin,
+      destination: 'IXJ',
+      travelDate: startDate,
+      stopsFilter: flightStopsFilter,
+      sortBy: transportSortBy,
+    }).map(toBookingTransportOption).filter(Boolean);
+
+    const curatedFlightNumbers = new Set(
+      matchedCurated.map((f) => String(f.flightNumber || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()).filter(Boolean)
+    );
+    const staticFlights = REALISTIC_TRANSPORTS.filter((t) => {
+      if (t.mode !== 'Flight') return false;
+      const fn = String(t.name || '').match(/([A-Z0-9]{2}-\d{3,4})/i);
+      const code = fn ? fn[1].replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+      return !code || !curatedFlightNumbers.has(code);
+    });
+
+    const isDelhiOrigin = (normalizeAirportOrCity(origin) || '').toUpperCase() === 'DEL' || String(origin || '').toLowerCase().includes('delhi');
+    const combined = matchedCurated.length > 0
+      ? [...matchedCurated, ...(isDelhiOrigin ? staticFlights : [])]
+      : REALISTIC_TRANSPORTS.filter((t) => t.mode === 'Flight');
+
+    return deduplicateFlights(combined);
+  }, [origin, startDate, flightStopsFilter, transportSortBy]);
+
+  const displayedTransports = React.useMemo(() => {
+    const nonFlights = REALISTIC_TRANSPORTS.filter((t) => t.mode !== 'Flight');
+    return [...nonFlights, ...routeMatchingFlights];
+  }, [routeMatchingFlights]);
+
+  // Invalidate stale flight selection when origin or travel date changes
+  useEffect(() => {
+    if (selectedTransport?.mode === 'Flight') {
+      const stillValid = routeMatchingFlights.some((f) => f.id === selectedTransport.id);
+      if (!stillValid) {
+        const replacement = routeMatchingFlights[0] || REALISTIC_TRANSPORTS[0];
+        setSelectedTransport(replacement);
+        setStaleFlightNotice(
+          `Flight selection updated for ${origin} on ${startDate}. Please review transport option.`
+        );
+      }
+    } else {
+      setStaleFlightNotice('');
+    }
+  }, [origin, startDate]);
 
   // Update form and selections if route params change during navigation
   useEffect(() => {
@@ -1792,14 +1852,56 @@ export default function BookingScreen({ route, navigation }) {
                     </Text>
                   </View>
                 ) : (
-                  REALISTIC_TRANSPORTS.map((t) => {
+                  <>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      {[
+                        { id: 'price_asc', label: 'Flights: Lowest Price' },
+                        { id: 'departure_asc', label: 'Earliest Dep' },
+                        { id: 'duration_asc', label: 'Shortest Flight' },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.id}
+                          style={[styles.badgeSmall, transportSortBy === opt.id && { backgroundColor: colors.primary }]}
+                          onPress={() => setTransportSortBy(opt.id)}
+                        >
+                          <Text style={[styles.badgeSmallText, transportSortBy === opt.id && { color: '#FFFFFF' }]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      {[
+                        { id: 'all', label: 'All Stops' },
+                        { id: 'nonstop', label: 'Non-Stop Flights' },
+                      ].map((sf) => (
+                        <TouchableOpacity
+                          key={sf.id}
+                          style={[styles.badgeSmall, flightStopsFilter === sf.id && { backgroundColor: colors.burgundy }]}
+                          onPress={() => setFlightStopsFilter(sf.id)}
+                        >
+                          <Text style={[styles.badgeSmallText, flightStopsFilter === sf.id && { color: '#F4E5BE' }]}>
+                            {sf.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {staleFlightNotice ? (
+                      <View style={[styles.excludedNoticeBanner, { marginBottom: 10 }]}>
+                        <Text style={styles.excludedNoticeSubtitle}>{staleFlightNotice}</Text>
+                      </View>
+                    ) : null}
+
+                    {displayedTransports.map((t) => {
                     const isSelected = selectedTransport.id === t.id;
                     const tierStyle = getDataTierBadgeStyle(t.dataTier || 'Indicative Estimate');
                     return (
                       <TouchableOpacity
                         key={t.id}
                         style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
-                        onPress={() => setSelectedTransport(t)}
+                        onPress={() => {
+                          setSelectedTransport(t);
+                          setStaleFlightNotice('');
+                        }}
                         activeOpacity={0.7}
                       >
                         <View style={styles.cardHeaderRow}>
@@ -1808,17 +1910,32 @@ export default function BookingScreen({ route, navigation }) {
                             <Text style={styles.cardRoute}>{t.route}</Text>
                           </View>
                           <View style={styles.priceTag}>
-                            <Text style={styles.priceTagText}>₹{t.pricePerPerson}</Text>
-                            <Text style={styles.perPersonSub}>/ pilgrim</Text>
+                            <Text style={styles.priceTagText}>
+                              {t.pricePerPerson > 0 ? `${t.isIndicativeFare ? 'Est. ' : ''}₹${t.pricePerPerson}` : 'Check Portal'}
+                            </Text>
+                            <Text style={styles.perPersonSub}>
+                              {t.isIndicativeFare ? 'indicative / pax' : '/ pilgrim'}
+                            </Text>
                           </View>
                         </View>
 
                         <View style={styles.cardMetaRow}>
                           <Text style={styles.metaItem}>⏰ {t.depTime} - {t.arrTime} ({t.duration})</Text>
                           <Text style={styles.metaItem}>🎟️ {t.classType}</Text>
-                          <Text style={[styles.metaItem, { color: '#2E7D32', fontWeight: '700' }]}>
-                            ✓ {t.availability}
+                          <Text
+                            style={[
+                              styles.metaItem,
+                              {
+                                color: t.dataTier === 'Live Availability' ? '#2E7D32' : '#856404',
+                                fontWeight: '700',
+                              },
+                            ]}
+                          >
+                            {t.dataTier === 'Live Availability' ? `✓ ${t.availability}` : `ℹ ${t.availability}`}
                           </Text>
+                          {t.baggageAllowance && (
+                            <Text style={styles.metaItem}>🧳 {t.baggageAllowance}</Text>
+                          )}
                         </View>
 
                         {/* Truth-in-Data Classification & Provenance */}
@@ -1850,7 +1967,8 @@ export default function BookingScreen({ route, navigation }) {
                         </View>
                       </TouchableOpacity>
                     );
-                  })
+                  })}
+                  </>
                 )}
 
                 {/* ------------------------------------------------- */}
@@ -1996,7 +2114,7 @@ export default function BookingScreen({ route, navigation }) {
 
                   <View style={styles.budgetDivider} />
                   <Text style={styles.budgetBreakdownText}>
-                    • Intercity Transport: {ownVehicle ? 'Own Vehicle / Private Conveyance (₹0 Fare)' : (!includeTransport ? 'Self-Arranged (₹0 Fare)' : `${selectedTransport.name}: ₹${transportCost} (₹${selectedTransport.pricePerPerson} × ${paxCount})`)}
+                    • Intercity Transport: {ownVehicle ? 'Own Vehicle / Private Conveyance (₹0 Fare)' : (!includeTransport ? 'Self-Arranged (₹0 Fare)' : `${selectedTransport.name}: ${selectedTransport.isIndicativeFare ? 'Est. ' : ''}₹${transportCost} (₹${selectedTransport.pricePerPerson} × ${paxCount})`)}
                   </Text>
                   <Text style={styles.budgetBreakdownText}>
                     • Holy Ascent ({selectedAscent.name}): ₹{ascentCost} (₹{selectedAscent.pricePerPerson} × {paxCount})
@@ -2071,7 +2189,9 @@ export default function BookingScreen({ route, navigation }) {
                     • Intercity Transport: <Text style={styles.bold}>
                       {ownVehicle
                         ? 'Own Vehicle / Private Conveyance (₹0 Fare)'
-                        : (!includeTransport ? 'Self-Arranged Transport (₹0 Fare)' : `${selectedTransport.name} (₹${transportCost})`)}
+                        : (!includeTransport
+                            ? 'Self-Arranged Transport (₹0 Fare)'
+                            : `${selectedTransport.name} (${selectedTransport.isIndicativeFare ? 'Indicative Est. ' : ''}₹${transportCost}) [${selectedTransport.dataTier || 'Indicative Estimate'}]`)}
                     </Text>
                   </Text>
                   <Text style={styles.summaryLine}>• Ascent Mode: <Text style={styles.bold}>{selectedAscent.name}</Text> (₹{ascentCost}) <Text style={{ fontSize: 11, color: '#721C24', fontWeight: '700' }}>[{selectedAscent.dataTier || 'Demonstration Data'}]</Text></Text>
@@ -2082,7 +2202,9 @@ export default function BookingScreen({ route, navigation }) {
                         : `${selectedHotel.name} (${roomsCount} room(s), ${nightsCount} night(s) — ₹${hotelCost})`}
                     </Text>
                   </Text>
-                  <Text style={styles.summaryLine}>• Estimated Total Package: <Text style={styles.boldPrice}>₹{grandTotal}</Text> (₹{perPersonCost} / pilgrim)</Text>
+                  <Text style={styles.summaryLine}>
+                    • Estimated Total Package: <Text style={styles.boldPrice}>₹{grandTotal}</Text> (₹{perPersonCost} / pilgrim · Indicative Simulation Estimate)
+                  </Text>
                 </View>
 
                 {/* Mandatory Academic Guardrail Notice */}
@@ -2246,9 +2368,12 @@ export default function BookingScreen({ route, navigation }) {
                       </Text>
                     </View>
                     <View style={styles.gridCol}>
-                      <Text style={styles.passLabel}>TOTAL FARE</Text>
+                      <Text style={styles.passLabel}>ESTIMATED TOTAL</Text>
                       <Text style={[styles.passValue, { color: colors.primary, fontWeight: '800' }]}>
                         ₹{grandTotal}
+                      </Text>
+                      <Text style={{ fontSize: 9.5, color: '#856404', fontWeight: '600' }}>
+                        Indicative / Not a Confirmed Quote
                       </Text>
                     </View>
                   </View>

@@ -1367,8 +1367,151 @@ export function resolveDestinationImages(userText = '', assistantText = '') {
   return null;
 }
 
+export const PUBLIC_ASSETS_BASE_URL = 'https://yatra-ai.pages.dev';
+
+const YATRA_IMAGE_HEADERS = {
+  'User-Agent': 'YatraAI/1.0 (https://yatra-ai.pages.dev)',
+  Accept: 'image/webp,image/png,image/jpeg,image/*;q=0.8',
+};
+
+const VERIFIED_PLACE_ASSET_MAP = {
+  'bhairavnath temple': 'Bhairavnath Temple.png',
+  'bhairon temple': 'Bhairavnath Temple.png',
+  'bhairon baba temple': 'Bhairavnath Temple.png',
+  'ardhkuwari cave': 'Ardhkuwari, Maa Vaishno Devi!.jpg',
+  'ardhkuwari': 'Ardhkuwari, Maa Vaishno Devi!.jpg',
+  'ardhkuwari temple': 'Ardhkuwari, Maa Vaishno Devi!.jpg',
+  'charan paduka': 'Charan paduka.jpg',
+  'charan paduka temple': 'Charan paduka.jpg',
+  'ban ganga': 'Ban Ganga.jpg',
+  'banganga': 'Ban Ganga.jpg',
+  'baba dhansar': 'Baba Dhansar.jpg',
+  'jhajjar kotli': 'Jhajjar Kotli.jpg',
+  'himkoti': 'Himkoti.jpg',
+  'peer kho cave temple': 'Peer Kho Cave Temple.jpg',
+  'peer kho cave': 'Peer Kho Cave Temple.jpg',
+  'patnitop': 'Patnitop.jpg',
+  'sanasar': 'Sanasar.jpg',
+  'mansar lake': 'Mansar Lake.jpg',
+  'bahu fort & bagh-e-bahu': 'Bahu Fort & Bagh-e-bahu.jpg',
+  'bahu fort': 'Bahu Fort & Bagh-e-bahu.jpg',
+  'amar mahal palace': 'amar mahal.jpg',
+  'amar mahal': 'amar mahal.jpg',
+  'dera baba banda bahadur': 'Dera Baba Banda Bahadur.jpg',
+  'shiv khori': 'Shiv Khori.jpg',
+  'dal lake': 'Dal Lake.jpg',
+  'gulmarg': 'Gulmarg.jpg',
+  'pahalgam': 'Pahalgam.jpg',
+  'sonmarg': 'Sonmarg.jpg',
+  'sonamarg': 'Sonmarg.jpg',
+  'shankaracharya temple': 'Shankracharya Mandir.jpg',
+  'kheer bhawani': 'Kheer Bhawani Mandir.jpg',
+  'verinag': 'Verinag.jpg',
+  'achabal': 'Achabal.jpg',
+  'martand sun temple': 'Martand Sun Temple.jpg',
+  'sinthan top': 'Sinthan top.jpg',
+  'holy cave bhawan (mata vaishno devi)': 'vaishno devi.jpg',
+  'holy cave bhawan': 'vaishno devi.jpg',
+  'vaishno devi bhawan': 'vaishno devi.jpg',
+  'bhawan': 'vaishno devi.jpg',
+  'raghunath temple': 'Raghunath Temple.webp',
+};
+
+const failedImageUriCache = new Set();
+
+export function markImageUriFailed(uri) {
+  if (typeof uri === 'string' && uri.trim()) {
+    failedImageUriCache.add(uri.trim());
+  }
+}
+
+export function isImageUriFailed(uri) {
+  if (typeof uri !== 'string' || !uri.trim()) return false;
+  return failedImageUriCache.has(uri.trim());
+}
+
+export function resolveImageUri(rawUrl) {
+  if (typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+
+  let fullUrl = trimmed;
+  if (trimmed.startsWith('/')) {
+    fullUrl = `${PUBLIC_ASSETS_BASE_URL}${trimmed}`;
+  } else if (trimmed.startsWith('http://')) {
+    fullUrl = trimmed.replace(/^http:\/\//i, 'https://');
+  } else if (!trimmed.startsWith('https://')) {
+    return null;
+  }
+
+  try {
+    return encodeURI(decodeURI(fullUrl));
+  } catch {
+    return fullUrl;
+  }
+}
+
+export function getImageRequestHeaders(uri) {
+  if (typeof uri !== 'string') return undefined;
+  const lower = uri.toLowerCase();
+  if (lower.includes('wikimedia.org') || lower.includes('wikipedia.org')) {
+    return YATRA_IMAGE_HEADERS;
+  }
+  return undefined;
+}
+
+export function buildAndroidImageSource(rawUrl) {
+  const uri = resolveImageUri(rawUrl);
+  if (!uri) return null;
+  const headers = getImageRequestHeaders(uri);
+  return headers ? { uri, headers } : { uri };
+}
+
+export function getCandidateImageUrls(target = {}, gallery = []) {
+  const candidates = [];
+  const seen = new Set();
+  const pushCandidate = (url) => {
+    const resolved = resolveImageUri(url);
+    if (!resolved || seen.has(resolved) || isImageUriFailed(resolved)) return;
+    seen.add(resolved);
+    candidates.push(resolved);
+  };
+
+  const name = String(target?.name || target?.place_name || target?.title || '').trim().toLowerCase();
+  const mappedAsset = name ? VERIFIED_PLACE_ASSET_MAP[name] : null;
+  if (mappedAsset) {
+    pushCandidate(`/assets/images/places/${mappedAsset}`);
+  }
+
+  if (Array.isArray(gallery)) {
+    gallery.forEach((item) => {
+      if (item && typeof item === 'object') {
+        pushCandidate(item.thumbnail_url);
+        pushCandidate(item.image_url);
+      } else if (typeof item === 'string') {
+        pushCandidate(item);
+      }
+    });
+  }
+
+  pushCandidate(target?.thumbnail_url);
+  pushCandidate(target?.image_url);
+  if (typeof target?.image === 'string' && (target.image.startsWith('http') || target.image.startsWith('/'))) {
+    pushCandidate(target.image);
+  }
+
+  return candidates;
+}
+
 export default {
   VERIFIED_DESTINATION_GALLERIES,
   DESTINATION_ALIASES,
   resolveDestinationImages,
+  PUBLIC_ASSETS_BASE_URL,
+  resolveImageUri,
+  getImageRequestHeaders,
+  buildAndroidImageSource,
+  getCandidateImageUrls,
+  markImageUriFailed,
+  isImageUriFailed,
 };

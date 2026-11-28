@@ -5,13 +5,21 @@ import { colors } from '../theme/colors';
 import MarkdownView from './MarkdownView';
 import ItineraryPreviewCard from './ItineraryPreviewCard';
 import YatraLogo from './YatraLogo';
-import { VolumeIcon, SquareIcon, TicketIcon, MountainIcon, CloseIcon } from './Icons';
+import { VolumeIcon, SquareIcon, TicketIcon, CloseIcon } from './Icons';
+import {
+  buildAndroidImageSource,
+  getImageRequestHeaders,
+  resolveImageUri,
+  markImageUriFailed,
+  isImageUriFailed,
+} from '../utils/destinationImages';
 
 function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullItinerary }) {
   const isUser = message.role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activePhoto, setActivePhoto] = useState(null);
   const [failedImages, setFailedImages] = useState({});
+  const [fallbackUrlMap, setFallbackUrlMap] = useState({});
 
   useEffect(() => {
     return () => {
@@ -116,48 +124,73 @@ function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullIti
         )}
 
         {/* Verified Destination Photographs Gallery */}
-        {!isUser && message.destination_images && message.destination_images.length > 0 && (
-          <View style={styles.galleryContainer}>
-            <View style={styles.galleryHeader}>
-              <Text style={styles.galleryTitle}>
-                📷 Verified Photos: {message.matched_destination?.name || 'Sightseeing'}
-              </Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
-              {message.destination_images.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.galleryCard}
-                  onPress={() => setActivePhoto(item)}
-                  activeOpacity={0.85}
-                  accessibilityLabel={`View full photo: ${item.title || 'Destination'}`}
-                >
-                  {!failedImages[idx] ? (
+        {(() => {
+          if (isUser || !Array.isArray(message.destination_images) || message.destination_images.length === 0) {
+            return null;
+          }
+          const visibleItems = message.destination_images
+            .map((item, idx) => {
+              const primaryRaw = item.thumbnail_url || item.image_url;
+              const useSecondary = Boolean(fallbackUrlMap[idx]);
+              const chosenRaw = useSecondary ? (item.image_url || item.thumbnail_url) : primaryRaw;
+              const resolvedUri = resolveImageUri(chosenRaw);
+              if (failedImages[idx] || !resolvedUri || isImageUriFailed(resolvedUri)) {
+                return null;
+              }
+              const headers = getImageRequestHeaders(resolvedUri);
+              const source = headers ? { uri: resolvedUri, headers } : { uri: resolvedUri };
+              return { item, idx, resolvedUri, source };
+            })
+            .filter(Boolean);
+
+          if (visibleItems.length === 0) {
+            return null;
+          }
+
+          return (
+            <View style={styles.galleryContainer}>
+              <View style={styles.galleryHeader}>
+                <Text style={styles.galleryTitle}>
+                  📷 Verified Photos: {message.matched_destination?.name || 'Sightseeing'}
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
+                {visibleItems.map(({ item, idx, resolvedUri, source }) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.galleryCard}
+                    onPress={() => setActivePhoto({ ...item, resolved_uri: resolvedUri })}
+                    activeOpacity={0.85}
+                    accessibilityLabel={`View full photo: ${item.title || 'Destination'}`}
+                  >
                     <Image
-                      source={{ uri: item.thumbnail_url || item.image_url }}
+                      source={source || { uri: item.thumbnail_url || item.image_url }}
                       style={styles.galleryImage}
                       resizeMode="cover"
-                      onError={() => setFailedImages((prev) => ({ ...prev, [idx]: true }))}
+                      onError={() => {
+                        markImageUriFailed(resolvedUri);
+                        const altUri = resolveImageUri(item.image_url);
+                        if (!fallbackUrlMap[idx] && altUri && altUri !== resolvedUri && !isImageUriFailed(altUri)) {
+                          setFallbackUrlMap((prev) => ({ ...prev, [idx]: true }));
+                        } else {
+                          setFailedImages((prev) => ({ ...prev, [idx]: true }));
+                        }
+                      }}
                     />
-                  ) : (
-                    <View style={styles.imageFallbackBox}>
-                      <MountainIcon size={20} color={colors.goldLight} />
-                      <Text style={styles.imageFallbackText}>Photo unavailable</Text>
+                    <View style={styles.galleryCaption}>
+                      <Text style={styles.photoTitle} numberOfLines={1}>
+                        {item.title || 'Destination Photograph'}
+                      </Text>
+                      <Text style={styles.photoAttribution} numberOfLines={1}>
+                        {item.photographer ? `By ${item.photographer}` : 'Wikimedia Commons'} · {item.license || 'CC'}
+                      </Text>
                     </View>
-                  )}
-                  <View style={styles.galleryCaption}>
-                    <Text style={styles.photoTitle} numberOfLines={1}>
-                      {item.title || 'Destination Photograph'}
-                    </Text>
-                    <Text style={styles.photoAttribution} numberOfLines={1}>
-                      {item.photographer ? `By ${item.photographer}` : 'Wikimedia Commons'} · {item.license || 'CC'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          );
+        })()}
 
         {/* Lightbox Image Magnification Modal */}
         {activePhoto && (
@@ -183,9 +216,13 @@ function ChatBubble({ message, onNavigateToBooking, onActionPress, onViewFullIti
                 </View>
 
                 <Image
-                  source={{ uri: activePhoto.thumbnail_url || activePhoto.image_url }}
+                  source={
+                    buildAndroidImageSource(activePhoto.resolved_uri || activePhoto.thumbnail_url || activePhoto.image_url) ||
+                    { uri: activePhoto.thumbnail_url || activePhoto.image_url }
+                  }
                   style={styles.lightboxFullImage}
                   resizeMode="contain"
+                  onError={() => setActivePhoto(null)}
                 />
 
                 <View style={styles.lightboxMetaRow}>
@@ -398,20 +435,6 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  imageFallbackBox: {
-    width: '100%',
-    height: 110,
-    backgroundColor: colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 8,
-  },
-  imageFallbackText: {
-    color: colors.champagneTaupe,
-    fontSize: 10,
-    marginTop: 4,
-    fontWeight: '600',
   },
   lightboxBackdrop: {
     flex: 1,

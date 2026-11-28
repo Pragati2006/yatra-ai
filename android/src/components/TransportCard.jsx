@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../theme/colors';
 import {
   TrainIcon,
@@ -9,8 +9,9 @@ import {
   CarIcon,
 } from './Icons';
 
-export default function TransportCard({ item, transport }) {
+export default function TransportCard({ item, transport, onSelect, selected = false }) {
   const data = item || transport || {};
+  const isFlight = (data.mode || '').toLowerCase() === 'flight';
 
   const renderIcon = (mode) => {
     switch ((mode || '').toLowerCase()) {
@@ -28,9 +29,13 @@ export default function TransportCard({ item, transport }) {
   };
 
   const title = data.name || data.title || 'Transport Service';
-  const subtitle = data.number ? `#${data.number}` : (data.provider || data.mode);
-  const departure = data.departure || data.from_station || 'Origin';
-  const arrival = data.arrival || data.to_station || 'SVDK / Katra';
+  const subtitle = data.flightNumber
+    ? `${data.airlineName || 'Airline'} · ${data.flightNumber}${data.stops ? ` · ${data.stops}` : ''}`
+    : data.number
+    ? `#${data.number}`
+    : (data.provider || data.mode);
+  const departure = data.departure || data.from_station || data.originAirportCode || 'Origin';
+  const arrival = data.arrival || data.to_station || data.destinationAirportCode || 'SVDK / Katra';
   const duration = data.duration || 'Direct Route';
   const frequency = data.frequency || data.days_of_run || 'Daily Pilgrimage Service';
   const fare = data.fare || data.fareRange || null;
@@ -65,13 +70,19 @@ export default function TransportCard({ item, transport }) {
   const tierColors = getTierColors(tier);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, selected && styles.cardSelected]}>
       <View style={styles.topRow}>
         <View style={styles.modeRow}>
-          <View style={styles.iconBox}>{renderIcon(data.mode)}</View>
+          {isFlight && data.airlineCode ? (
+            <View style={styles.airlineBadge}>
+              <Text style={styles.airlineBadgeText}>{data.airlineCode}</Text>
+            </View>
+          ) : (
+            <View style={styles.iconBox}>{renderIcon(data.mode)}</View>
+          )}
           <View style={styles.titleContainer}>
             <Text style={styles.title} numberOfLines={1}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
+            <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
           </View>
         </View>
 
@@ -81,6 +92,25 @@ export default function TransportCard({ item, transport }) {
           </Text>
         </View>
       </View>
+
+      {isFlight && (
+        <View style={styles.flightMetaStrip}>
+          {data.stops ? (
+            <View style={styles.flightPill}>
+              <Text style={styles.flightPillText}>
+                {data.stopsCount === 0 ? '✈ Non-Stop' : `⏱ ${data.stops}`}
+              </Text>
+            </View>
+          ) : null}
+          {data.baggageAllowance ? (
+            <View style={styles.flightPillSecondary}>
+              <Text style={styles.flightPillSecondaryText} numberOfLines={1}>
+                🧳 {data.baggageAllowance}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       {/* Schedule Info */}
       <View style={styles.scheduleBox}>
@@ -142,6 +172,22 @@ export default function TransportCard({ item, transport }) {
           </Text>
         )}
       </View>
+
+      {isFlight && data.fareDisclaimer ? (
+        <Text style={styles.fareDisclaimerText}>{data.fareDisclaimer}</Text>
+      ) : null}
+
+      {typeof onSelect === 'function' ? (
+        <TouchableOpacity
+          style={[styles.selectBtn, selected && styles.selectBtnActive]}
+          onPress={() => onSelect(data)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.selectBtnText, selected && styles.selectBtnTextActive]}>
+            {selected ? '✓ Selected for Booking' : 'Select for Booking →'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -328,5 +374,84 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#92400E',
     fontWeight: '600',
+  },
+  cardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: '#FFFBF3',
+  },
+  airlineBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: colors.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  airlineBadgeText: {
+    color: '#F4E5BE',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  flightMetaStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  flightPill: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  flightPillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#3730A3',
+  },
+  flightPillSecondary: {
+    backgroundColor: colors.goldSubtle,
+    borderColor: colors.goldBorder,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    maxWidth: '100%',
+  },
+  flightPillSecondaryText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  fareDisclaimerText: {
+    marginTop: 6,
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  selectBtn: {
+    marginTop: 10,
+    backgroundColor: colors.goldSubtle,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  selectBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  selectBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  selectBtnTextActive: {
+    color: '#FFFFFF',
   },
 });

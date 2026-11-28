@@ -13,8 +13,17 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import TransportCard from '../components/TransportCard';
+import BookingDatePicker from '../components/BookingDatePicker';
 import { TrainIcon, HelicopterIcon, BusIcon, PlaneIcon, InfoIcon } from '../components/Icons';
-import { fetchTransportOptions } from '../services/api';
+import { fetchTransportOptions, getCachedTransportOptions } from '../services/api';
+import {
+  CURATED_FLIGHTS,
+  FLIGHT_ORIGIN_PRESETS,
+  FLIGHT_DESTINATION_PRESETS,
+  filterAndSortFlights,
+  deduplicateFlights,
+  toBookingTransportOption,
+} from '../utils/flightCatalog';
 
 const CURATED_TRANSPORTS = [
   // Trains
@@ -207,58 +216,107 @@ const CURATED_TRANSPORTS = [
     is_verified: false,
     is_partially_verified: true,
   },
-  // Flight
-  {
-    id: 'flight-1',
-    mode: 'Flight',
-    title: 'Direct Flight to Jammu Airport (IXJ)',
-    origin: 'Delhi / Mumbai / Bengaluru',
-    destination: 'Jammu Civil Enclave (IXJ)',
-    duration: '1h 25m (from DEL)',
-    departure: 'Multiple daily departures',
-    arrival: 'Katra is 48 km by direct pre-paid taxi (1h 15m)',
-    frequency: 'Operated by IndiGo, Air India, SpiceJet',
-    fareRange: '₹3,500 - ₹7,500 (dynamic flight fare)',
-    stops: 'Direct nonstop flight + Jammu-Katra highway taxi',
-    bookingPlatform: 'Airlines / Travel aggregators',
-  },
 ];
 
-const MODES = ['All', 'Train', 'Helicopter', 'Bus', 'Flight'];
+const INITIAL_CURATED_TRANSPORTS = [...CURATED_TRANSPORTS, ...CURATED_FLIGHTS];
+
+const MODES = ['All', 'Flight', 'Train', 'Helicopter', 'Bus'];
+const FLIGHT_STOPS_FILTERS = [
+  { id: 'all', label: 'All Stops' },
+  { id: 'nonstop', label: 'Non-Stop' },
+  { id: 'connecting', label: 'Connecting' },
+];
+const FLIGHT_SORT_OPTIONS = [
+  { id: 'price_asc', label: 'Lowest Price' },
+  { id: 'departure_asc', label: 'Earliest Departure' },
+  { id: 'duration_asc', label: 'Shortest Duration' },
+];
 
 export default function TransportScreen({ navigation }) {
-  const [transports, setTransports] = useState(CURATED_TRANSPORTS);
+  const [transports, setTransports] = useState(() => {
+    const cachedFlights = getCachedTransportOptions();
+    if (Array.isArray(cachedFlights) && cachedFlights.length > 0) {
+      return [...CURATED_TRANSPORTS, ...deduplicateFlights([...cachedFlights, ...CURATED_FLIGHTS])];
+    }
+    return INITIAL_CURATED_TRANSPORTS;
+  });
   const [selectedMode, setSelectedMode] = useState('All');
-  const [loading, setLoading] = useState(false);
+  const [flightOrigin, setFlightOrigin] = useState('');
+  const [flightDestination, setFlightDestination] = useState('');
+  const [flightDate, setFlightDate] = useState('');
+  const [stopsFilter, setStopsFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('price_asc');
+  const [selectedFlightId, setSelectedFlightId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadTransports();
+    loadTransports({ forceRefresh: false });
   }, []);
 
-  const loadTransports = async () => {
-    setLoading(true);
+  // Invalidate selected flight whenever route, date, or stops filter changes
+  useEffect(() => {
+    setSelectedFlightId(null);
+  }, [flightOrigin, flightDestination, flightDate, stopsFilter]);
+
+  const loadTransports = async ({ forceRefresh = false } = {}) => {
     try {
-      const data = await fetchTransportOptions();
+      const data = await fetchTransportOptions({ forceRefresh });
       if (Array.isArray(data) && data.length > 0) {
-        setTransports(data);
+        const mergedFlights = deduplicateFlights([...data, ...CURATED_FLIGHTS]);
+        const nonFlights = CURATED_TRANSPORTS.filter((t) => t.mode !== 'Flight');
+        setTransports([...nonFlights, ...mergedFlights]);
       }
     } catch (e) {
-      // Keep curated transports
+      // Keep curated/cached transports
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadTransports();
+    loadTransports({ forceRefresh: true });
   };
 
-  const filteredTransports = transports.filter(
-    (item) => selectedMode === 'All' || item.mode === selectedMode
-  );
+  const handleSelectFlightForBooking = (item) => {
+    if (!item) return;
+    setSelectedFlightId(item.id);
+    if (item.mode === 'Flight') {
+      const bookingOption = toBookingTransportOption(item);
+      navigation.navigate('Booking', {
+        selectedTransport: bookingOption,
+        origin: item.originCity || flightOrigin || 'Delhi',
+        startDate: flightDate || undefined,
+        includeTransport: true,
+        ownVehicle: false,
+        step: 2,
+        overrideDraft: true,
+      });
+    } else {
+      navigation.navigate('Booking', {
+        includeTransport: true,
+        ownVehicle: false,
+        step: 2,
+      });
+    }
+  };
+
+  const nonFlightTransports = transports.filter((item) => item.mode !== 'Flight');
+  const rawFlights = transports.filter((item) => item.mode === 'Flight');
+  const filteredFlights = filterAndSortFlights(rawFlights, {
+    origin: flightOrigin,
+    destination: flightDestination,
+    travelDate: flightDate,
+    stopsFilter,
+    sortBy,
+  });
+
+  const filteredTransports =
+    selectedMode === 'Flight'
+      ? filteredFlights
+      : selectedMode === 'All'
+      ? [...nonFlightTransports, ...filteredFlights]
+      : nonFlightTransports.filter((item) => item.mode === selectedMode);
 
   return (
     <View style={styles.container}>
@@ -303,30 +361,127 @@ export default function TransportScreen({ navigation }) {
       <View style={styles.disclaimerBar}>
         <InfoIcon size={13} color="#92400E" />
         <Text style={styles.disclaimerText}>
-          Schedules are verified reference timings. Book tickets via official IRCTC / SMVDSB portals.
+          {selectedMode === 'Flight'
+            ? 'Curated DGCA/AAI flight corridors & indicative fare bands. Confirm live airfare on airline portals.'
+            : 'Schedules are verified reference timings. Confirm live seats on IRCTC / SMVDSB / airline portals.'}
         </Text>
       </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading verified transport schedules...</Text>
+      {(selectedMode === 'Flight' || selectedMode === 'All') && (
+        <View style={styles.flightFilterPanel}>
+          <Text style={styles.flightPanelLabel}>
+            Flight Origin ({filteredFlights.length} matching flights)
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {FLIGHT_ORIGIN_PRESETS.map((preset) => {
+              const active = flightOrigin === preset.value;
+              return (
+                <TouchableOpacity
+                  key={preset.label}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setFlightOrigin(preset.value)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {preset.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRow, { marginTop: 6 }]}>
+            {FLIGHT_DESTINATION_PRESETS.map((dest) => {
+              const active = flightDestination === dest.value;
+              return (
+                <TouchableOpacity
+                  key={dest.label}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setFlightDestination(dest.value)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {dest.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            {FLIGHT_STOPS_FILTERS.map((sf) => {
+              const active = stopsFilter === sf.id;
+              return (
+                <TouchableOpacity
+                  key={sf.id}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setStopsFilter(sf.id)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {sf.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRow, { marginTop: 6 }]}>
+            {FLIGHT_SORT_OPTIONS.map((opt) => {
+              const active = sortBy === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setSortBy(opt.id)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    Sort: {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {selectedMode === 'Flight' && (
+            <View style={{ marginTop: 8 }}>
+              <BookingDatePicker
+                label="Filter Travel Date (Optional)"
+                value={flightDate}
+                onChange={setFlightDate}
+              />
+              {flightDate ? (
+                <TouchableOpacity onPress={() => setFlightDate('')} style={{ marginTop: 4 }}>
+                  <Text style={styles.clearDateText}>Clear Date Filter ({flightDate})</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
         </View>
-      ) : (
-        <FlatList
-          data={filteredTransports}
-          keyExtractor={(item, idx) => item.id || String(idx)}
-          renderItem={({ item }) => <TransportCard transport={item} />}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-            />
-          }
-        />
       )}
+
+      <FlatList
+        data={filteredTransports}
+        keyExtractor={(item, idx) => item.id || String(idx)}
+        renderItem={({ item }) => (
+          <TransportCard
+            transport={item}
+            selected={selectedFlightId === item.id}
+            onSelect={item.mode === 'Flight' ? handleSelectFlightForBooking : undefined}
+          />
+        )}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyFlightBox}>
+            <Text style={styles.emptyFlightTitle}>No matching flight schedules found</Text>
+            <Text style={styles.emptyFlightSubtitle}>
+              No audited flight corridor matched {flightOrigin || 'selected origin'} → {flightDestination || 'IXJ/SXR'}.
+              Try selecting "All" destinations, "All Stops" (for 1-stop DEL connections), or choosing Train/Bus options.
+            </Text>
+          </View>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      />
     </View>
   );
 }
@@ -401,5 +556,68 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     color: colors.textSecondary,
     fontSize: 13,
+  },
+  flightFilterPanel: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  flightPanelLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 6,
+  },
+  chipRow: {
+    gap: 6,
+    paddingRight: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  filterChipActive: {
+    backgroundColor: colors.burgundy,
+    borderColor: colors.burgundy,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  filterChipTextActive: {
+    color: '#F4E5BE',
+    fontWeight: '700',
+  },
+  clearDateText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  emptyFlightBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyFlightTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.burgundy,
+    marginBottom: 6,
+  },
+  emptyFlightSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 17,
   },
 });

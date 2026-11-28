@@ -555,8 +555,14 @@ export default function SavedTripsModal({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {itineraries.map((itin) => {
-                    const d = new Date(itin.created_at);
-                    const dateFormatted = isNaN(d) ? itin.created_at : d.toLocaleDateString();
+                    const d = new Date(itin.updated_at || itin.created_at);
+                    const dateFormatted = isNaN(d) ? (itin.updated_at || itin.created_at) : d.toLocaleDateString();
+                    const canDelete =
+                      itin.can_delete !== undefined
+                        ? Boolean(itin.can_delete)
+                        : itin.my_role
+                        ? itin.my_role === 'OWNER'
+                        : true;
                     return (
                       <div
                         key={itin.itinerary_id}
@@ -571,8 +577,25 @@ export default function SavedTripsModal({
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 700, color: '#58111A', fontSize: '0.95rem' }}>
-                            {itin.title}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, color: '#58111A', fontSize: '0.95rem' }}>
+                              {itin.title}
+                            </span>
+                            {itin.my_role && itin.my_role !== 'OWNER' && (
+                              <span
+                                data-testid={`saved-trip-role-${itin.my_role.toLowerCase()}`}
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  padding: '2px 7px',
+                                  borderRadius: '999px',
+                                  background: '#F2EAE4',
+                                  color: '#54152D',
+                                }}
+                              >
+                                Shared ({itin.my_role})
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.76rem', color: '#7D6A5D', marginTop: '2px' }}>
                             Saved on {dateFormatted} • ID: {itin.itinerary_id}
@@ -600,21 +623,24 @@ export default function SavedTripsModal({
                               Load Plan
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItinerary(itin.itinerary_id, itin.title)}
-                            style={{
-                              background: '#FFF5F5',
-                              color: '#C53030',
-                              border: '1px solid #FEB2B2',
-                              borderRadius: '6px',
-                              padding: '0.4rem 0.65rem',
-                              fontSize: '0.78rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Delete
-                          </button>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              data-testid={`delete-saved-trip-btn-${itin.itinerary_id}`}
+                              onClick={() => handleDeleteItinerary(itin.itinerary_id, itin.title)}
+                              style={{
+                                background: '#FFF5F5',
+                                color: '#C53030',
+                                border: '1px solid #FEB2B2',
+                                borderRadius: '6px',
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

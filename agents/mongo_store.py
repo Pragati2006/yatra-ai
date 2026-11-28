@@ -84,9 +84,19 @@ def ensure_indexes():
         otp_coll = _get_coll("auth_otp_challenges")
         otp_coll.create_index("email", unique=True)
 
-        # 4. Saved itineraries: compound user_id + created_at
+        # 4. Saved itineraries: compound user_id + created_at + updated_at
         itin_coll = _get_coll("auth_saved_itineraries")
         itin_coll.create_index([("user_id", 1), ("created_at", -1)])
+        itin_coll.create_index([("user_id", 1), ("source_key", 1)])
+
+        # 4b. Itinerary collaboration members & invites
+        members_coll = _get_coll("itinerary_members")
+        members_coll.create_index([("itinerary_id", 1), ("user_id", 1)], unique=True)
+        members_coll.create_index([("user_id", 1), ("revoked_at", 1)])
+
+        invites_coll = _get_coll("itinerary_invites")
+        invites_coll.create_index("token_hash", unique=True)
+        invites_coll.create_index([("itinerary_id", 1), ("revoked_at", 1)])
 
         # 5. Saved conversations: compound user_id + created_at
         conv_coll = _get_coll("auth_saved_conversations")
@@ -823,3 +833,350 @@ def list_workflows(
             "resume_token": doc.get("resume_token"),
         })
     return results
+
+
+# =============================================================================
+# 9. Collaborative Itinerary Management (Phase 8.8.58)
+# =============================================================================
+
+def _format_mongo_itin(doc: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "itinerary_id": doc.get("itinerary_id") or str(doc.get("_id")),
+        "owner_user_id": doc.get("user_id"),
+        "title": doc.get("title"),
+        "created_at": doc.get("created_at"),
+        "updated_at": doc.get("updated_at") or doc.get("created_at"),
+        "revision": int(doc.get("revision") or 1),
+        "source_key": doc.get("source_key"),
+        "data": doc.get("data"),
+        "edit_history": doc.get("edit_history") or [],
+    }
+
+
+def _mongo_member_count(itinerary_id: str) -> int:
+    m_coll = _get_coll("itinerary_members")
+    count = m_coll.count_documents({"itinerary_id": itinerary_id, "revoked_at": None})
+    return max(1, int(count or 1))
+
+
+def upsert_itinerary_collab(
+    user_id: str,
+    title: str,
+    now_iso: str,
+    data: Any,
+    itinerary_id: Optional[str] = None,
+    source_key: Optional[str] = None,
+    expected_revision: Optional[int] = None,
+):
+    import copy as _copy
+    import uuid as _uuid
+    coll = _get_coll("auth_saved_itineraries")
+    members_coll = _get_coll("itinerary_members")
+
+    doc = None
+    role = "OWNER"
+    if itinerary_id:
+        doc = coll.find_one({"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+        if doc:
+            if doc.get("user_id") != user_id:
+                mem = members_coll.find_one({"itinerary_id": itinerary_id, "user_id": user_id, "revoked_at": None})
+                if not mem or mem.get("role") not in ("OWNER", "EDITOR"):
+                    from agents.itinerary_collab_service import ItineraryPermissionError
+                    raise ItineraryPermissionError("You do not have edit permission for this itinerary.")
+                role = mem.get("role")
+    elif source_key:
+        doc = coll.find_one({"user_id": user_id, "source_key": source_key})
+
+    if doc:
+        from agents.itinerary_collab_service import ItineraryConflictError
+        from agents.itinerary_editor import ItineraryEditValidationError
+
+        iid = doc.get("itinerary_id") or str(doc.get("_id"))
+        cur_rev = int(doc.get("revision") or 1)
+        old_data = doc.get("data")
+
+        if role != "OWNER":
+            if expected_revision is None:
+                raise ItineraryEditValidationError(
+                    "expected_revision is required when updating a shared itinerary.",
+                    status_code=400,
+                )
+            if int(expected_revision) != cur_rev:
+                raise ItineraryConflictError(current_revision=cur_rev)
+            if isinstance(data, dict):
+                old_bookings = old_data.get("booking_refs") if isinstance(old_data, dict) else []
+                data["booking_refs"] = _copy.deepcopy(old_bookings if isinstance(old_bookings, list) else [])
+        elif expected_revision is not None and int(expected_revision) != cur_rev:
+            raise ItineraryConflictError(current_revision=cur_rev)
+
+        history = list(doc.get("edit_history") or [])
+        history.append({
+            "revision": cur_rev,
+            "timestamp": now_iso,
+            "edited_by": user_id,
+            "summary": "Saved updated itinerary snapshot",
+            "title": doc.get("title"),
+            "data": old_data,
+        })
+        history = history[-25:]
+        new_rev = cur_rev + 1
+        res = coll.update_one(
+            {
+                "$and": [
+                    {"$or": [{"itinerary_id": iid}, {"_id": iid}]},
+                    {"$or": [{"revision": cur_rev}, {"revision": {"$exists": False}}]},
+                ]
+            },
+            {
+                "$set": {
+                    "title": title,
+                    "updated_at": now_iso,
+                    "revision": new_rev,
+                    "source_key": source_key or doc.get("source_key"),
+                    "data": data,
+                    "edit_history": history,
+                }
+            },
+        )
+        if res.matched_count == 0:
+            raise ItineraryConflictError(current_revision=cur_rev)
+        updated_doc = coll.find_one({"$or": [{"itinerary_id": iid}, {"_id": iid}]})
+        rec = _format_mongo_itin(updated_doc)
+        rec["_caller_role"] = role
+        rec["_member_count"] = _mongo_member_count(iid)
+        return rec, False
+
+    iid = itinerary_id or f"itin_{_uuid.uuid4().hex[:12]}"
+    new_doc = {
+        "_id": iid,
+        "itinerary_id": iid,
+        "user_id": user_id,
+        "title": title,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+        "revision": 1,
+        "source_key": source_key,
+        "data": data,
+        "edit_history": [],
+    }
+    coll.insert_one(new_doc)
+    members_coll.update_one(
+        {"itinerary_id": iid, "user_id": user_id},
+        {"$set": {"itinerary_id": iid, "user_id": user_id, "role": "OWNER", "added_by": user_id, "created_at": now_iso, "revoked_at": None}},
+        upsert=True,
+    )
+    rec = _format_mongo_itin(new_doc)
+    rec["_caller_role"] = "OWNER"
+    rec["_member_count"] = 1
+    return rec, True
+
+
+def list_itineraries_for_user(user_id: str) -> List[Dict[str, Any]]:
+    coll = _get_coll("auth_saved_itineraries")
+    members_coll = _get_coll("itinerary_members")
+
+    shared_memberships = list(members_coll.find({"user_id": user_id, "revoked_at": None}))
+    role_map = {m["itinerary_id"]: m.get("role", "VIEWER") for m in shared_memberships if m.get("itinerary_id")}
+    shared_ids = list(role_map.keys())
+
+    query: Dict[str, Any] = {"$or": [{"user_id": user_id}, {"itinerary_id": {"$in": shared_ids}}]} if shared_ids else {"user_id": user_id}
+    docs = list(coll.find(query))
+    docs.sort(key=lambda d: d.get("updated_at") or d.get("created_at") or "", reverse=True)
+
+    out = []
+    for d in docs:
+        iid = d.get("itinerary_id") or str(d.get("_id"))
+        rec = _format_mongo_itin(d)
+        rec["_caller_role"] = "OWNER" if d.get("user_id") == user_id else role_map.get(iid, "VIEWER")
+        rec["_member_count"] = _mongo_member_count(iid)
+        out.append(rec)
+    return out
+
+
+def get_itinerary_collab(user_id: str, itinerary_id: str):
+    coll = _get_coll("auth_saved_itineraries")
+    members_coll = _get_coll("itinerary_members")
+    doc = coll.find_one({"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+    if not doc:
+        return None, None, 0
+    if doc.get("user_id") == user_id:
+        role = "OWNER"
+    else:
+        mem = members_coll.find_one({"itinerary_id": itinerary_id, "user_id": user_id, "revoked_at": None})
+        role = mem.get("role") if mem else None
+    return _format_mongo_itin(doc), role, _mongo_member_count(itinerary_id)
+
+
+def delete_itinerary_collab(user_id: str, itinerary_id: str) -> bool:
+    coll = _get_coll("auth_saved_itineraries")
+    members_coll = _get_coll("itinerary_members")
+    invites_coll = _get_coll("itinerary_invites")
+    res = coll.delete_one({"user_id": user_id, "$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+    if res.deleted_count > 0:
+        members_coll.delete_many({"itinerary_id": itinerary_id})
+        invites_coll.delete_many({"itinerary_id": itinerary_id})
+        return True
+    return False
+
+
+def commit_itinerary_edit_collab(
+    itinerary_id: str,
+    expected_revision: int,
+    new_title: str,
+    new_data: Any,
+    edited_by: str,
+    now_iso: str,
+    diff_summary: str,
+    old_snapshot: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    coll = _get_coll("auth_saved_itineraries")
+    doc = coll.find_one({"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+    if not doc or int(doc.get("revision") or 1) != expected_revision:
+        return None
+    history = list(doc.get("edit_history") or [])
+    history.append(old_snapshot)
+    history = history[-25:]
+    res = coll.update_one(
+        {
+            "$and": [
+                {"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]},
+                {"$or": [{"revision": expected_revision}, {"revision": {"$exists": False}}]},
+            ]
+        },
+        {"$set": {"title": new_title, "updated_at": now_iso, "revision": expected_revision + 1, "data": new_data, "edit_history": history}},
+    )
+    if res.matched_count == 0:
+        return None
+    updated_doc = coll.find_one({"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+    return _format_mongo_itin(updated_doc)
+
+
+def commit_undo_itinerary_collab(
+    itinerary_id: str,
+    expected_revision: int,
+    restored_title: str,
+    restored_data: Any,
+    remaining_history: List[Dict[str, Any]],
+    now_iso: str,
+) -> Optional[Dict[str, Any]]:
+    coll = _get_coll("auth_saved_itineraries")
+    res = coll.update_one(
+        {
+            "$and": [
+                {"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]},
+                {"$or": [{"revision": expected_revision}, {"revision": {"$exists": False}}]},
+            ]
+        },
+        {"$set": {"title": restored_title, "updated_at": now_iso, "revision": expected_revision + 1, "data": restored_data, "edit_history": remaining_history}},
+    )
+    if res.matched_count == 0:
+        return None
+    updated_doc = coll.find_one({"$or": [{"itinerary_id": itinerary_id}, {"_id": itinerary_id}]})
+    return _format_mongo_itin(updated_doc)
+
+
+def create_itinerary_invite(
+    invite_id: str,
+    itinerary_id: str,
+    token_hash: str,
+    role: str,
+    created_by: str,
+    created_at: str,
+    expires_at: str,
+) -> None:
+    coll = _get_coll("itinerary_invites")
+    coll.insert_one({
+        "_id": invite_id,
+        "invite_id": invite_id,
+        "itinerary_id": itinerary_id,
+        "token_hash": token_hash,
+        "role": role,
+        "created_by": created_by,
+        "created_at": created_at,
+        "expires_at": expires_at,
+        "revoked_at": None,
+        "use_count": 0,
+    })
+
+
+def list_itinerary_shares(itinerary_id: str, owner_user_id: str) -> Dict[str, Any]:
+    members_coll = _get_coll("itinerary_members")
+    invites_coll = _get_coll("itinerary_invites")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    m_docs = list(members_coll.find({"itinerary_id": itinerary_id, "revoked_at": None}))
+    members = [{"user_id": d["user_id"], "role": d["role"], "added_at": d.get("created_at")} for d in m_docs]
+    if owner_user_id and not any(m["user_id"] == owner_user_id for m in members):
+        members.insert(0, {"user_id": owner_user_id, "role": "OWNER", "added_at": None})
+
+    i_docs = list(invites_coll.find({"itinerary_id": itinerary_id}).sort("created_at", -1))
+    invites = []
+    for d in i_docs:
+        rev_at = d.get("revoked_at")
+        exp_at = d.get("expires_at", "")
+        status = "REVOKED" if rev_at else ("EXPIRED" if exp_at <= now_iso else "ACTIVE")
+        invites.append({
+            "invite_id": d.get("invite_id"),
+            "role": d.get("role"),
+            "created_at": d.get("created_at"),
+            "expires_at": exp_at,
+            "revoked_at": rev_at,
+            "use_count": int(d.get("use_count") or 0),
+            "status": status,
+        })
+    return {"itinerary_id": itinerary_id, "members": members, "invites": invites}
+
+
+def update_itinerary_member_role(itinerary_id: str, target_user_id: str, new_role: str) -> bool:
+    members_coll = _get_coll("itinerary_members")
+    res = members_coll.update_one(
+        {"itinerary_id": itinerary_id, "user_id": target_user_id, "revoked_at": None},
+        {"$set": {"role": new_role}},
+    )
+    return res.matched_count > 0
+
+
+def revoke_itinerary_member(itinerary_id: str, target_user_id: str, now_iso: str) -> bool:
+    members_coll = _get_coll("itinerary_members")
+    res = members_coll.update_one(
+        {"itinerary_id": itinerary_id, "user_id": target_user_id},
+        {"$set": {"revoked_at": now_iso}},
+    )
+    return res.matched_count > 0
+
+
+def revoke_itinerary_invite(itinerary_id: str, invite_id: str, now_iso: str) -> bool:
+    invites_coll = _get_coll("itinerary_invites")
+    res = invites_coll.update_one(
+        {"itinerary_id": itinerary_id, "invite_id": invite_id},
+        {"$set": {"revoked_at": now_iso}},
+    )
+    return res.matched_count > 0
+
+
+def accept_itinerary_invite(user_id: str, token_hash: str, now_iso: str) -> str:
+    from agents.itinerary_collab_service import ItineraryInviteError
+    invites_coll = _get_coll("itinerary_invites")
+    coll = _get_coll("auth_saved_itineraries")
+    members_coll = _get_coll("itinerary_members")
+
+    inv = invites_coll.find_one({"token_hash": token_hash})
+    if not inv:
+        raise ItineraryInviteError("Invitation token is invalid or unrecognized.", status_code=403)
+    if inv.get("revoked_at") is not None:
+        raise ItineraryInviteError("This invitation link has been revoked.", status_code=410)
+    if str(inv.get("expires_at", "")) <= now_iso:
+        raise ItineraryInviteError("This invitation link has expired.", status_code=410)
+
+    iid = inv["itinerary_id"]
+    doc = coll.find_one({"$or": [{"itinerary_id": iid}, {"_id": iid}]})
+    if not doc:
+        raise ItineraryInviteError("Invitation target no longer exists.", status_code=404)
+
+    if doc.get("user_id") != user_id:
+        members_coll.update_one(
+            {"itinerary_id": iid, "user_id": user_id},
+            {"$set": {"itinerary_id": iid, "user_id": user_id, "role": inv["role"], "added_by": inv.get("created_by"), "created_at": now_iso, "revoked_at": None}},
+            upsert=True,
+        )
+    invites_coll.update_one({"invite_id": inv["invite_id"]}, {"$inc": {"use_count": 1}})
+    return iid

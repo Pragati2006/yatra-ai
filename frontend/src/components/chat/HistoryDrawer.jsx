@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Trash2,
   Search,
+  Map,
   Ticket,
   Building2,
   Train,
@@ -137,6 +138,7 @@ export default function HistoryDrawer({
 
   const services = [
     { key: 'assistant', label: 'Assistant', icon: MessageSquare, description: 'AI Pilgrimage Companion' },
+    { key: 'itineraries', label: 'Itineraries', icon: Map, description: 'Saved Plans, Editing & Sharing' },
     { key: 'booking', label: 'Booking / Parchi', icon: Ticket, description: 'Yatra Pass & Guided Wizard' },
     { key: 'accommodation', label: 'Accommodation / Bhawans', icon: Building2, description: 'Shrine Board Bhawans & Stays' },
     { key: 'transport', label: 'Transport / Schedules', icon: Train, description: 'Trains, Buses, Flights & Helicopters' },

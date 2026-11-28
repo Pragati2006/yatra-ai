@@ -13,7 +13,7 @@ import { spacing } from '../theme/spacing';
 import Header from '../components/Header';
 import WeatherCard from '../components/WeatherCard';
 import { MountainIcon } from '../components/Icons';
-import { fetchWeather } from '../services/api';
+import { fetchWeather, getCachedWeather } from '../services/api';
 
 const ELEVATION_ZONES = [
   {
@@ -66,51 +66,52 @@ const ELEVATION_ZONES = [
   },
 ];
 
+const mergeZoneWeather = (zone, live) => {
+  if (!live || live.temperature === undefined) return zone;
+  return {
+    ...zone,
+    temperature: Math.round(live.temperature),
+    condition: live.condition || live.weather_code_desc || zone.condition,
+    humidity: live.humidity || zone.humidity,
+    windSpeed: live.wind_speed || zone.windSpeed,
+    precipitationProb: live.precipitation_prob || zone.precipitationProb,
+    advisory: live.advisory || zone.advisory,
+  };
+};
+
 export default function WeatherScreen({ navigation }) {
-  const [weatherData, setWeatherData] = useState(ELEVATION_ZONES);
-  const [loading, setLoading] = useState(false);
+  const [weatherData, setWeatherData] = useState(() =>
+    ELEVATION_ZONES.map((zone) => mergeZoneWeather(zone, getCachedWeather(zone.location)))
+  );
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadLiveWeather();
+    loadLiveWeather({ forceRefresh: false });
   }, []);
 
-  const loadLiveWeather = async () => {
-    setLoading(true);
+  const loadLiveWeather = async ({ forceRefresh = false } = {}) => {
     try {
       const updated = await Promise.all(
         ELEVATION_ZONES.map(async (zone) => {
           try {
-            const live = await fetchWeather(zone.location);
-            if (live && live.temperature !== undefined) {
-              return {
-                ...zone,
-                temperature: Math.round(live.temperature),
-                condition: live.condition || live.weather_code_desc || zone.condition,
-                humidity: live.humidity || zone.humidity,
-                windSpeed: live.wind_speed || zone.windSpeed,
-                precipitationProb: live.precipitation_prob || zone.precipitationProb,
-                advisory: live.advisory || zone.advisory,
-              };
-            }
+            const live = await fetchWeather(zone.location, { forceRefresh });
+            return mergeZoneWeather(zone, live);
           } catch (e) {
-            // Keep fallback
+            return zone;
           }
-          return zone;
         })
       );
       setWeatherData(updated);
     } catch (e) {
-      // Use defaults
+      // Keep cached/default zones
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadLiveWeather();
+    loadLiveWeather({ forceRefresh: true });
   };
 
   return (
@@ -134,26 +135,19 @@ export default function WeatherScreen({ navigation }) {
         </View>
       </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Sampling Open-Meteo elevation stations...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={weatherData}
-          keyExtractor={(item) => item.location}
-          renderItem={({ item }) => <WeatherCard data={item} />}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[colors.primary]}
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={weatherData}
+        keyExtractor={(item) => item.location}
+        renderItem={({ item }) => <WeatherCard data={item} />}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      />
     </View>
   );
 }
